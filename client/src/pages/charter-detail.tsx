@@ -125,7 +125,7 @@ export default function CharterDetail() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Charter Images */}
         <div className="mb-8">
@@ -214,7 +214,7 @@ export default function CharterDetail() {
               </CardHeader>
               <CardContent>
                 <p className="text-storm-gray mb-4">{charter.description}</p>
-                
+
                 {charter.boatSpecs && (
                   <div className="mb-4">
                     <h4 className="font-semibold flex items-center mb-2">
@@ -284,7 +284,7 @@ export default function CharterDetail() {
                   <CalendarIcon className="w-4 h-4 mr-2" />
                   Book Now
                 </Button>
-                
+
                 <Button 
                   variant="outline" 
                   className="w-full"
@@ -344,7 +344,7 @@ export default function CharterDetail() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="guests"
@@ -361,6 +361,7 @@ export default function CharterDetail() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem key="select-guests" value="select-guests">Number of guests</SelectItem>
                         {Array.from({ length: charter.maxGuests }, (_, i) => (
                           <SelectItem key={i + 1} value={(i + 1).toString()}>
                             {i + 1} {i === 0 ? "guest" : "guests"}
