@@ -352,6 +352,17 @@ export class MemStorage implements IStorage {
   }
 
   async getBookingsByCaptain(captainId: number): Promise<Booking[]> {
+    // Get all charters for this captain first
+    const captainCharters = Array.from(this.charters.values()).filter(charter => charter.captainId === captainId);
+    const charterIds = captainCharters.map(charter => charter.id);
+    
+    // Get all bookings for these charters
+    return Array.from(this.bookings.values()).filter(booking => 
+      charterIds.includes(booking.charterId)
+    );
+  }
+
+  async getBookingsByCaptain(captainId: number): Promise<Booking[]> {
     const charters = await this.getChartersByCaptain(captainId);
     const charterIds = charters.map(c => c.id);
     return Array.from(this.bookings.values()).filter(booking => 

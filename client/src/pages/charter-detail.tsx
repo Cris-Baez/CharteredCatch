@@ -80,8 +80,35 @@ export default function CharterDetail() {
     }
   };
 
-  const handleMessage = () => {
-    setLocation(`/messages?captainId=${charter?.captain.userId}`);
+  const handleMessage = async () => {
+    if (!charter) return;
+    
+    try {
+      // Create an initial message to start the conversation
+      const response = await fetch("/api/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          senderId: 1, // Mock user ID
+          receiverId: charter.captain.userId,
+          charterId: charter.id,
+          content: `Hi! I'm interested in your charter: ${charter.title}`,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create message");
+      }
+
+      // Redirect to messages page
+      setLocation("/messages");
+    } catch (error) {
+      console.error("Error creating message:", error);
+      // Fallback to just going to messages page
+      setLocation("/messages");
+    }
   };
 
   if (isLoading) {
@@ -353,7 +380,12 @@ export default function CharterDetail() {
                     <FormLabel>Number of Guests</FormLabel>
                     <Select 
                       value={field.value?.toString() || "1"}
-                      onValueChange={(value) => field.onChange(Number(value))}
+                      onValueChange={(value) => {
+                        const numValue = Number(value);
+                        if (!isNaN(numValue)) {
+                          field.onChange(numValue);
+                        }
+                      }}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -361,7 +393,6 @@ export default function CharterDetail() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem key="select-guests" value="select-guests">Number of guests</SelectItem>
                         {Array.from({ length: charter.maxGuests }, (_, i) => (
                           <SelectItem key={i + 1} value={(i + 1).toString()}>
                             {i + 1} {i === 0 ? "guest" : "guests"}
