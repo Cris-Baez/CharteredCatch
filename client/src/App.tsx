@@ -8,6 +8,8 @@ import CharterDetail from "@/pages/charter-detail";
 import SearchResults from "@/pages/search-results";
 import Messages from "@/pages/messages";
 import CaptainDashboard from "@/pages/captain-dashboard";
+import Assistant from "@/pages/assistant";
+import Help from "@/pages/help";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -18,6 +20,8 @@ function Router() {
       <Route path="/search" component={SearchResults} />
       <Route path="/messages" component={Messages} />
       <Route path="/captain/dashboard" component={CaptainDashboard} />
+      <Route path="/assistant" component={Assistant} />
+      <Route path="/help" component={Help} />
       <Route component={NotFound} />
     </Switch>
   );
