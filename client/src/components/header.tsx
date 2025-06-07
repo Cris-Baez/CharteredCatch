@@ -9,7 +9,7 @@ export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
 
   const navigation = [
-    { name: "How it works", href: "#how-it-works" },
+    { name: "Assistant", href: "#assistant" },
     { name: "Become a Captain", href: "/captain/dashboard" },
     { name: "Help", href: "#help" },
   ];
