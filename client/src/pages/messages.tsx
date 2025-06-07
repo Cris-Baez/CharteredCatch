@@ -21,12 +21,14 @@ export default function Messages() {
   });
 
   const { data: messages } = useQuery<Message[]>({
-    queryKey: ["/api/messages/thread", selectedThread?.participant.id],
+    queryKey: ["/api/messages/thread", CURRENT_USER_ID, selectedThread?.participant.id],
     queryFn: async () => {
       if (!selectedThread) return [];
-      const response = await fetch(
-        `/api/messages/thread?userId1=${CURRENT_USER_ID}&userId2=${selectedThread.participant.id}`
-      );
+      const params = new URLSearchParams({
+        userId1: CURRENT_USER_ID.toString(),
+        userId2: selectedThread.participant.id.toString(),
+      });
+      const response = await fetch(`/api/messages/thread?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch messages");
       return response.json();
     },
@@ -35,14 +37,30 @@ export default function Messages() {
 
   const sendMessageMutation = useMutation({
     mutationFn: async (data: { receiverId: number; content: string; charterId?: number }) => {
-      return apiRequest("POST", "/api/messages", {
-        senderId: CURRENT_USER_ID,
-        ...data,
+      const response = await fetch("/api/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          senderId: CURRENT_USER_ID,
+          ...data,
+        }),
       });
+      
+      if (!response.ok) {
+        throw new Error("Failed to send message");
+      }
+      
+      return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/messages/thread"] });
-      queryClient.invalidateQueries({ queryKey: [`/api/messages/threads/${CURRENT_USER_ID}`] });
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ 
+        queryKey: ["/api/messages/thread", CURRENT_USER_ID, variables.receiverId] 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/messages/threads/${CURRENT_USER_ID}`] 
+      });
     },
   });
 

@@ -38,6 +38,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/charters/captain/:captainId", async (req, res) => {
+    try {
+      const captainId = parseInt(req.params.captainId);
+      const charters = await storage.getChartersByCaptain(captainId);
+      res.json(charters);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch captain charters" });
+    }
+  });
+
   // Booking routes
   app.post("/api/bookings", async (req, res) => {
     try {
@@ -59,6 +69,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(bookings);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch bookings" });
+    }
+  });
+
+  app.get("/api/bookings/captain/:captainId", async (req, res) => {
+    try {
+      const captainId = parseInt(req.params.captainId);
+      // This would need to be implemented in storage
+      const bookings = await storage.getBookingsByCaptain(captainId);
+      res.json(bookings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch captain bookings" });
     }
   });
 

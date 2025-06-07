@@ -46,12 +46,38 @@ export default function CharterDetail() {
     },
   });
 
-  const handleBooking = (data: BookingForm) => {
-    // In a real app, this would create a booking
-    console.log("Booking data:", data);
-    setIsBookingOpen(false);
-    // Redirect to confirmation or messages
-    setLocation("/messages");
+  const handleBooking = async (data: BookingForm) => {
+    try {
+      const bookingData = {
+        userId: 1, // Mock user ID - in real app this would come from auth
+        charterId: charter.id,
+        tripDate: data.tripDate,
+        guests: data.guests,
+        totalPrice: charter.price,
+        status: "pending",
+        message: data.message || "",
+      };
+
+      const response = await fetch("/api/bookings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(bookingData),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create booking");
+      }
+
+      console.log("Booking created successfully");
+      setIsBookingOpen(false);
+      // Redirect to messages or confirmation
+      setLocation("/messages");
+    } catch (error) {
+      console.error("Error creating booking:", error);
+      // In a real app, show error message to user
+    }
   };
 
   const handleMessage = () => {
@@ -325,7 +351,10 @@ export default function CharterDetail() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Number of Guests</FormLabel>
-                    <Select onValueChange={(value) => field.onChange(Number(value))}>
+                    <Select 
+                      value={field.value?.toString() || "1"}
+                      onValueChange={(value) => field.onChange(Number(value))}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select guests" />

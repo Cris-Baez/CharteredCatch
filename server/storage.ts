@@ -51,7 +51,7 @@ export class MemStorage implements IStorage {
   private bookings: Map<number, Booking> = new Map();
   private messages: Map<number, Message> = new Map();
   private reviews: Map<number, Review> = new Map();
-  
+
   private currentUserId = 1;
   private currentCaptainId = 1;
   private currentCharterId = 1;
@@ -395,7 +395,7 @@ export class MemStorage implements IStorage {
       .filter(message => message.senderId === userId || message.receiverId === userId);
 
     const threadMap = new Map<number, Message[]>();
-    
+
     userMessages.forEach(message => {
       const otherUserId = message.senderId === userId ? message.receiverId : message.senderId;
       if (!threadMap.has(otherUserId)) {
@@ -411,7 +411,7 @@ export class MemStorage implements IStorage {
         const sortedMessages = messages.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
         const lastMessage = sortedMessages[0];
         const unreadCount = messages.filter(m => m.receiverId === userId && !m.read).length;
-        
+
         threads.push({
           participant,
           lastMessage,
@@ -438,10 +438,10 @@ export class MemStorage implements IStorage {
       createdAt: new Date(),
     };
     this.reviews.set(review.id, review);
-    
+
     // Update captain rating
     await this.updateCaptainRating(insertReview.captainId);
-    
+
     return review;
   }
 
@@ -452,7 +452,7 @@ export class MemStorage implements IStorage {
   async updateCaptainRating(captainId: number): Promise<void> {
     const reviews = await this.getReviewsByCaptain(captainId);
     const captain = this.captains.get(captainId);
-    
+
     if (captain && reviews.length > 0) {
       const avgRating = reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length;
       const updatedCaptain = {
