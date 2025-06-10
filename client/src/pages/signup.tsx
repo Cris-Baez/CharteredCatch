@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 
@@ -17,6 +18,7 @@ export default function Signup() {
     email: "",
     password: "",
     confirmPassword: "",
+    userRole: "fisherman",
     agreeToTerms: false
   });
 
@@ -34,8 +36,14 @@ export default function Signup() {
     }
     
     // TODO: Implement actual signup logic
-    alert("Signup functionality will be implemented with authentication system!");
-    setLocation("/");
+    alert(`Signup functionality will be implemented with authentication system! Signing up as ${formData.userRole}.`);
+    
+    // Route based on user role
+    if (formData.userRole === "captain") {
+      setLocation("/captain/dashboard");
+    } else {
+      setLocation("/");
+    }
   };
 
   const handleInputChange = (field: string, value: string | boolean) => {
@@ -54,6 +62,23 @@ export default function Signup() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSignup} className="space-y-4">
+              <div>
+                <Label>I am signing up as:</Label>
+                <RadioGroup 
+                  value={formData.userRole} 
+                  onValueChange={(value) => handleInputChange("userRole", value)} 
+                  className="mt-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="fisherman" id="fisherman-signup" />
+                    <Label htmlFor="fisherman-signup">Fisherman</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="captain" id="captain-signup" />
+                    <Label htmlFor="captain-signup">Charter Captain</Label>
+                  </div>
+                </RadioGroup>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="firstName">First Name</Label>
@@ -122,7 +147,7 @@ export default function Signup() {
               </div>
               
               <Button type="submit" className="w-full bg-ocean-blue hover:bg-blue-800">
-                Create Account
+                Create {formData.userRole === "captain" ? "Captain" : "Fisherman"} Account
               </Button>
             </form>
             

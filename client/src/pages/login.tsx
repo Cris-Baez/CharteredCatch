@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 
@@ -12,12 +13,19 @@ export default function Login() {
   const [, setLocation] = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [userRole, setUserRole] = useState("fisherman");
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     // TODO: Implement actual login logic
-    alert("Login functionality will be implemented with authentication system!");
-    setLocation("/");
+    alert(`Login functionality will be implemented with authentication system! Logging in as ${userRole}.`);
+    
+    // Route based on user role
+    if (userRole === "captain") {
+      setLocation("/captain/dashboard");
+    } else {
+      setLocation("/");
+    }
   };
 
   return (
@@ -32,6 +40,19 @@ export default function Login() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <Label>I am signing in as:</Label>
+                <RadioGroup value={userRole} onValueChange={setUserRole} className="mt-2">
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="fisherman" id="fisherman" />
+                    <Label htmlFor="fisherman">Fisherman</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="captain" id="captain" />
+                    <Label htmlFor="captain">Charter Captain</Label>
+                  </div>
+                </RadioGroup>
+              </div>
               <div>
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -55,7 +76,7 @@ export default function Login() {
                 />
               </div>
               <Button type="submit" className="w-full bg-ocean-blue hover:bg-blue-800">
-                Sign In
+                Sign In as {userRole === "captain" ? "Captain" : "Fisherman"}
               </Button>
             </form>
             

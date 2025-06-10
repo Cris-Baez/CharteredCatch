@@ -16,11 +16,13 @@ export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const fishingPhotos = [
-    'https://images.unsplash.com/photo-1544551763-46a013bb70d5?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2070&q=80',
-    'https://images.unsplash.com/photo-1559827260-dc66d52bef19?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80',
-    'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80',
-    'https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80',
-    'https://images.unsplash.com/photo-1581570732770-fc2d80d82353?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80'
+    '/attached_assets/image_1749589265116.png', // Deep sea fishing rods
+    '/attached_assets/image_1749589187411.png', // School of tropical fish
+    '/attached_assets/image_1749589159426.png', // Mahi-mahi jumping
+    '/attached_assets/image_1749589117238.png', // Underwater mahi-mahi
+    '/attached_assets/image_1749589049214.png', // Grouper underwater
+    '/attached_assets/image_1749588943897.png', // Wahoo with lure
+    '/attached_assets/image_1749588811332.png', // Marlin jumping
   ];
 
   useEffect(() => {
