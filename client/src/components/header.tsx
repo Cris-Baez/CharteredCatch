@@ -25,11 +25,12 @@ export default function Header() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link href="/">
-            <div className="flex items-center space-x-2 cursor-pointer">
-              <div className="w-8 h-8 ocean-gradient rounded-lg flex items-center justify-center">
-                <Ship className="text-white" size={16} />
-              </div>
-              <span className="text-xl font-bold text-ocean-blue">Charterly</span>
+            <div className="flex items-center cursor-pointer">
+              <img 
+                src="/attached_assets/IMG_2128_1749590320746.PNG" 
+                alt="Charterly Logo" 
+                className="h-10 w-auto object-contain"
+              />
             </div>
           </Link>
           

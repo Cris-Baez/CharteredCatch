@@ -8,11 +8,12 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Company Info */}
           <div className="col-span-1 md:col-span-2">
-            <div className="flex items-center space-x-2 mb-4">
-              <div className="w-10 h-10 ocean-gradient rounded-xl flex items-center justify-center">
-                <Ship className="text-white" size={20} />
-              </div>
-              <span className="text-2xl font-bold">Charterly</span>
+            <div className="flex items-center mb-4">
+              <img 
+                src="/attached_assets/IMG_2128_1749590320746.PNG" 
+                alt="Charterly Logo" 
+                className="h-12 w-auto object-contain brightness-0 invert"
+              />
             </div>
             <p className="text-gray-400 mb-4">
               The smarter way to book fishing charters. Connect with verified captains without the fees.
