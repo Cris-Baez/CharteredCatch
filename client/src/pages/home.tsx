@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/header";
@@ -13,6 +13,23 @@ import type { CharterWithCaptain } from "@shared/schema";
 
 export default function Home() {
   const [, setLocation] = useLocation();
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  const fishingPhotos = [
+    'https://images.unsplash.com/photo-1544551763-46a013bb70d5?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2070&q=80',
+    'https://images.unsplash.com/photo-1559827260-dc66d52bef19?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80',
+    'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80',
+    'https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80',
+    'https://images.unsplash.com/photo-1581570732770-fc2d80d82353?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80'
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % fishingPhotos.length);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [fishingPhotos.length]);
   
   const { data: featuredCharters, isLoading } = useQuery<CharterWithCaptain[]>({
     queryKey: ["/api/charters"],
@@ -31,15 +48,41 @@ export default function Home() {
     <div className="min-h-screen bg-background">
       <Header />
       
-      {/* Hero Section */}
-      <section className="relative">
-        <div 
-          className="h-96 md:h-[500px] bg-cover bg-center relative"
-          style={{
-            backgroundImage: `linear-gradient(rgba(30, 64, 175, 0.1), rgba(30, 64, 175, 0.3)), url('https://images.unsplash.com/photo-1544551763-46a013bb70d5?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2070&q=80')`
-          }}
-        >
-          <div className="absolute inset-0 flex items-center justify-center">
+      {/* Hero Section with Slideshow */}
+      <section className="relative overflow-hidden">
+        <div className="h-96 md:h-[500px] relative">
+          {/* Slideshow Images */}
+          {fishingPhotos.map((photo, index) => (
+            <div
+              key={index}
+              className={`absolute inset-0 transition-opacity duration-1000 ${
+                index === currentSlide ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              <div 
+                className="h-full bg-cover bg-center"
+                style={{
+                  backgroundImage: `linear-gradient(rgba(30, 64, 175, 0.2), rgba(30, 64, 175, 0.4)), url('${photo}')`
+                }}
+              />
+            </div>
+          ))}
+          
+          {/* Slide Indicators */}
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-20">
+            {fishingPhotos.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentSlide(index)}
+                className={`w-3 h-3 rounded-full transition-colors ${
+                  index === currentSlide ? 'bg-white' : 'bg-white/50'
+                }`}
+              />
+            ))}
+          </div>
+
+          {/* Content Overlay */}
+          <div className="absolute inset-0 flex items-center justify-center z-10">
             <div className="text-center text-white px-4 max-w-4xl">
               <h1 className="text-4xl md:text-6xl font-bold mb-4">
                 The Smarter Way to Book Fishing Charters

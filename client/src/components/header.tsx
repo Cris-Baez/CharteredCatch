@@ -63,28 +63,24 @@ export default function Header() {
                 Messages
               </Button>
             </Link>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="text-storm-gray hover:text-ocean-blue"
-              onClick={() => {
-                // Implement login functionality
-                window.alert("Login functionality will be implemented soon!");
-              }}
-            >
-              <User className="w-4 h-4 mr-2" />
-              Log in
-            </Button>
-            <Button 
-              size="sm"
-              className="bg-ocean-blue hover:bg-blue-800 text-white"
-              onClick={() => {
-                // Implement signup functionality
-                window.alert("Sign up functionality will be implemented soon!");
-              }}
-            >
-              Sign up
-            </Button>
+            <Link href="/login">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="text-storm-gray hover:text-ocean-blue"
+              >
+                <User className="w-4 h-4 mr-2" />
+                Log in
+              </Button>
+            </Link>
+            <Link href="/signup">
+              <Button 
+                size="sm"
+                className="bg-ocean-blue hover:bg-blue-800 text-white"
+              >
+                Sign up
+              </Button>
+            </Link>
           </div>
 
           {/* Mobile Menu */}
@@ -121,26 +117,22 @@ export default function Header() {
                       Messages
                     </Button>
                   </Link>
-                  <Button 
-                    variant="ghost" 
-                    className="w-full justify-start text-storm-gray hover:text-ocean-blue"
-                    onClick={() => {
-                      setIsOpen(false);
-                      window.alert("Login functionality will be implemented soon!");
-                    }}
-                  >
-                    <User className="w-4 h-4 mr-2" />
-                    Log in
-                  </Button>
-                  <Button 
-                    className="w-full bg-ocean-blue hover:bg-blue-800 text-white"
-                    onClick={() => {
-                      setIsOpen(false);
-                      window.alert("Sign up functionality will be implemented soon!");
-                    }}
-                  >
-                    Sign up
-                  </Button>
+                  <Link href="/login" onClick={() => setIsOpen(false)}>
+                    <Button 
+                      variant="ghost" 
+                      className="w-full justify-start text-storm-gray hover:text-ocean-blue"
+                    >
+                      <User className="w-4 h-4 mr-2" />
+                      Log in
+                    </Button>
+                  </Link>
+                  <Link href="/signup" onClick={() => setIsOpen(false)}>
+                    <Button 
+                      className="w-full bg-ocean-blue hover:bg-blue-800 text-white"
+                    >
+                      Sign up
+                    </Button>
+                  </Link>
                 </div>
               </div>
             </SheetContent>
