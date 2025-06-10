@@ -25,11 +25,12 @@ export default function Header() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link href="/">
-            <div className="flex items-center space-x-2 cursor-pointer">
-              <div className="w-10 h-10 ocean-gradient rounded-xl flex items-center justify-center">
-                <Ship className="text-white" size={20} />
-              </div>
-              <span className="text-2xl font-bold text-ocean-blue">Charterly</span>
+            <div className="flex items-center space-x-3 cursor-pointer">
+              <img 
+                src="/charterly-logo.png" 
+                alt="Charterly Logo" 
+                className="w-12 h-12 object-contain"
+              />
             </div>
           </Link>
           
@@ -66,6 +67,10 @@ export default function Header() {
               variant="ghost" 
               size="sm"
               className="text-storm-gray hover:text-ocean-blue"
+              onClick={() => {
+                // Implement login functionality
+                window.alert("Login functionality will be implemented soon!");
+              }}
             >
               <User className="w-4 h-4 mr-2" />
               Log in
@@ -73,6 +78,10 @@ export default function Header() {
             <Button 
               size="sm"
               className="bg-ocean-blue hover:bg-blue-800 text-white"
+              onClick={() => {
+                // Implement signup functionality
+                window.alert("Sign up functionality will be implemented soon!");
+              }}
             >
               Sign up
             </Button>
@@ -115,12 +124,20 @@ export default function Header() {
                   <Button 
                     variant="ghost" 
                     className="w-full justify-start text-storm-gray hover:text-ocean-blue"
+                    onClick={() => {
+                      setIsOpen(false);
+                      window.alert("Login functionality will be implemented soon!");
+                    }}
                   >
                     <User className="w-4 h-4 mr-2" />
                     Log in
                   </Button>
                   <Button 
                     className="w-full bg-ocean-blue hover:bg-blue-800 text-white"
+                    onClick={() => {
+                      setIsOpen(false);
+                      window.alert("Sign up functionality will be implemented soon!");
+                    }}
                   >
                     Sign up
                   </Button>
