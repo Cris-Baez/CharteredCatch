@@ -99,6 +99,23 @@ export default function Home() {
               </p>
               
               <SearchBar onSearch={handleSearch} />
+              
+              <div className="mt-6">
+                <Dialog open={assistantOpen} onOpenChange={setAssistantOpen}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20"
+                    >
+                      <Bot className="w-4 h-4 mr-2" />
+                      Need Help Choosing? Ask Our Fishing Assistant
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                    <FishingAssistant onClose={() => setAssistantOpen(false)} />
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
           </div>
         </div>
