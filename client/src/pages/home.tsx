@@ -5,24 +5,29 @@ import Header from "@/components/header";
 import Footer from "@/components/footer";
 import SearchBar from "@/components/search-bar";
 import CharterCard from "@/components/charter-card";
+import FishingAssistant from "@/components/fishing-assistant";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Clock, Users, Search, MessageCircle, Calendar, Shield, DollarSign, Headphones } from "lucide-react";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { MapPin, Clock, Users, Search, MessageCircle, Calendar, Shield, DollarSign, Headphones, Bot } from "lucide-react";
 import type { CharterWithCaptain } from "@shared/schema";
 
 export default function Home() {
   const [, setLocation] = useLocation();
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [assistantOpen, setAssistantOpen] = useState(false);
 
   const fishingPhotos = [
-    '/attached_assets/image_1749589265116.png', // Deep sea fishing rods
-    '/attached_assets/image_1749589187411.png', // School of tropical fish
-    '/attached_assets/image_1749589159426.png', // Mahi-mahi jumping
-    '/attached_assets/image_1749589117238.png', // Underwater mahi-mahi
-    '/attached_assets/image_1749589049214.png', // Grouper underwater
-    '/attached_assets/image_1749588943897.png', // Wahoo with lure
-    '/attached_assets/image_1749588811332.png', // Marlin jumping
+    { src: '/attached_assets/image_1749589520368.png', alt: 'Deep sea fishing with colorful rods and reels' },
+    { src: '/attached_assets/image_1749589534565.png', alt: 'School of tropical yellowtail fish underwater' },
+    { src: '/attached_assets/image_1749589548395.png', alt: 'Mahi-mahi jumping out of crystal blue water' },
+    { src: '/attached_assets/image_1749589560449.png', alt: 'Underwater view of mahi-mahi swimming' },
+    { src: '/attached_assets/image_1749589578771.png', alt: 'Large grouper fish underwater with net' },
+    { src: '/attached_assets/image_1749589593403.png', alt: 'Wahoo fish with fishing lure in mouth' },
+    { src: '/attached_assets/image_1749589611134.png', alt: 'Marlin jumping and fighting on fishing line' },
+    { src: '/attached_assets/image_1749589681877.png', alt: 'Sailfish underwater with spread fins' },
+    { src: '/attached_assets/image_1749589763057.png', alt: 'Striped marlin hunting through school of baitfish' },
   ];
 
   useEffect(() => {
@@ -64,7 +69,7 @@ export default function Home() {
               <div 
                 className="h-full bg-cover bg-center"
                 style={{
-                  backgroundImage: `linear-gradient(rgba(30, 64, 175, 0.2), rgba(30, 64, 175, 0.4)), url('${photo}')`
+                  backgroundImage: `linear-gradient(rgba(30, 64, 175, 0.2), rgba(30, 64, 175, 0.4)), url('${photo.src}')`
                 }}
               />
             </div>

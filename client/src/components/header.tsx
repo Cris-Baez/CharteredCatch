@@ -25,17 +25,16 @@ export default function Header() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link href="/">
-            <div className="flex items-center space-x-3 cursor-pointer">
-              <img 
-                src="/charterly-logo.png" 
-                alt="Charterly Logo" 
-                className="w-12 h-12 object-contain"
-              />
+            <div className="flex items-center space-x-2 cursor-pointer">
+              <div className="w-8 h-8 ocean-gradient rounded-lg flex items-center justify-center">
+                <Ship className="text-white" size={16} />
+              </div>
+              <span className="text-xl font-bold text-ocean-blue">Charterly</span>
             </div>
           </Link>
           
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-12 ml-12">
+          <div className="hidden md:flex items-center space-x-8">
             {navigation.map((item) => (
               <Link
                 key={item.name}
