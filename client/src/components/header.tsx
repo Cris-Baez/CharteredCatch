@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Ship, Menu, MessageCircle, User } from "lucide-react";
 
+
 export default function Header() {
   const [location] = useLocation();
   const [isOpen, setIsOpen] = useState(false);

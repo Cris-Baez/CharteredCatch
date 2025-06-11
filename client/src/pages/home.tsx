@@ -13,21 +13,32 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { MapPin, Clock, Users, Search, MessageCircle, Calendar, Shield, DollarSign, Headphones, Bot } from "lucide-react";
 import type { CharterWithCaptain } from "@shared/schema";
 
+// Import fishing photos
+import photo1 from "@assets/image_1749589520368.png";
+import photo2 from "@assets/image_1749589534565.png";
+import photo3 from "@assets/image_1749589548395.png";
+import photo4 from "@assets/image_1749589560449.png";
+import photo5 from "@assets/image_1749589578771.png";
+import photo6 from "@assets/image_1749589593403.png";
+import photo7 from "@assets/image_1749589611134.png";
+import photo8 from "@assets/image_1749589681877.png";
+import photo9 from "@assets/image_1749589763057.png";
+
 export default function Home() {
   const [, setLocation] = useLocation();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [assistantOpen, setAssistantOpen] = useState(false);
 
   const fishingPhotos = [
-    { src: '/attached_assets/image_1749589520368.png', alt: 'Deep sea fishing with colorful rods and reels' },
-    { src: '/attached_assets/image_1749589534565.png', alt: 'School of tropical yellowtail fish underwater' },
-    { src: '/attached_assets/image_1749589548395.png', alt: 'Mahi-mahi jumping out of crystal blue water' },
-    { src: '/attached_assets/image_1749589560449.png', alt: 'Underwater view of mahi-mahi swimming' },
-    { src: '/attached_assets/image_1749589578771.png', alt: 'Large grouper fish underwater with net' },
-    { src: '/attached_assets/image_1749589593403.png', alt: 'Wahoo fish with fishing lure in mouth' },
-    { src: '/attached_assets/image_1749589611134.png', alt: 'Marlin jumping and fighting on fishing line' },
-    { src: '/attached_assets/image_1749589681877.png', alt: 'Sailfish underwater with spread fins' },
-    { src: '/attached_assets/image_1749589763057.png', alt: 'Striped marlin hunting through school of baitfish' },
+    { src: photo1, alt: 'Deep sea fishing with colorful rods and reels' },
+    { src: photo2, alt: 'School of tropical yellowtail fish underwater' },
+    { src: photo3, alt: 'Mahi-mahi jumping out of crystal blue water' },
+    { src: photo4, alt: 'Underwater view of mahi-mahi swimming' },
+    { src: photo5, alt: 'Large grouper fish underwater with net' },
+    { src: photo6, alt: 'Wahoo fish with fishing lure in mouth' },
+    { src: photo7, alt: 'Marlin jumping and fighting on fishing line' },
+    { src: photo8, alt: 'Sailfish underwater with spread fins' },
+    { src: photo9, alt: 'Striped marlin hunting through school of baitfish' },
   ];
 
   useEffect(() => {
