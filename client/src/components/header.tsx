@@ -27,45 +27,11 @@ export default function Header() {
           {/* Logo */}
           <Link href="/">
             <div className="flex items-center cursor-pointer">
-              <svg 
-                viewBox="0 0 300 80" 
-                className="h-10 w-auto"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                {/* Boat Icon */}
-                <g transform="translate(10, 15)">
-                  <path 
-                    d="M5 35 L45 35 L50 25 L50 15 L40 15 L40 20 L30 20 L30 15 L20 15 L20 20 L10 20 L10 25 Z" 
-                    fill="#1E40AF" 
-                    stroke="#1E40AF" 
-                    strokeWidth="1"
-                  />
-                  <path 
-                    d="M15 15 L15 5 M25 15 L25 3 M35 15 L35 5" 
-                    stroke="#1E40AF" 
-                    strokeWidth="2" 
-                    strokeLinecap="round"
-                  />
-                  <path 
-                    d="M0 40 Q25 45 50 40" 
-                    stroke="#1E40AF" 
-                    strokeWidth="2" 
-                    fill="none"
-                  />
-                </g>
-                
-                {/* Charterly Text */}
-                <text 
-                  x="70" 
-                  y="45" 
-                  fontSize="28" 
-                  fontWeight="bold" 
-                  fill="#1E3A8A"
-                  fontFamily="system-ui, sans-serif"
-                >
-                  Charterly
-                </text>
-              </svg>
+              <img 
+                src="/attached_assets/IMG_2128-Photoroom_1749772590031.png" 
+                alt="Charterly Logo" 
+                className="h-10 w-auto object-contain"
+              />
             </div>
           </Link>
           
