@@ -22,100 +22,15 @@ export default function Home() {
   const [assistantOpen, setAssistantOpen] = useState(false);
 
   const fishingPhotos = [
-    { 
-      src: `data:image/svg+xml,${encodeURIComponent(`
-        <svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="ocean1" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" style="stop-color:#87CEEB"/>
-              <stop offset="50%" style="stop-color:#4682B4"/>
-              <stop offset="100%" style="stop-color:#191970"/>
-            </linearGradient>
-          </defs>
-          <rect width="800" height="400" fill="url(#ocean1)"/>
-          <path d="M0,200 Q200,150 400,200 T800,200 L800,400 L0,400 Z" fill="#1E3A8A" opacity="0.3"/>
-          <circle cx="650" cy="100" r="40" fill="#FFD700" opacity="0.8"/>
-          <path d="M100,250 Q150,200 200,250 Q250,300 300,250" stroke="#FF6B6B" stroke-width="4" fill="none"/>
-          <rect x="90" y="240" width="20" height="8" fill="#8B4513"/>
-        </svg>
-      `)}`, 
-      alt: 'Deep sea fishing with colorful rods and reels' 
-    },
-    { 
-      src: `data:image/svg+xml,${encodeURIComponent(`
-        <svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="ocean2" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" style="stop-color:#40E0D0"/>
-              <stop offset="100%" style="stop-color:#008B8B"/>
-            </linearGradient>
-          </defs>
-          <rect width="800" height="400" fill="url(#ocean2)"/>
-          <ellipse cx="200" cy="200" rx="25" ry="15" fill="#FFD700"/>
-          <ellipse cx="250" cy="180" rx="25" ry="15" fill="#FFD700"/>
-          <ellipse cx="300" cy="220" rx="25" ry="15" fill="#FFD700"/>
-          <ellipse cx="350" cy="200" rx="25" ry="15" fill="#FFD700"/>
-          <ellipse cx="400" cy="190" rx="25" ry="15" fill="#FFD700"/>
-        </svg>
-      `)}`, 
-      alt: 'School of tropical yellowtail fish underwater' 
-    },
-    { 
-      src: `data:image/svg+xml,${encodeURIComponent(`
-        <svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="ocean3" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" style="stop-color:#87CEEB"/>
-              <stop offset="100%" style="stop-color:#4169E1"/>
-            </linearGradient>
-          </defs>
-          <rect width="800" height="400" fill="url(#ocean3)"/>
-          <path d="M300,250 Q350,200 400,250 Q450,300 500,250" fill="#32CD32" opacity="0.6"/>
-          <ellipse cx="400" cy="230" rx="40" ry="20" fill="#32CD32"/>
-          <path d="M380,225 L420,225 L430,215 L420,235 Z" fill="#228B22"/>
-          <circle cx="390" cy="225" r="3" fill="#000"/>
-          <path d="M400,180 L420,160 L440,180" stroke="#FFF" stroke-width="3" fill="none"/>
-        </svg>
-      `)}`, 
-      alt: 'Mahi-mahi jumping out of crystal blue water' 
-    },
-    { 
-      src: `data:image/svg+xml,${encodeURIComponent(`
-        <svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="ocean4" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" style="stop-color:#00CED1"/>
-              <stop offset="100%" style="stop-color:#008080"/>
-            </linearGradient>
-          </defs>
-          <rect width="800" height="400" fill="url(#ocean4)"/>
-          <ellipse cx="400" cy="200" rx="60" ry="30" fill="#32CD32" opacity="0.8"/>
-          <ellipse cx="350" cy="190" rx="15" ry="25" fill="#228B22"/>
-          <circle cx="350" cy="185" r="4" fill="#000"/>
-          <path d="M320,190 Q340,180 360,190" fill="#228B22"/>
-        </svg>
-      `)}`, 
-      alt: 'Underwater view of mahi-mahi swimming' 
-    },
-    { 
-      src: `data:image/svg+xml,${encodeURIComponent(`
-        <svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="ocean5" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" style="stop-color:#4682B4"/>
-              <stop offset="100%" style="stop-color:#2F4F4F"/>
-            </linearGradient>
-          </defs>
-          <rect width="800" height="400" fill="url(#ocean5)"/>
-          <ellipse cx="400" cy="250" rx="80" ry="40" fill="#8B4513"/>
-          <ellipse cx="350" cy="240" rx="20" ry="30" fill="#A0522D"/>
-          <circle cx="350" cy="230" r="5" fill="#000"/>
-          <path d="M300,240 Q330,220 360,240" fill="#A0522D"/>
-          <path d="M100,100 Q400,150 700,100" stroke="#C0C0C0" stroke-width="2" fill="none" opacity="0.6"/>
-        </svg>
-      `)}`, 
-      alt: 'Large grouper fish underwater with net' 
-    }
+    { src: "/attached_assets/image_1749588712878.png", alt: 'Deep sea fishing adventure' },
+    { src: "/attached_assets/image_1749588811332.png", alt: 'Tropical fishing charter' },
+    { src: "/attached_assets/image_1749588943897.png", alt: 'Ocean fishing expedition' },
+    { src: "/attached_assets/image_1749589049214.png", alt: 'Sport fishing charter' },
+    { src: "/attached_assets/image_1749589117238.png", alt: 'Deep sea angling' },
+    { src: "/attached_assets/image_1749589187411.png", alt: 'Charter boat fishing' },
+    { src: "/attached_assets/image_1749589265116.png", alt: 'Offshore fishing trip' },
+    { src: "/attached_assets/image_1749589503390.png", alt: 'Professional fishing guide' },
+    { src: "/attached_assets/image_1749589520368.png", alt: 'Saltwater fishing charter' }
   ];
 
   useEffect(() => {
