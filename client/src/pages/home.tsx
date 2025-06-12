@@ -28,7 +28,10 @@ export default function Home() {
     { src: "/attached_assets/image_1749589049214.png", alt: 'Mahi mahi jumping out of water' },
     { src: "/attached_assets/image_1749589117238.png", alt: 'Underwater view of mahi mahi' },
     { src: "/attached_assets/image_1749589187411.png", alt: 'Large wahoo with fishing lure' },
-    { src: "/attached_assets/image_1749589265116.png", alt: 'Marlin jumping and fighting' }
+    { src: "/attached_assets/image_1749589265116.png", alt: 'Marlin jumping and fighting' },
+    { src: "/attached_assets/image_1749589578771.png", alt: 'Large grouper underwater' },
+    { src: "/attached_assets/image_1749589681877.png", alt: 'Swordfish in deep blue water' },
+    { src: "/attached_assets/image_1749589763057.png", alt: 'Striped marlin hunting through baitfish' }
   ];
 
   useEffect(() => {
