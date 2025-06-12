@@ -13,16 +13,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { MapPin, Clock, Users, Search, MessageCircle, Calendar, Shield, DollarSign, Headphones, Bot } from "lucide-react";
 import type { CharterWithCaptain } from "@shared/schema";
 
-// Import fishing photos
-import photo1 from "@assets/image_1749589520368.png";
-import photo2 from "@assets/image_1749589534565.png";
-import photo3 from "@assets/image_1749589548395.png";
-import photo4 from "@assets/image_1749589560449.png";
-import photo5 from "@assets/image_1749589578771.png";
-import photo6 from "@assets/image_1749589593403.png";
-import photo7 from "@assets/image_1749589611134.png";
-import photo8 from "@assets/image_1749589681877.png";
-import photo9 from "@assets/image_1749589763057.png";
+
 
 export default function Home() {
   const [, setLocation] = useLocation();
