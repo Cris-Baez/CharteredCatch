@@ -13,6 +13,15 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { MapPin, Clock, Users, Search, MessageCircle, Calendar, Shield, DollarSign, Headphones, Bot } from "lucide-react";
 import type { CharterWithCaptain } from "@shared/schema";
 
+import photo1 from "@/../attached_assets/photo1.png";
+import photo2 from "@/../attached_assets/photo2.png";
+import photo3 from "@/../attached_assets/photo3.png";
+import photo4 from "@/../attached_assets/photo4.png";
+import photo5 from "@/../attached_assets/photo5.png";
+import photo6 from "@/../attached_assets/photo6.png";
+import photo7 from "@/../attached_assets/photo7.png";
+import photo8 from "@/../attached_assets/photo8.png";
+import photo9 from "@/../attached_assets/photo9.png";
 
 
 export default function Home() {
@@ -39,7 +48,7 @@ export default function Home() {
 
     return () => clearInterval(interval);
   }, [fishingPhotos.length]);
-  
+
   const { data: featuredCharters, isLoading } = useQuery<CharterWithCaptain[]>({
     queryKey: ["/api/charters"],
   });
@@ -49,14 +58,14 @@ export default function Home() {
     if (filters.location) searchParams.set("location", filters.location);
     if (filters.targetSpecies) searchParams.set("targetSpecies", filters.targetSpecies);
     if (filters.duration) searchParams.set("duration", filters.duration);
-    
+
     setLocation(`/search?${searchParams.toString()}`);
   };
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       {/* Hero Section with Slideshow */}
       <section className="relative overflow-hidden">
         <div className="h-96 md:h-[500px] relative">
@@ -76,7 +85,7 @@ export default function Home() {
               />
             </div>
           ))}
-          
+
           {/* Slide Indicators */}
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-20">
             {fishingPhotos.map((_, index) => (
@@ -99,9 +108,9 @@ export default function Home() {
               <p className="text-xl md:text-2xl mb-8 text-gray-100">
                 Connect with verified captains. No hidden fees. Book your perfect fishing adventure.
               </p>
-              
+
               <SearchBar onSearch={handleSearch} />
-              
+
               <div className="mt-6">
                 <Dialog open={assistantOpen} onOpenChange={setAssistantOpen}>
                   <DialogTrigger asChild>
@@ -268,7 +277,7 @@ export default function Home() {
           <p className="text-xl text-storm-gray mb-8">
             Join Charterly and keep 100% of your earnings. No commissions, just more bookings.
           </p>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <Card>
               <CardContent className="p-6 text-center">
@@ -292,7 +301,7 @@ export default function Home() {
               </CardContent>
             </Card>
           </div>
-          
+
           <Button 
             size="lg" 
             className="bg-ocean-blue hover:bg-blue-800 text-white"
