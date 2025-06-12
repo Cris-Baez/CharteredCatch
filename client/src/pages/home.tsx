@@ -22,16 +22,16 @@ export default function Home() {
   const [assistantOpen, setAssistantOpen] = useState(false);
 
   const fishingPhotos = [
-    { src: "/attached_assets/image_1749588712878.png", alt: 'Deep sea fishing with trolling rods' },
-    { src: "/attached_assets/image_1749588811332.png", alt: 'Family with large barracuda catch' },
+    { src: "/attached_assets/image_1749589187411.png", alt: 'Large wahoo with fishing lure' },
     { src: "/attached_assets/image_1749588943897.png", alt: 'School of yellowtail fish underwater' },
     { src: "/attached_assets/image_1749589049214.png", alt: 'Mahi mahi jumping out of water' },
     { src: "/attached_assets/image_1749589117238.png", alt: 'Underwater view of mahi mahi' },
-    { src: "/attached_assets/image_1749589187411.png", alt: 'Large wahoo with fishing lure' },
     { src: "/attached_assets/image_1749589265116.png", alt: 'Marlin jumping and fighting' },
     { src: "/attached_assets/image_1749589578771.png", alt: 'Large grouper underwater' },
     { src: "/attached_assets/image_1749589681877.png", alt: 'Swordfish in deep blue water' },
-    { src: "/attached_assets/image_1749589763057.png", alt: 'Striped marlin hunting through baitfish' }
+    { src: "/attached_assets/image_1749589763057.png", alt: 'Striped marlin hunting through baitfish' },
+    { src: "/attached_assets/image_1749588712878.png", alt: 'Deep sea fishing with trolling rods' },
+    { src: "/attached_assets/image_1749588811332.png", alt: 'Family with large barracuda catch' }
   ];
 
   useEffect(() => {
