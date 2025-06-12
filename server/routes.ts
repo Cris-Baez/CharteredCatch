@@ -3,8 +3,12 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import { insertBookingSchema, insertMessageSchema, insertReviewSchema } from "@shared/schema";
+import path from "path";
+import express from "express";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Serve attached assets
+  app.use("/attached_assets", express.static(path.join(process.cwd(), "attached_assets")));
   // Charter routes
   app.get("/api/charters", async (req, res) => {
     try {
