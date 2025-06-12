@@ -22,15 +22,26 @@ export default function Home() {
   const [assistantOpen, setAssistantOpen] = useState(false);
 
   const fishingPhotos = [
-    { src: "/attached_assets/image_1749588712878.png", alt: 'Deep sea fishing adventure' },
+    { src: "/attached_assets/IMG_2128_1749268881907.png", alt: 'Charter fishing boat' },
+    { src: "/attached_assets/IMG_2128_1749588309511.PNG", alt: 'Deep sea fishing vessel' },
+    { src: "/attached_assets/IMG_2128_1749590320746.PNG", alt: 'Professional charter boat' },
+    { src: "/attached_assets/image_1749588712878.png", alt: 'Ocean fishing adventure' },
     { src: "/attached_assets/image_1749588811332.png", alt: 'Tropical fishing charter' },
-    { src: "/attached_assets/image_1749588943897.png", alt: 'Ocean fishing expedition' },
+    { src: "/attached_assets/image_1749588943897.png", alt: 'Deep sea expedition' },
     { src: "/attached_assets/image_1749589049214.png", alt: 'Sport fishing charter' },
-    { src: "/attached_assets/image_1749589117238.png", alt: 'Deep sea angling' },
+    { src: "/attached_assets/image_1749589117238.png", alt: 'Offshore angling' },
     { src: "/attached_assets/image_1749589187411.png", alt: 'Charter boat fishing' },
-    { src: "/attached_assets/image_1749589265116.png", alt: 'Offshore fishing trip' },
-    { src: "/attached_assets/image_1749589503390.png", alt: 'Professional fishing guide' },
-    { src: "/attached_assets/image_1749589520368.png", alt: 'Saltwater fishing charter' }
+    { src: "/attached_assets/image_1749589265116.png", alt: 'Professional fishing guide' },
+    { src: "/attached_assets/image_1749589503390.png", alt: 'Saltwater fishing trip' },
+    { src: "/attached_assets/image_1749589520368.png", alt: 'Deep sea charter' },
+    { src: "/attached_assets/image_1749589534565.png", alt: 'Ocean fishing expedition' },
+    { src: "/attached_assets/image_1749589548395.png", alt: 'Fishing charter adventure' },
+    { src: "/attached_assets/image_1749589560449.png", alt: 'Sport fishing boat' },
+    { src: "/attached_assets/image_1749589578771.png", alt: 'Charter fishing experience' },
+    { src: "/attached_assets/image_1749589593403.png", alt: 'Professional fishing charter' },
+    { src: "/attached_assets/image_1749589611134.png", alt: 'Deep sea fishing adventure' },
+    { src: "/attached_assets/image_1749589681877.png", alt: 'Offshore fishing charter' },
+    { src: "/attached_assets/image_1749589763057.png", alt: 'Saltwater charter fishing' }
   ];
 
   useEffect(() => {
