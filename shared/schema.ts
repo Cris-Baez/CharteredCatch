@@ -1,22 +1,43 @@
-import { pgTable, text, serial, integer, boolean, timestamp, decimal } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  serial,
+  integer,
+  boolean,
+  timestamp,
+  decimal,
+  varchar,
+  jsonb,
+  index,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Session storage table for Replit Auth
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+// User storage table for Replit Auth
 export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  email: text("email").notNull().unique(),
-  firstName: text("first_name").notNull(),
-  lastName: text("last_name").notNull(),
-  phone: text("phone"),
-  isCaptin: boolean("is_captain").default(false),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  id: varchar("id").primaryKey().notNull(),
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const captains = pgTable("captains", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
   bio: text("bio").notNull(),
   experience: text("experience").notNull(),
   licenseNumber: text("license_number").notNull(),
@@ -45,7 +66,7 @@ export const charters = pgTable("charters", {
 
 export const bookings = pgTable("bookings", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
   charterId: integer("charter_id").references(() => charters.id).notNull(),
   tripDate: timestamp("trip_date").notNull(),
   guests: integer("guests").notNull(),
@@ -57,8 +78,8 @@ export const bookings = pgTable("bookings", {
 
 export const messages = pgTable("messages", {
   id: serial("id").primaryKey(),
-  senderId: integer("sender_id").references(() => users.id).notNull(),
-  receiverId: integer("receiver_id").references(() => users.id).notNull(),
+  senderId: varchar("sender_id").references(() => users.id).notNull(),
+  receiverId: varchar("receiver_id").references(() => users.id).notNull(),
   charterId: integer("charter_id").references(() => charters.id),
   content: text("content").notNull(),
   read: boolean("read").default(false),
@@ -67,7 +88,7 @@ export const messages = pgTable("messages", {
 
 export const reviews = pgTable("reviews", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
   captainId: integer("captain_id").references(() => captains.id).notNull(),
   charterId: integer("charter_id").references(() => charters.id).notNull(),
   rating: integer("rating").notNull(),
@@ -77,8 +98,8 @@ export const reviews = pgTable("reviews", {
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
-  id: true,
   createdAt: true,
+  updatedAt: true,
 });
 
 export const insertCaptainSchema = createInsertSchema(captains).omit({
@@ -116,6 +137,7 @@ export type Message = typeof messages.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type UpsertUser = typeof users.$inferInsert;
 export type InsertCaptain = z.infer<typeof insertCaptainSchema>;
 export type InsertCharter = z.infer<typeof insertCharterSchema>;
 export type InsertBooking = z.infer<typeof insertBookingSchema>;
