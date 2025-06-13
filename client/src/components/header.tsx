@@ -30,7 +30,7 @@ export default function Header() {
               <img 
                 src="/attached_assets/IMG_2128-Photoroom_1749772590031.png" 
                 alt="Charterly Logo" 
-                className="h-18 w-auto object-contain"
+                className="h-14 w-auto object-contain"
               />
             </div>
           </Link>
