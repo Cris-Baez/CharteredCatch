@@ -3,12 +3,28 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import { insertBookingSchema, insertMessageSchema, insertReviewSchema } from "@shared/schema";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 import path from "path";
 import express from "express";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup authentication
+  await setupAuth(app);
+
   // Serve attached assets
   app.use("/attached_assets", express.static(path.join(process.cwd(), "attached_assets")));
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
   // Charter routes
   app.get("/api/charters", async (req, res) => {
     try {

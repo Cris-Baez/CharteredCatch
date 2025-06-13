@@ -144,24 +144,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async searchCharters(filters: { location?: string; targetSpecies?: string; duration?: string }): Promise<CharterWithCaptain[]> {
-    let query = db
+    const conditions = [eq(charters.available, true)];
+    
+    if (filters.location) {
+      conditions.push(ilike(charters.location, `%${filters.location}%`));
+    }
+    if (filters.targetSpecies) {
+      conditions.push(ilike(charters.targetSpecies, `%${filters.targetSpecies}%`));
+    }
+    if (filters.duration) {
+      conditions.push(eq(charters.duration, filters.duration));
+    }
+
+    const results = await db
       .select()
       .from(charters)
       .leftJoin(captains, eq(charters.captainId, captains.id))
       .leftJoin(users, eq(captains.userId, users.id))
-      .where(eq(charters.available, true));
-
-    if (filters.location) {
-      query = query.where(ilike(charters.location, `%${filters.location}%`));
-    }
-    if (filters.targetSpecies) {
-      query = query.where(ilike(charters.targetSpecies, `%${filters.targetSpecies}%`));
-    }
-    if (filters.duration) {
-      query = query.where(eq(charters.duration, filters.duration));
-    }
-
-    const results = await query;
+      .where(and(...conditions));
 
     const chartersWithReviews = await Promise.all(
       results.map(async (result) => {
@@ -279,22 +279,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMessageThread(userId1: string, userId2: string, charterId?: number): Promise<Message[]> {
-    let query = db
-      .select()
-      .from(messages)
-      .where(
-        or(
-          and(eq(messages.senderId, userId1), eq(messages.receiverId, userId2)),
-          and(eq(messages.senderId, userId2), eq(messages.receiverId, userId1))
-        )
+    const conditions = [
+      or(
+        and(eq(messages.senderId, userId1), eq(messages.receiverId, userId2)),
+        and(eq(messages.senderId, userId2), eq(messages.receiverId, userId1))
       )
-      .orderBy(messages.createdAt);
+    ];
 
     if (charterId) {
-      query = query.where(eq(messages.charterId, charterId));
+      conditions.push(eq(messages.charterId, charterId));
     }
 
-    return await query;
+    return await db
+      .select()
+      .from(messages)
+      .where(and(...conditions))
+      .orderBy(messages.createdAt);
   }
 
   async getMessageThreads(userId: string): Promise<MessageThread[]> {
