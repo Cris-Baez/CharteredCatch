@@ -41,19 +41,19 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <a href="#how-it-works" className="hover:text-white transition-colors">
+                <Link href="/how-it-works" className="hover:text-white transition-colors">
                   How it Works
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#safety" className="hover:text-white transition-colors">
+                <Link href="/safety-guidelines" className="hover:text-white transition-colors">
                   Safety Guidelines
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#help" className="hover:text-white transition-colors">
+                <Link href="/help" className="hover:text-white transition-colors">
                   Help Center
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -68,19 +68,19 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <a href="#resources" className="hover:text-white transition-colors">
+                <Link href="/captain-resources" className="hover:text-white transition-colors">
                   Captain Resources
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#safety" className="hover:text-white transition-colors">
+                <Link href="/safety-standards" className="hover:text-white transition-colors">
                   Safety Standards
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#support" className="hover:text-white transition-colors">
+                <Link href="/support" className="hover:text-white transition-colors">
                   Support
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
