@@ -42,7 +42,7 @@ export default function Support() {
               <Mail className="text-ocean-blue mx-auto mb-4" size={40} />
               <h3 className="font-semibold text-lg mb-2">Email Support</h3>
               <p className="text-storm-gray text-sm mb-4">Get detailed help via email</p>
-              <p className="font-semibold text-ocean-blue">support@charterly.com</p>
+              <p className="font-semibold text-ocean-blue break-words">help@charterly.com</p>
               <p className="text-storm-gray text-xs">Response within 2 hours</p>
             </CardContent>
           </Card>
