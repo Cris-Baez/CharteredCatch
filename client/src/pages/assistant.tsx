@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { useLocation } from "wouter";
 import Header from "@/components/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Bot, Send, Fish, MapPin, Clock, Users } from "lucide-react";
 
 export default function Assistant() {
+  const [, setLocation] = useLocation();
   const [message, setMessage] = useState("");
   const [conversation, setConversation] = useState<Array<{
     type: "user" | "assistant";
@@ -64,6 +66,11 @@ export default function Assistant() {
     "Best time of year to fish?",
     "Family-friendly charters"
   ];
+
+  const handleSearchByType = (targetSpecies: string) => {
+    const searchParams = new URLSearchParams({ targetSpecies });
+    setLocation(`/search?${searchParams.toString()}`);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -157,7 +164,10 @@ export default function Assistant() {
 
         {/* Popular Charter Types */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
+          <Card 
+            className="cursor-pointer hover:shadow-lg transition-shadow"
+            onClick={() => handleSearchByType("Snook, Redfish, Trout")}
+          >
             <CardContent className="p-6 text-center">
               <Fish className="w-12 h-12 text-ocean-blue mx-auto mb-4" />
               <h3 className="font-semibold mb-2">Inshore Fishing</h3>
@@ -165,10 +175,22 @@ export default function Assistant() {
                 Perfect for beginners and families. Target snook, redfish, and trout in calm waters.
               </p>
               <Badge variant="secondary">$650 - $800</Badge>
+              <Button 
+                className="w-full mt-4 bg-ocean-blue hover:bg-blue-800"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSearchByType("Snook, Redfish, Trout");
+                }}
+              >
+                Search Inshore Charters
+              </Button>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card 
+            className="cursor-pointer hover:shadow-lg transition-shadow"
+            onClick={() => handleSearchByType("Mahi-Mahi, Tuna, Marlin")}
+          >
             <CardContent className="p-6 text-center">
               <MapPin className="w-12 h-12 text-ocean-blue mx-auto mb-4" />
               <h3 className="font-semibold mb-2">Offshore Fishing</h3>
@@ -176,10 +198,22 @@ export default function Assistant() {
                 Deep sea adventure for mahi, tuna, and marlin. For experienced anglers.
               </p>
               <Badge variant="secondary">$1,200 - $1,500</Badge>
+              <Button 
+                className="w-full mt-4 bg-ocean-blue hover:bg-blue-800"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSearchByType("Mahi-Mahi, Tuna, Marlin");
+                }}
+              >
+                Search Offshore Charters
+              </Button>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card 
+            className="cursor-pointer hover:shadow-lg transition-shadow"
+            onClick={() => handleSearchByType("Tarpon")}
+          >
             <CardContent className="p-6 text-center">
               <Clock className="w-12 h-12 text-ocean-blue mx-auto mb-4" />
               <h3 className="font-semibold mb-2">Tarpon Trips</h3>
@@ -187,6 +221,15 @@ export default function Assistant() {
                 Target the silver king! Best from May to July with experienced captains.
               </p>
               <Badge variant="secondary">$800 - $1,000</Badge>
+              <Button 
+                className="w-full mt-4 bg-ocean-blue hover:bg-blue-800"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSearchByType("Tarpon");
+                }}
+              >
+                Search Tarpon Trips
+              </Button>
             </CardContent>
           </Card>
         </div>
