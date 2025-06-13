@@ -12,6 +12,11 @@ import Help from "./pages/help";
 import Login from "./pages/login";
 import Signup from "./pages/signup";
 import NotFound from "./pages/not-found";
+import HowItWorks from "./pages/how-it-works";
+import SafetyGuidelines from "./pages/safety-guidelines";
+import CaptainResources from "./pages/captain-resources";
+import SafetyStandards from "./pages/safety-standards";
+import Support from "./pages/support";
 
 function App() {
   return (
@@ -26,6 +31,11 @@ function App() {
         <Route path="/help" component={Help} />
         <Route path="/login" component={Login} />
         <Route path="/signup" component={Signup} />
+        <Route path="/how-it-works" component={HowItWorks} />
+        <Route path="/safety-guidelines" component={SafetyGuidelines} />
+        <Route path="/captain-resources" component={CaptainResources} />
+        <Route path="/safety-standards" component={SafetyStandards} />
+        <Route path="/support" component={Support} />
         <Route component={NotFound} />
       </Switch>
       <Toaster />
