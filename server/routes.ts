@@ -84,7 +84,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/bookings/user/:userId", async (req, res) => {
     try {
-      const userId = parseInt(req.params.userId);
+      const userId = req.params.userId;
       const bookings = await storage.getBookingsByUser(userId);
       res.json(bookings);
     } catch (error) {
@@ -140,7 +140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/messages/threads/:userId", async (req, res) => {
     try {
-      const userId = parseInt(req.params.userId);
+      const userId = req.params.userId;
       const threads = await storage.getMessageThreads(userId);
       res.json(threads);
     } catch (error) {
@@ -157,8 +157,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const messages = await storage.getMessageThread(
-        parseInt(userId1 as string),
-        parseInt(userId2 as string),
+        userId1 as string,
+        userId2 as string,
         charterId ? parseInt(charterId as string) : undefined
       );
       
