@@ -53,7 +53,15 @@ export default function SearchResults() {
     if (newFilters.targetSpecies) params.set("targetSpecies", newFilters.targetSpecies);
     if (newFilters.duration) params.set("duration", newFilters.duration);
     
-    window.history.replaceState({}, "", `/search?${params.toString()}`);
+    // If no filters, just go to /search without query params
+    const queryString = params.toString();
+    window.history.replaceState({}, "", queryString ? `/search?${queryString}` : "/search");
+  };
+
+  const clearFilters = () => {
+    const emptyFilters = { location: "", targetSpecies: "", duration: "" };
+    setFilters(emptyFilters);
+    window.history.replaceState({}, "", "/search");
   };
 
   const sortedCharters = charters ? [...charters].sort((a, b) => {
@@ -137,7 +145,7 @@ export default function SearchResults() {
               <p className="text-storm-gray mb-6">
                 Try adjusting your search criteria or browse all available charters.
               </p>
-              <Button onClick={() => handleSearch({ location: "", targetSpecies: "", duration: "" })}>
+              <Button onClick={clearFilters}>
                 Clear Filters
               </Button>
             </CardContent>
