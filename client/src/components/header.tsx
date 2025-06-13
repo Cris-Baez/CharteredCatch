@@ -31,7 +31,7 @@ export default function Header() {
                 src="/attached_assets/IMG_2128-Photoroom_1749772590031.png" 
                 alt="Charterly Logo" 
                 className="w-auto object-contain"
-                style={{ height: '7rem' }}
+                style={{ height: '8.5rem' }}
               />
             </div>
           </Link>
