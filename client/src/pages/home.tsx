@@ -298,7 +298,7 @@ export default function Home() {
           <Button 
             size="lg" 
             className="bg-ocean-blue hover:bg-blue-800 text-white"
-            onClick={() => setLocation("/captain/dashboard")}
+            onClick={() => setLocation("/signup")}
           >
             Join as a Captain
           </Button>
