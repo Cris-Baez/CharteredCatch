@@ -12,7 +12,7 @@ export default function Footer() {
               <img 
                 src="/attached_assets/IMG_2128-Photoroom_1749772590031.png" 
                 alt="Charterly Logo" 
-                className="h-10 w-auto object-contain brightness-0 invert"
+                className="h-14 w-auto object-contain brightness-0 invert"
               />
             </div>
             <p className="text-gray-400 mb-4">
