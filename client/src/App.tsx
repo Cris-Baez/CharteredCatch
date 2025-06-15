@@ -17,6 +17,9 @@ import SafetyGuidelines from "./pages/safety-guidelines";
 import CaptainResources from "./pages/captain-resources";
 import SafetyStandards from "./pages/safety-standards";
 import Support from "./pages/support";
+import CaptainOverview from "./pages/captain/overview";
+import CaptainCharters from "./pages/captain/charters";
+import CaptainBookings from "./pages/captain/bookings";
 
 function App() {
   return (
@@ -27,6 +30,9 @@ function App() {
         <Route path="/charter/:id" component={CharterDetail} />
         <Route path="/messages" component={Messages} />
         <Route path="/captain/dashboard" component={CaptainDashboard} />
+        <Route path="/captain/overview" component={CaptainOverview} />
+        <Route path="/captain/charters" component={CaptainCharters} />
+        <Route path="/captain/bookings" component={CaptainBookings} />
         <Route path="/assistant" component={Assistant} />
         <Route path="/help" component={Help} />
         <Route path="/login" component={Login} />

@@ -1,23 +1,9 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import Header from "@/components/header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/hooks/useAuth";
+import { useEffect } from "react";
+import { useLocation } from "wouter";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
-  Calendar, 
-  Users, 
-  DollarSign, 
-  MessageCircle, 
-  Star, 
-  Plus, 
-  Ship,
-  TrendingUp,
-  Clock
-} from "lucide-react";
-import type { Charter, Booking, Captain } from "@shared/schema";
+import { Ship } from "lucide-react";
 
 // Mock captain data - in a real app this would come from auth
 const MOCK_CAPTAIN_ID = 1;
