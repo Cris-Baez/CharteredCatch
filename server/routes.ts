@@ -309,6 +309,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/captain/charters", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const captain = await ensureCaptainExists(userId);
+      
+      const charterData = {
+        ...req.body,
+        captainId: captain.id,
+        price: req.body.price.toString(),
+      };
+      
+      const charter = await storage.createCharter(charterData);
+      res.json(charter);
+    } catch (error) {
+      console.error("Error creating charter:", error);
+      res.status(500).json({ message: "Failed to create charter" });
+    }
+  });
+
   // Review routes
   app.post("/api/reviews", async (req, res) => {
     try {
