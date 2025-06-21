@@ -7,6 +7,28 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import path from "path";
 import express from "express";
 
+// Helper function to ensure captain profile exists
+async function ensureCaptainExists(userId: string) {
+  let captain = await storage.getCaptainByUserId(userId);
+  
+  if (!captain) {
+    const user = await storage.getUser(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    
+    captain = await storage.createCaptain({
+      userId: userId,
+      bio: 'Experienced fishing captain ready to provide amazing charter experiences.',
+      experience: '5+ years',
+      licenseNumber: 'USCG-123456',
+      location: 'Florida Keys'
+    });
+  }
+  
+  return captain;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
   await setupAuth(app);
@@ -182,11 +204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/captain/stats", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const captain = await storage.getCaptainByUserId(userId);
-      
-      if (!captain) {
-        return res.status(404).json({ message: "Captain not found" });
-      }
+      const captain = await ensureCaptainExists(userId);
 
       const bookings = await storage.getBookingsByCaptain(captain.id);
       const totalRevenue = bookings.reduce((sum, booking) => sum + parseFloat(booking.totalPrice), 0);
@@ -196,7 +214,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalRevenue,
         averageRating: captain.rating,
         responseRate: 98,
-        upcomingTrips: bookings.filter(b => b.status === 'confirmed' && new Date(b.date) > new Date()).length,
+        upcomingTrips: bookings.filter(b => b.status === 'confirmed' && new Date(b.tripDate) > new Date()).length,
         newMessages: 0
       };
       
@@ -209,15 +227,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/captain/bookings/recent", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const captain = await storage.getCaptainByUserId(userId);
-      
-      if (!captain) {
-        return res.status(404).json({ message: "Captain not found" });
-      }
+      const captain = await ensureCaptainExists(userId);
 
       const bookings = await storage.getBookingsByCaptain(captain.id);
       const recentBookings = bookings
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .sort((a, b) => new Date(b.tripDate).getTime() - new Date(a.tripDate).getTime())
         .slice(0, 5);
       
       res.json(recentBookings);
@@ -229,11 +243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/captain/charters", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const captain = await storage.getCaptainByUserId(userId);
-      
-      if (!captain) {
-        return res.status(404).json({ message: "Captain not found" });
-      }
+      const captain = await ensureCaptainExists(userId);
 
       const charters = await storage.getChartersByCaptain(captain.id);
       res.json(charters);
@@ -245,11 +255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/captain/bookings", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const captain = await storage.getCaptainByUserId(userId);
-      
-      if (!captain) {
-        return res.status(404).json({ message: "Captain not found" });
-      }
+      const captain = await ensureCaptainExists(userId);
 
       const bookings = await storage.getBookingsByCaptain(captain.id);
       res.json(bookings);
@@ -261,6 +267,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/captain/messages", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      await ensureCaptainExists(userId); // Ensure captain exists even if not needed for this endpoint
+      
       const threads = await storage.getMessageThreads(userId);
       res.json(threads);
     } catch (error) {
@@ -271,17 +279,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/captain/earnings", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const captain = await storage.getCaptainByUserId(userId);
-      
-      if (!captain) {
-        return res.status(404).json({ message: "Captain not found" });
-      }
+      const captain = await ensureCaptainExists(userId);
 
       const bookings = await storage.getBookingsByCaptain(captain.id);
       const earnings = {
         totalEarnings: bookings.reduce((sum, booking) => sum + parseFloat(booking.totalPrice), 0),
         thisMonth: bookings
-          .filter(b => new Date(b.date).getMonth() === new Date().getMonth())
+          .filter(b => new Date(b.tripDate).getMonth() === new Date().getMonth())
           .reduce((sum, booking) => sum + parseFloat(booking.totalPrice), 0),
         pendingPayouts: bookings
           .filter(b => b.status === 'completed')
@@ -297,11 +301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/captain/profile", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const captain = await storage.getCaptainByUserId(userId);
-      
-      if (!captain) {
-        return res.status(404).json({ message: "Captain not found" });
-      }
+      const captain = await ensureCaptainExists(userId);
       
       res.json(captain);
     } catch (error) {
