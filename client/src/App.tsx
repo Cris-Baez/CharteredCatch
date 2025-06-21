@@ -20,6 +20,9 @@ import Support from "./pages/support";
 import CaptainOverview from "./pages/captain/overview";
 import CaptainCharters from "./pages/captain/charters";
 import CaptainBookings from "./pages/captain/bookings";
+import CaptainMessages from "./pages/captain/messages";
+import CaptainEarnings from "./pages/captain/earnings";
+import CaptainProfile from "./pages/captain/profile";
 
 function App() {
   return (
@@ -33,6 +36,9 @@ function App() {
         <Route path="/captain/overview" component={CaptainOverview} />
         <Route path="/captain/charters" component={CaptainCharters} />
         <Route path="/captain/bookings" component={CaptainBookings} />
+        <Route path="/captain/messages" component={CaptainMessages} />
+        <Route path="/captain/earnings" component={CaptainEarnings} />
+        <Route path="/captain/profile" component={CaptainProfile} />
         <Route path="/assistant" component={Assistant} />
         <Route path="/help" component={Help} />
         <Route path="/login" component={Login} />
