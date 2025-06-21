@@ -109,8 +109,8 @@ export default function CaptainProfile() {
                     <Camera className="w-4 h-4" />
                   </Button>
                 </div>
-                <h3 className="text-xl font-semibold mt-4">{user.firstName} {user.lastName}</h3>
-                <p className="text-storm-gray">{user.email}</p>
+                <h3 className="text-xl font-semibold mt-4">{user?.firstName || ''} {user?.lastName || ''}</h3>
+                <p className="text-storm-gray text-sm break-words">{user?.email || ''}</p>
                 <div className="flex items-center justify-center mt-2">
                   <Star className="text-yellow-500 mr-1" size={16} />
                   <span className="font-medium">4.8</span>
@@ -156,16 +156,16 @@ export default function CaptainProfile() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="firstName">First Name</Label>
-                    <Input id="firstName" defaultValue={user.firstName || ""} />
+                    <Input id="firstName" defaultValue={user?.firstName || ""} />
                   </div>
                   <div>
                     <Label htmlFor="lastName">Last Name</Label>
-                    <Input id="lastName" defaultValue={user.lastName || ""} />
+                    <Input id="lastName" defaultValue={user?.lastName || ""} />
                   </div>
                 </div>
                 <div>
                   <Label htmlFor="email">Email Address</Label>
-                  <Input id="email" type="email" defaultValue={user.email || ""} />
+                  <Input id="email" type="email" defaultValue={user?.email || ""} className="break-words" />
                 </div>
                 <div>
                   <Label htmlFor="phone">Phone Number</Label>
