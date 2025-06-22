@@ -36,6 +36,12 @@ export default function CreateCharter() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
+  const [customLocation, setCustomLocation] = useState("");
+  const [customSpecies, setCustomSpecies] = useState("");
+  const [customBoatType, setCustomBoatType] = useState("");
+  const [showCustomLocation, setShowCustomLocation] = useState(false);
+  const [showCustomSpecies, setShowCustomSpecies] = useState(false);
+  const [showCustomBoatType, setShowCustomBoatType] = useState(false);
 
   const form = useForm<CharterForm>({
     resolver: zodResolver(charterSchema),
@@ -150,7 +156,14 @@ export default function CreateCharter() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="location">Location</Label>
-                  <Select onValueChange={(value) => form.setValue("location", value)}>
+                  <Select onValueChange={(value) => {
+                    if (value === "other") {
+                      setShowCustomLocation(true);
+                    } else {
+                      setShowCustomLocation(false);
+                      form.setValue("location", value);
+                    }
+                  }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select location" />
                     </SelectTrigger>
@@ -160,8 +173,20 @@ export default function CreateCharter() {
                       <SelectItem value="Marathon">Marathon</SelectItem>
                       <SelectItem value="Big Pine Key">Big Pine Key</SelectItem>
                       <SelectItem value="Key West">Key West</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
+                  {showCustomLocation && (
+                    <Input 
+                      placeholder="Enter custom location"
+                      className="mt-2"
+                      value={customLocation}
+                      onChange={(e) => {
+                        setCustomLocation(e.target.value);
+                        form.setValue("location", e.target.value);
+                      }}
+                    />
+                  )}
                   {form.formState.errors.location && (
                     <p className="text-red-500 text-sm mt-1">{form.formState.errors.location.message}</p>
                   )}
@@ -225,7 +250,14 @@ export default function CreateCharter() {
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="targetSpecies">Target Species</Label>
-                <Select onValueChange={(value) => form.setValue("targetSpecies", value)}>
+                <Select onValueChange={(value) => {
+                  if (value === "other") {
+                    setShowCustomSpecies(true);
+                  } else {
+                    setShowCustomSpecies(false);
+                    form.setValue("targetSpecies", value);
+                  }
+                }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select target species" />
                   </SelectTrigger>
@@ -238,8 +270,20 @@ export default function CreateCharter() {
                     <SelectItem value="Grouper">Grouper</SelectItem>
                     <SelectItem value="Tuna">Tuna</SelectItem>
                     <SelectItem value="Mixed Bag">Mixed Bag</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
+                {showCustomSpecies && (
+                  <Input 
+                    placeholder="Enter target species"
+                    className="mt-2"
+                    value={customSpecies}
+                    onChange={(e) => {
+                      setCustomSpecies(e.target.value);
+                      form.setValue("targetSpecies", e.target.value);
+                    }}
+                  />
+                )}
                 {form.formState.errors.targetSpecies && (
                   <p className="text-red-500 text-sm mt-1">{form.formState.errors.targetSpecies.message}</p>
                 )}
@@ -248,7 +292,14 @@ export default function CreateCharter() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="boatType">Boat Type</Label>
-                  <Select onValueChange={(value) => form.setValue("boatType", value)}>
+                  <Select onValueChange={(value) => {
+                    if (value === "other") {
+                      setShowCustomBoatType(true);
+                    } else {
+                      setShowCustomBoatType(false);
+                      form.setValue("boatType", value);
+                    }
+                  }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select boat type" />
                     </SelectTrigger>
@@ -257,8 +308,20 @@ export default function CreateCharter() {
                       <SelectItem value="Sport Fishing">Sport Fishing</SelectItem>
                       <SelectItem value="Flats Boat">Flats Boat</SelectItem>
                       <SelectItem value="Bay Boat">Bay Boat</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
+                  {showCustomBoatType && (
+                    <Input 
+                      placeholder="Enter boat type"
+                      className="mt-2"
+                      value={customBoatType}
+                      onChange={(e) => {
+                        setCustomBoatType(e.target.value);
+                        form.setValue("boatType", e.target.value);
+                      }}
+                    />
+                  )}
                   {form.formState.errors.boatType && (
                     <p className="text-red-500 text-sm mt-1">{form.formState.errors.boatType.message}</p>
                   )}
