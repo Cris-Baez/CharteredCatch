@@ -315,9 +315,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const captain = await ensureCaptainExists(userId);
       
       const charterData = {
-        ...req.body,
-        captainId: captain.id,
+        title: req.body.title,
+        description: req.body.description,
+        location: req.body.location,
+        duration: req.body.duration,
+        maxGuests: req.body.maxGuests,
         price: req.body.price.toString(),
+        targetSpecies: req.body.targetSpecies,
+        boatType: req.body.boatType,
+        experienceLevel: req.body.experienceLevel,
+        included: req.body.includes || null,
+        boatSpecs: `${req.body.boatType} | ${req.body.experienceLevel} | ${req.body.excludes || ''}`,
+        images: req.body.photos || [],
+        captainId: captain.id,
       };
       
       const charter = await storage.createCharter(charterData);

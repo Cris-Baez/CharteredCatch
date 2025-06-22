@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Upload, X } from "lucide-react";
 import { Link } from "wouter";
 
 const charterSchema = z.object({
@@ -35,6 +35,7 @@ export default function CreateCharter() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
 
   const form = useForm<CharterForm>({
     resolver: zodResolver(charterSchema),
@@ -53,9 +54,31 @@ export default function CreateCharter() {
     },
   });
 
+  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const result = e.target?.result as string;
+          setUploadedPhotos(prev => [...prev, result]);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setUploadedPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
   const createCharterMutation = useMutation({
     mutationFn: async (data: CharterForm) => {
-      return await apiRequest("/api/captain/charters", "POST", data);
+      const charterData = {
+        ...data,
+        photos: uploadedPhotos
+      };
+      return await apiRequest("POST", "/api/captain/charters", charterData);
     },
     onSuccess: () => {
       toast({
@@ -279,6 +302,66 @@ export default function CreateCharter() {
                   {...form.register("excludes")}
                 />
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Charter Photos</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="photos">Upload Photos</Label>
+                <div className="mt-2">
+                  <Input
+                    id="photos"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handlePhotoUpload}
+                    className="cursor-pointer"
+                  />
+                  <p className="text-sm text-storm-gray mt-2">
+                    Upload high-quality photos of your boat, fishing equipment, and previous catches. Maximum 10 photos.
+                  </p>
+                </div>
+              </div>
+
+              {uploadedPhotos.length > 0 && (
+                <div>
+                  <Label>Uploaded Photos ({uploadedPhotos.length}/10)</Label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-2">
+                    {uploadedPhotos.map((photo, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={photo}
+                          alt={`Charter photo ${index + 1}`}
+                          className="w-full h-32 object-cover rounded-lg border"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => removePhoto(index)}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {uploadedPhotos.length === 0 && (
+                <div className="border-2 border-dashed border-storm-gray/30 rounded-lg p-8 text-center">
+                  <Upload className="w-12 h-12 text-storm-gray mx-auto mb-4" />
+                  <p className="text-storm-gray">No photos uploaded yet</p>
+                  <p className="text-sm text-storm-gray mt-1">
+                    Add photos to make your charter listing more appealing to potential customers
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
