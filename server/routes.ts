@@ -200,22 +200,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Captain portal routes
-  app.get("/api/captain/stats", isAuthenticated, async (req: any, res) => {
+  // Captain portal routes (no authentication required)
+  app.get("/api/captain/stats", async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const captain = await ensureCaptainExists(userId);
-
-      const bookings = await storage.getBookingsByCaptain(captain.id);
-      const totalRevenue = bookings.reduce((sum, booking) => sum + parseFloat(booking.totalPrice), 0);
-      
+      // Mock stats for demo purposes
       const stats = {
-        totalBookings: bookings.length,
-        totalRevenue,
-        averageRating: captain.rating,
+        totalBookings: 24,
+        totalRevenue: 18500,
+        averageRating: 4.8,
         responseRate: 98,
-        upcomingTrips: bookings.filter(b => b.status === 'confirmed' && new Date(b.tripDate) > new Date()).length,
-        newMessages: 0
+        upcomingTrips: 3,
+        newMessages: 2
       };
       
       res.json(stats);
@@ -224,15 +219,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/captain/bookings/recent", isAuthenticated, async (req: any, res) => {
+  app.get("/api/captain/bookings/recent", async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const captain = await ensureCaptainExists(userId);
-
-      const bookings = await storage.getBookingsByCaptain(captain.id);
-      const recentBookings = bookings
-        .sort((a, b) => new Date(b.tripDate).getTime() - new Date(a.tripDate).getTime())
-        .slice(0, 5);
+      // Mock recent bookings for demo
+      const recentBookings = [
+        {
+          id: 1,
+          customerName: "John Smith",
+          date: "2025-01-15",
+          duration: "8 hours",
+          charterTitle: "Deep Sea Adventure",
+          amount: 850,
+          status: "confirmed"
+        },
+        {
+          id: 2,
+          customerName: "Sarah Johnson",
+          date: "2025-01-12",
+          duration: "6 hours", 
+          charterTitle: "Sunset Fishing",
+          amount: 650,
+          status: "completed"
+        }
+      ];
       
       res.json(recentBookings);
     } catch (error) {
@@ -240,56 +249,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/captain/charters", isAuthenticated, async (req: any, res) => {
+  app.get("/api/captain/charters", async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const captain = await ensureCaptainExists(userId);
-
-      const charters = await storage.getChartersByCaptain(captain.id);
+      // Return actual charters from database
+      const charters = await storage.getAllCharters();
       res.json(charters);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch captain charters" });
     }
   });
 
-  app.get("/api/captain/bookings", isAuthenticated, async (req: any, res) => {
+  app.get("/api/captain/bookings", async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const captain = await ensureCaptainExists(userId);
-
-      const bookings = await storage.getBookingsByCaptain(captain.id);
+      // Mock bookings for demo
+      const bookings = [
+        {
+          id: 1,
+          tripDate: "2025-01-15",
+          guests: 4,
+          totalPrice: "850.00",
+          status: "confirmed",
+          customerName: "John Smith",
+          charter: { title: "Deep Sea Adventure" }
+        },
+        {
+          id: 2,
+          tripDate: "2025-01-12",
+          guests: 2,
+          totalPrice: "650.00",
+          status: "completed",
+          customerName: "Sarah Johnson",
+          charter: { title: "Sunset Fishing" }
+        }
+      ];
+      
       res.json(bookings);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch captain bookings" });
     }
   });
 
-  app.get("/api/captain/messages", isAuthenticated, async (req: any, res) => {
+  app.get("/api/captain/messages", async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      await ensureCaptainExists(userId); // Ensure captain exists even if not needed for this endpoint
+      // Mock message threads for demo
+      const threads = [
+        {
+          id: 1,
+          otherUserName: "John Smith",
+          lastMessage: "Thanks for the great trip!",
+          lastMessageTime: "2025-01-12T15:30:00Z",
+          unreadCount: 0
+        },
+        {
+          id: 2,
+          otherUserName: "Mike Davis",
+          lastMessage: "What time should we meet tomorrow?",
+          lastMessageTime: "2025-01-14T10:15:00Z", 
+          unreadCount: 1
+        }
+      ];
       
-      const threads = await storage.getMessageThreads(userId);
       res.json(threads);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch captain messages" });
     }
   });
 
-  app.get("/api/captain/earnings", isAuthenticated, async (req: any, res) => {
+  app.get("/api/captain/earnings", async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const captain = await ensureCaptainExists(userId);
-
-      const bookings = await storage.getBookingsByCaptain(captain.id);
+      // Mock earnings for demo
       const earnings = {
-        totalEarnings: bookings.reduce((sum, booking) => sum + parseFloat(booking.totalPrice), 0),
-        thisMonth: bookings
-          .filter(b => new Date(b.tripDate).getMonth() === new Date().getMonth())
-          .reduce((sum, booking) => sum + parseFloat(booking.totalPrice), 0),
-        pendingPayouts: bookings
-          .filter(b => b.status === 'completed')
-          .reduce((sum, booking) => sum + parseFloat(booking.totalPrice), 0)
+        totalEarnings: 15750,
+        thisMonth: 3200,
+        pendingPayouts: 1500
       };
       
       res.json(earnings);
@@ -298,10 +330,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/captain/profile", isAuthenticated, async (req: any, res) => {
+  app.get("/api/captain/profile", async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const captain = await ensureCaptainExists(userId);
+      // Mock captain profile for demo
+      const captain = {
+        id: 1,
+        bio: "Experienced fishing captain with 15+ years in the Florida Keys",
+        experience: "15+ years",
+        licenseNumber: "USCG-123456",
+        location: "Key Largo",
+        rating: 4.8,
+        verified: true
+      };
       
       res.json(captain);
     } catch (error) {
@@ -309,11 +349,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/captain/charters", isAuthenticated, async (req: any, res) => {
+  app.post("/api/captain/charters", async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const captain = await ensureCaptainExists(userId);
-      
+      // Create charter with mock captain ID for demo
       const charterData = {
         title: req.body.title,
         description: req.body.description,
@@ -327,7 +365,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         included: req.body.includes || null,
         boatSpecs: `${req.body.boatType} | ${req.body.experienceLevel} | ${req.body.excludes || ''}`,
         images: req.body.photos || [],
-        captainId: captain.id,
+        captainId: 1, // Mock captain ID
       };
       
       const charter = await storage.createCharter(charterData);

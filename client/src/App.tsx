@@ -36,6 +36,7 @@ function App() {
         <Route path="/charter/:id" component={CharterDetail} />
         <Route path="/messages" component={Messages} />
         <Route path="/captain/dashboard" component={CaptainDashboard} />
+        <Route path="/captain" component={CaptainOverview} />
         <Route path="/captain/overview" component={CaptainOverview} />
         <Route path="/captain/charters" component={CaptainCharters} />
         <Route path="/captain/charters/new" component={CreateCharter} />
