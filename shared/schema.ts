@@ -31,6 +31,7 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  role: varchar("role").default("user"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -54,6 +55,8 @@ export const charters = pgTable("charters", {
   title: text("title").notNull(),
   description: text("description").notNull(),
   location: text("location").notNull(),
+  lat: decimal("lat", { precision: 10, scale: 7 }),
+  lng: decimal("lng", { precision: 10, scale: 7 }),
   targetSpecies: text("target_species").notNull(),
   duration: text("duration").notNull(),
   maxGuests: integer("max_guests").notNull(),
@@ -62,6 +65,7 @@ export const charters = pgTable("charters", {
   included: text("included"),
   images: text("images").array(),
   available: boolean("available").default(true),
+  isListed: boolean("is_listed").default(true),
 });
 
 export const bookings = pgTable("bookings", {
@@ -96,6 +100,22 @@ export const reviews = pgTable("reviews", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Availability table for real slot management
+export const availability = pgTable(
+  "availability",
+  {
+    id: serial("id").primaryKey(),
+    charterId: integer("charter_id").references(() => charters.id).notNull(),
+    date: timestamp("date").notNull(),
+    slots: integer("slots").notNull().default(1),
+    bookedSlots: integer("booked_slots").notNull().default(0),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_availability_charter_date").on(table.charterId, table.date),
+  ]
+);
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
@@ -128,6 +148,11 @@ export const insertReviewSchema = createInsertSchema(reviews).omit({
   createdAt: true,
 });
 
+export const insertAvailabilitySchema = createInsertSchema(availability).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type Captain = typeof captains.$inferSelect;
@@ -135,6 +160,7 @@ export type Charter = typeof charters.$inferSelect;
 export type Booking = typeof bookings.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
+export type Availability = typeof availability.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type UpsertUser = typeof users.$inferInsert;
@@ -143,6 +169,7 @@ export type InsertCharter = z.infer<typeof insertCharterSchema>;
 export type InsertBooking = z.infer<typeof insertBookingSchema>;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type InsertReview = z.infer<typeof insertReviewSchema>;
+export type InsertAvailability = z.infer<typeof insertAvailabilitySchema>;
 
 // Extended types for API responses
 export type CharterWithCaptain = Charter & {

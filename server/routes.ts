@@ -2,10 +2,18 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import { insertBookingSchema, insertMessageSchema, insertReviewSchema } from "@shared/schema";
+import { insertBookingSchema, insertMessageSchema, insertReviewSchema, insertAvailabilitySchema } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import path from "path";
 import express from "express";
+
+// Helper function to check admin role
+function isAdmin(req: any, res: any, next: any) {
+  if (!req.user || req.user.claims.role !== 'admin') {
+    return res.status(403).json({ message: "Admin access required" });
+  }
+  next();
+}
 
 // Helper function to ensure captain profile exists
 async function ensureCaptainExists(userId: string) {
@@ -50,12 +58,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Charter routes
   app.get("/api/charters", async (req, res) => {
     try {
-      const { location, targetSpecies, duration } = req.query;
+      const { location, targetSpecies, duration, lat, lng, distance } = req.query;
       
       const filters = {
         ...(location && { location: location as string }),
         ...(targetSpecies && { targetSpecies: targetSpecies as string }),
         ...(duration && { duration: duration as string }),
+        ...(lat && { lat: parseFloat(lat as string) }),
+        ...(lng && { lng: parseFloat(lng as string) }),
+        ...(distance && { distance: parseFloat(distance as string) }),
       };
 
       const charters = await storage.searchCharters(filters);
@@ -90,11 +101,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Availability routes
+  app.get("/api/availability", async (req, res) => {
+    try {
+      const { charterId, month } = req.query;
+      
+      if (!charterId || !month) {
+        return res.status(400).json({ message: "charterId and month are required" });
+      }
+
+      const availability = await storage.getAvailability(
+        parseInt(charterId as string),
+        month as string
+      );
+      res.json(availability);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch availability" });
+    }
+  });
+
+  app.post("/api/availability", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const captain = await ensureCaptainExists(userId);
+      
+      const availabilityData = insertAvailabilitySchema.parse(req.body);
+      const availability = await storage.createAvailability(availabilityData);
+      res.status(201).json(availability);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid availability data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create availability" });
+    }
+  });
+
   // Booking routes
   app.post("/api/bookings", async (req, res) => {
     try {
       const bookingData = insertBookingSchema.parse(req.body);
+      
+      // Check availability before creating booking
+      const isAvailable = await storage.checkAvailability(
+        bookingData.charterId,
+        bookingData.tripDate,
+        1 // Assume 1 slot needed per booking
+      );
+      
+      if (!isAvailable) {
+        return res.status(409).json({ message: "No availability for this date" });
+      }
+      
       const booking = await storage.createBooking(bookingData);
+      
+      // Update availability slots
+      await storage.updateAvailabilitySlots(
+        bookingData.charterId,
+        bookingData.tripDate,
+        1
+      );
+      
       res.status(201).json(booking);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -201,48 +267,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Captain portal routes (no authentication required)
-  app.get("/api/captain/stats", async (req: any, res) => {
+  app.get("/api/captain/stats", isAuthenticated, async (req: any, res) => {
     try {
-      // Mock stats for demo purposes
-      const stats = {
-        totalBookings: 24,
-        totalRevenue: 18500,
-        averageRating: 4.8,
-        responseRate: 98,
-        upcomingTrips: 3,
-        newMessages: 2
-      };
+      const userId = req.user.claims.sub;
+      const captain = await storage.getCaptainByUserId(userId);
       
+      if (!captain) {
+        return res.status(404).json({ message: "Captain profile not found" });
+      }
+
+      const stats = await storage.getCaptainStats(captain.id);
       res.json(stats);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch captain stats" });
     }
   });
 
-  app.get("/api/captain/bookings/recent", async (req: any, res) => {
+  app.get("/api/captain/bookings/recent", isAuthenticated, async (req: any, res) => {
     try {
-      // Mock recent bookings for demo
-      const recentBookings = [
-        {
-          id: 1,
-          customerName: "John Smith",
-          date: "2025-01-15",
-          duration: "8 hours",
-          charterTitle: "Deep Sea Adventure",
-          amount: 850,
-          status: "confirmed"
-        },
-        {
-          id: 2,
-          customerName: "Sarah Johnson",
-          date: "2025-01-12",
-          duration: "6 hours", 
-          charterTitle: "Sunset Fishing",
-          amount: 650,
-          status: "completed"
-        }
-      ];
+      const userId = req.user.claims.sub;
+      const captain = await storage.getCaptainByUserId(userId);
       
+      if (!captain) {
+        return res.status(404).json({ message: "Captain profile not found" });
+      }
+
+      const recentBookings = await storage.getCaptainRecentBookings(captain.id);
       res.json(recentBookings);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch recent bookings" });
@@ -289,59 +339,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/captain/messages", async (req: any, res) => {
+  app.get("/api/captain/messages", isAuthenticated, async (req: any, res) => {
     try {
-      // Mock message threads for demo
-      const threads = [
-        {
-          id: 1,
-          otherUserName: "John Smith",
-          lastMessage: "Thanks for the great trip!",
-          lastMessageTime: "2025-01-12T15:30:00Z",
-          unreadCount: 0
-        },
-        {
-          id: 2,
-          otherUserName: "Mike Davis",
-          lastMessage: "What time should we meet tomorrow?",
-          lastMessageTime: "2025-01-14T10:15:00Z", 
-          unreadCount: 1
-        }
-      ];
+      const userId = req.user.claims.sub;
+      const captain = await storage.getCaptainByUserId(userId);
       
+      if (!captain) {
+        return res.status(404).json({ message: "Captain profile not found" });
+      }
+
+      const threads = await storage.getCaptainMessageThreads(captain.id);
       res.json(threads);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch captain messages" });
     }
   });
 
-  app.get("/api/captain/earnings", async (req: any, res) => {
+  app.get("/api/captain/earnings", isAuthenticated, async (req: any, res) => {
     try {
-      // Mock earnings for demo
-      const earnings = {
-        totalEarnings: 15750,
-        thisMonth: 3200,
-        pendingPayouts: 1500
-      };
+      const userId = req.user.claims.sub;
+      const captain = await storage.getCaptainByUserId(userId);
       
+      if (!captain) {
+        return res.status(404).json({ message: "Captain profile not found" });
+      }
+
+      const earnings = await storage.getCaptainEarnings(captain.id);
       res.json(earnings);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch captain earnings" });
     }
   });
 
-  app.get("/api/captain/profile", async (req: any, res) => {
+  app.get("/api/captain/profile", isAuthenticated, async (req: any, res) => {
     try {
-      // Mock captain profile for demo
-      const captain = {
-        id: 1,
-        bio: "Experienced fishing captain with 15+ years in the Florida Keys",
-        experience: "15+ years",
-        licenseNumber: "USCG-123456",
-        location: "Key Largo",
-        rating: 4.8,
-        verified: true
-      };
+      const userId = req.user.claims.sub;
+      const captain = await storage.getCaptainByUserId(userId);
+      
+      if (!captain) {
+        return res.status(404).json({ message: "Captain profile not found" });
+      }
       
       res.json(captain);
     } catch (error) {
@@ -349,9 +386,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/captain/charters", async (req: any, res) => {
+  app.post("/api/captain/charters", isAuthenticated, async (req: any, res) => {
     try {
-      // Create charter with mock captain ID for demo
+      const userId = req.user.claims.sub;
+      const captain = await ensureCaptainExists(userId);
+      
       const charterData = {
         title: req.body.title,
         description: req.body.description,
@@ -364,8 +403,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         experienceLevel: req.body.experienceLevel,
         included: req.body.includes || null,
         boatSpecs: `${req.body.boatType} | ${req.body.experienceLevel} | ${req.body.excludes || ''}`,
+        lat: req.body.lat ? req.body.lat.toString() : null,
+        lng: req.body.lng ? req.body.lng.toString() : null,
         images: req.body.photos || [],
-        captainId: 1, // Mock captain ID
+        captainId: captain.id,
       };
       
       const charter = await storage.createCharter(charterData);
@@ -422,6 +463,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(captain);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch captain" });
+    }
+  });
+
+  // Admin routes
+  app.get("/api/admin/captains", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const captains = await storage.getAllCaptainsWithUsers();
+      res.json(captains);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch captains" });
+    }
+  });
+
+  app.patch("/api/admin/captains/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { verified } = req.body;
+      
+      const captain = await storage.updateCaptainVerification(id, verified);
+      
+      if (!captain) {
+        return res.status(404).json({ message: "Captain not found" });
+      }
+      
+      res.json(captain);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update captain" });
+    }
+  });
+
+  app.get("/api/admin/charters", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const charters = await storage.getAllChartersForAdmin();
+      res.json(charters);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch charters" });
+    }
+  });
+
+  app.patch("/api/admin/charters/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { isListed } = req.body;
+      
+      const charter = await storage.updateCharterVisibility(id, isListed);
+      
+      if (!charter) {
+        return res.status(404).json({ message: "Charter not found" });
+      }
+      
+      res.json(charter);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update charter" });
     }
   });
 

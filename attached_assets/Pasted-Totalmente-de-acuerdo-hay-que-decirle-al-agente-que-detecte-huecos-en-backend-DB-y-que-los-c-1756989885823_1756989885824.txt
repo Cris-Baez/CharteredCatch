@@ -1,0 +1,142 @@
+Totalmente de acuerdo — hay que decirle al agente que **detecte huecos** en backend/DB y que **los cree/ajuste** si no existen. Aquí tienes un set de **instrucciones precisas** (copy-paste) para que verifique, compare contra el código del frontend, y haga **migraciones Drizzle** + cambios de API cuando falte algo. Sin código, solo prompts.
+
+---
+
+# 🔧 Auditoría y reparación de backend + base de datos
+
+### 0) Auditoría integral (esquema vs. uso real)
+
+**Prompt (al agente):**
+
+> Perform a schema-to-code audit.
+>
+> 1. List the current DB schema (tables/columns/indexes/foreign keys) from Drizzle and SQL migrations.
+> 2. Cross-check against all backend models and all API handlers (controllers) to find fields that are referenced in code but missing in DB, or present in DB but unused.
+> 3. Cross-check against frontend usage (forms, pages, filters) to find fields the UI expects but the API doesn’t provide.
+>    Return a 3-column table: **Needed by UI/BE**, **Exists? (Y/N)**, **Action (Add/Alter/Remove/Ignore)**, with exact file paths.
+
+---
+
+## A) Disponibilidad real (sin mocks)
+
+**Objetivo:** reemplazar mocks por persistencia real.
+
+**Prompt (al agente):**
+
+> Implement real availability:
+>
+> * If missing, create `availability` table: `id, charter_id (fk), date, slots, created_at`. Add unique `(charter_id, date)`.
+> * Update backend: `GET /api/availability?charterId&month=YYYY-MM` must return DB data; booking creation must decrement `slots`; prevent double booking when `slots=0`.
+> * Update captain calendar page to use the API (no mock).
+> * Provide Drizzle migration scripts and a brief rollback plan.
+> * Deliver a short report: which files changed, new endpoints/params, and test cases executed.
+
+---
+
+## B) Ubicación geográfica (lat/lng) + búsqueda
+
+**Objetivo:** dejar de usar texto; guardar coordenadas y filtrar por distancia.
+
+**Prompt (al agente):**
+
+> Add geolocation support:
+>
+> * If missing, add `lat` and `lng` (numeric) to `charters`, with indexes. Keep `location_text` for display, but searching must use coordinates.
+> * Update charter create/edit to store lat/lng.
+> * Update `/api/charters` to accept coordinates and a distance or bounding box; implement simple distance filter (bounding box OK).
+> * Add a map component to search results if not present; map pins must reflect the API results.
+> * Provide migrations, updated handlers, and a test checklist.
+
+---
+
+## C) Admin mínimo viable (verificación)
+
+**Objetivo:** activar la verificación real de capitanes y control de visibilidad.
+
+**Prompt (al agente):**
+
+> Implement a basic Admin flow:
+>
+> * Ensure `users.role` supports `admin`; add if missing; add middleware to protect `/admin`.
+> * If missing, add `charters.is_listed` (boolean) and enforce public search rule: only show charters where `captains.verified = true` and `is_listed = true`.
+> * Create a simple `/admin` UI to toggle `captains.verified` and `charters.is_listed`.
+> * Return file paths changed and a test plan (admin can verify/unverify and the search updates accordingly).
+
+---
+
+## D) Legales (rutas reales)
+
+**Objetivo:** que los links del footer apunten a páginas reales.
+
+**Prompt (al agente):**
+
+> Create static pages `/terms`, `/privacy`, and `/cancellation`, and update footer links accordingly.
+> Require Terms acceptance in checkout before confirming a booking.
+> Return file paths and a brief QA checklist.
+
+---
+
+## E) Limpieza de mocks y consistencia de datos
+
+**Objetivo:** eliminar datos falsos y garantizar que todo venga del backend.
+
+**Prompt (al agente):**
+
+> Remove all mock data usage: search the codebase for hardcoded arrays/fixtures, and replace them with real API calls via TanStack Query.
+> For each mock removed, list: component path → new API endpoint used.
+> Ensure loading/error states are handled consistently.
+
+---
+
+# 🧱 Migraciones y seguridad de datos
+
+### F) Política de migraciones (Drizzle)
+
+**Prompt (al agente):**
+
+> For every DB change, produce Drizzle migrations with:
+>
+> * Forward and rollback scripts.
+> * Data backfill plan when adding non-nullable columns (set sensible defaults or run backfill UPDATEs).
+> * Index/constraint creation notes.
+>   After applying, run a schema diff report showing the final schema.
+
+### G) Validación y errores
+
+**Prompt (al agente):**
+
+> Add input validation (Zod/celebrate) on all modified endpoints (availability, charters, admin).
+> Ensure standardized error responses and 4xx/5xx codes.
+> Add basic rate limiting on write endpoints if missing.
+
+---
+
+# 🧪 QA: casos de prueba que debe entregar
+
+**Prompt (al agente):**
+
+> Provide and run a QA checklist with concrete steps and expected results:
+>
+> * Availability: open two dates with 1 slot; book one; second booking on same date must fail.
+> * Geosearch: create two charters with different lat/lng; search within a bounding area only returns the nearby one.
+> * Admin: set `verified=false` on a captain; their charters disappear from public search; set `true`, they reappear.
+> * Legal pages: footer links load pages; checkout blocks if Terms not accepted.
+> * No mocks: audit confirms all former mocks now pull from API.
+
+---
+
+# 📦 Reporte final que debe entregarte
+
+**Prompt (al agente):**
+
+> Deliver a final summary including:
+>
+> * DB changes (migrations applied, new tables/columns/indexes).
+> * Updated endpoints with methods and paths.
+> * Frontend components updated to stop using mocks.
+> * Screenshots or logs proving QA cases passed.
+> * Any TODOs left for future phases (payments, subscriptions).
+
+---
+
+Con estos prompts, el agente **primero audita**, **detecta faltantes** y **los crea** (migraciones + endpoints + UI), y te deja todo “sin mocks” y coherente con lo que ya construiste. Cuando te entregue ese reporte final, pasamos a la siguiente fase (💳 pagos y 🧾 suscripciones).

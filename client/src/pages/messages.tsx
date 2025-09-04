@@ -8,31 +8,31 @@ import { Badge } from "@/components/ui/badge";
 import { MessageCircle, User } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import type { MessageThread as MessageThreadType, Message } from "@shared/schema";
-
-// Mock current user ID - in a real app this would come from auth
-const CURRENT_USER_ID = 1;
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Messages() {
   const [selectedThread, setSelectedThread] = useState<MessageThreadType | null>(null);
   const queryClient = useQueryClient();
+  const { user, isAuthenticated } = useAuth();
 
   const { data: threads, isLoading } = useQuery<MessageThreadType[]>({
-    queryKey: [`/api/messages/threads/${CURRENT_USER_ID}`],
+    queryKey: [`/api/messages/threads/${user?.id}`],
+    enabled: isAuthenticated && !!user?.id,
   });
 
   const { data: messages } = useQuery<Message[]>({
-    queryKey: ["/api/messages/thread", CURRENT_USER_ID, selectedThread?.participant.id],
+    queryKey: ["/api/messages/thread", user?.id, selectedThread?.participant.id],
     queryFn: async () => {
-      if (!selectedThread) return [];
+      if (!selectedThread || !user?.id) return [];
       const params = new URLSearchParams({
-        userId1: CURRENT_USER_ID.toString(),
+        userId1: user.id,
         userId2: selectedThread.participant.id.toString(),
       });
       const response = await fetch(`/api/messages/thread?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch messages");
       return response.json();
     },
-    enabled: !!selectedThread,
+    enabled: !!selectedThread && isAuthenticated && !!user?.id,
   });
 
   const sendMessageMutation = useMutation({
@@ -43,7 +43,7 @@ export default function Messages() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          senderId: CURRENT_USER_ID,
+          senderId: user?.id,
           ...data,
         }),
       });
@@ -56,10 +56,10 @@ export default function Messages() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ 
-        queryKey: ["/api/messages/thread", CURRENT_USER_ID, variables.receiverId] 
+        queryKey: ["/api/messages/thread", user?.id, variables.receiverId] 
       });
       queryClient.invalidateQueries({ 
-        queryKey: [`/api/messages/threads/${CURRENT_USER_ID}`] 
+        queryKey: [`/api/messages/threads/${user?.id}`] 
       });
     },
   });
@@ -68,7 +68,7 @@ export default function Messages() {
     if (!selectedThread) return;
     
     sendMessageMutation.mutate({
-      receiverId: selectedThread.participant.id,
+      receiverId: Number(selectedThread.participant.id),
       content,
     });
   };
@@ -163,7 +163,7 @@ export default function Messages() {
               <MessageThread
                 participant={selectedThread.participant}
                 messages={messages || []}
-                currentUserId={CURRENT_USER_ID}
+                currentUserId={user?.id || ""}
                 onSendMessage={handleSendMessage}
                 isLoading={sendMessageMutation.isPending}
               />

@@ -26,6 +26,10 @@ import CaptainProfile from "./pages/captain/profile";
 import CreateCharter from "./pages/captain/create-charter";
 import CaptainCalendar from "./pages/captain/calendar";
 import CaptainAnalytics from "./pages/captain/analytics";
+import Admin from "./pages/admin";
+import Terms from "./pages/terms";
+import Privacy from "./pages/privacy";
+import Cancellation from "./pages/cancellation";
 
 function App() {
   return (
@@ -46,8 +50,12 @@ function App() {
         <Route path="/captain/profile" component={CaptainProfile} />
         <Route path="/captain/calendar" component={CaptainCalendar} />
         <Route path="/captain/analytics" component={CaptainAnalytics} />
+        <Route path="/admin" component={Admin} />
         <Route path="/assistant" component={Assistant} />
         <Route path="/help" component={Help} />
+        <Route path="/terms" component={Terms} />
+        <Route path="/privacy" component={Privacy} />
+        <Route path="/cancellation" component={Cancellation} />
         <Route path="/login" component={Login} />
         <Route path="/signup" component={Signup} />
         <Route path="/how-it-works" component={HowItWorks} />

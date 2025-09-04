@@ -90,14 +90,14 @@ export default function Footer() {
         <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-gray-400 text-sm">© 2024 Charterly. All rights reserved.</p>
           <div className="flex space-x-6 mt-4 md:mt-0">
-            <a href="#privacy" className="text-gray-400 hover:text-white text-sm transition-colors">
+            <a href="/privacy" className="text-gray-400 hover:text-white text-sm transition-colors">
               Privacy Policy
             </a>
-            <a href="#terms" className="text-gray-400 hover:text-white text-sm transition-colors">
+            <a href="/terms" className="text-gray-400 hover:text-white text-sm transition-colors">
               Terms of Service
             </a>
-            <a href="#contact" className="text-gray-400 hover:text-white text-sm transition-colors">
-              Contact Us
+            <a href="/cancellation" className="text-gray-400 hover:text-white text-sm transition-colors">
+              Cancellation Policy
             </a>
           </div>
         </div>

@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
+import { apiRequest } from "@/lib/queryClient";
 import { Calendar as CalendarIcon, Clock, Plus, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,37 +13,73 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
+import type { Availability } from "@shared/schema";
 
 export default function CaptainCalendar() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [isAddingAvailability, setIsAddingAvailability] = useState(false);
+  const [newSlots, setNewSlots] = useState(1);
+  const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  // Mock availability data - in real app this would come from API
-  const availability = {
-    "2025-06-22": [
-      { time: "6:00 AM", duration: "8 hours", status: "available" },
-      { time: "2:00 PM", duration: "4 hours", status: "booked" }
-    ],
-    "2025-06-23": [
-      { time: "7:00 AM", duration: "6 hours", status: "available" }
-    ],
-    "2025-06-24": [
-      { time: "8:00 AM", duration: "4 hours", status: "blocked" }
-    ]
-  };
+  // Get captain's charters first
+  const { data: charters } = useQuery<any[]>({
+    queryKey: ["/api/captain/charters"],
+    enabled: !!user,
+  });
+
+  // Get availability for the current month
+  const currentMonth = selectedDate ? selectedDate.toISOString().slice(0, 7) : new Date().toISOString().slice(0, 7);
+  
+  const { data: availabilityData, isLoading } = useQuery<Availability[]>({
+    queryKey: ["/api/availability", charters?.[0]?.id, currentMonth],
+    queryFn: async () => {
+      if (!charters?.[0]?.id) return [];
+      const response = await fetch(`/api/availability?charterId=${charters[0].id}&month=${currentMonth}`);
+      if (!response.ok) throw new Error("Failed to fetch availability");
+      return response.json();
+    },
+    enabled: !!charters?.[0]?.id,
+  });
+
+  const addAvailabilityMutation = useMutation({
+    mutationFn: async (data: { charterId: number; date: Date; slots: number }) => {
+      return apiRequest("/api/availability", "POST", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/availability"] });
+      toast({
+        title: "Availability Added",
+        description: "Your availability has been updated successfully.",
+      });
+      setIsAddingAvailability(false);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to add availability. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const getDateAvailability = (date: Date) => {
+    if (!availabilityData) return [];
     const dateKey = date.toISOString().split('T')[0];
-    return availability[dateKey as keyof typeof availability] || [];
+    return availabilityData.filter(avail => 
+      avail.date && new Date(avail.date).toISOString().split('T')[0] === dateKey
+    );
   };
 
   const handleAddAvailability = () => {
-    toast({
-      title: "Availability Added",
-      description: "Your availability has been updated successfully.",
+    if (!selectedDate || !charters?.[0]?.id) return;
+    
+    addAvailabilityMutation.mutate({
+      charterId: charters[0].id,
+      date: selectedDate,
+      slots: newSlots,
     });
-    setIsAddingAvailability(false);
   };
 
   const selectedDateAvailability = selectedDate ? getDateAvailability(selectedDate) : [];
@@ -78,38 +117,17 @@ export default function CaptainCalendar() {
                     defaultValue={selectedDate?.toISOString().split('T')[0]}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="startTime">Start Time</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select time" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="6:00 AM">6:00 AM</SelectItem>
-                        <SelectItem value="7:00 AM">7:00 AM</SelectItem>
-                        <SelectItem value="8:00 AM">8:00 AM</SelectItem>
-                        <SelectItem value="9:00 AM">9:00 AM</SelectItem>
-                        <SelectItem value="10:00 AM">10:00 AM</SelectItem>
-                        <SelectItem value="12:00 PM">12:00 PM</SelectItem>
-                        <SelectItem value="2:00 PM">2:00 PM</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="duration">Duration</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select duration" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="4 hours">4 hours</SelectItem>
-                        <SelectItem value="6 hours">6 hours</SelectItem>
-                        <SelectItem value="8 hours">8 hours</SelectItem>
-                        <SelectItem value="Full day">Full day</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div>
+                  <Label htmlFor="slots">Available Slots</Label>
+                  <Input 
+                    id="slots" 
+                    type="number" 
+                    min="1"
+                    max="10"
+                    value={newSlots}
+                    onChange={(e) => setNewSlots(parseInt(e.target.value) || 1)}
+                    placeholder="Number of available slots"
+                  />
                 </div>
                 <div className="flex justify-end space-x-2">
                   <Button variant="outline" onClick={() => setIsAddingAvailability(false)}>
@@ -140,28 +158,28 @@ export default function CaptainCalendar() {
                 onSelect={setSelectedDate}
                 className="rounded-md border"
                 modifiers={{
-                  available: (date) => getDateAvailability(date).some(slot => slot.status === 'available'),
-                  booked: (date) => getDateAvailability(date).some(slot => slot.status === 'booked'),
-                  blocked: (date) => getDateAvailability(date).some(slot => slot.status === 'blocked'),
+                  available: (date) => {
+                    const dayAvailability = getDateAvailability(date);
+                    return dayAvailability.some(slot => slot.slots > slot.bookedSlots);
+                  },
+                  booked: (date) => {
+                    const dayAvailability = getDateAvailability(date);
+                    return dayAvailability.some(slot => slot.bookedSlots > 0 && slot.slots === slot.bookedSlots);
+                  },
                 }}
                 modifiersStyles={{
                   available: { backgroundColor: '#dcfce7', color: '#166534' },
-                  booked: { backgroundColor: '#dbeafe', color: '#1e40af' },
-                  blocked: { backgroundColor: '#fee2e2', color: '#dc2626' },
+                  booked: { backgroundColor: '#fee2e2', color: '#dc2626' },
                 }}
               />
               <div className="mt-4 space-y-2">
                 <div className="flex items-center space-x-2">
                   <div className="w-4 h-4 bg-green-100 border border-green-300 rounded"></div>
-                  <span className="text-sm">Available</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-blue-100 border border-blue-300 rounded"></div>
-                  <span className="text-sm">Booked</span>
+                  <span className="text-sm">Available Slots</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="w-4 h-4 bg-red-100 border border-red-300 rounded"></div>
-                  <span className="text-sm">Blocked</span>
+                  <span className="text-sm">Fully Booked</span>
                 </div>
               </div>
             </CardContent>
@@ -178,19 +196,22 @@ export default function CaptainCalendar() {
             <CardContent>
               {selectedDateAvailability.length > 0 ? (
                 <div className="space-y-4">
-                  {selectedDateAvailability.map((slot, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                  {selectedDateAvailability.map((availability) => (
+                    <div key={availability.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
-                        <p className="font-semibold">{slot.time}</p>
-                        <p className="text-sm text-storm-gray">{slot.duration}</p>
+                        <p className="font-semibold">
+                          {new Date(availability.date).toLocaleDateString()}
+                        </p>
+                        <p className="text-sm text-storm-gray">
+                          {availability.slots - availability.bookedSlots} of {availability.slots} slots available
+                        </p>
                       </div>
                       <Badge 
                         variant={
-                          slot.status === 'available' ? 'secondary' :
-                          slot.status === 'booked' ? 'default' : 'destructive'
+                          availability.slots > availability.bookedSlots ? 'secondary' : 'destructive'
                         }
                       >
-                        {slot.status}
+                        {availability.slots > availability.bookedSlots ? 'Available' : 'Fully Booked'}
                       </Badge>
                     </div>
                   ))}
