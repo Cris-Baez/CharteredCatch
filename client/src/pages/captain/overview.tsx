@@ -46,6 +46,8 @@ export default function CaptainOverview() {
     newMessages: 0
   };
 
+  const bookings = recentBookings || [];
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -89,8 +91,8 @@ export default function CaptainOverview() {
             </Link>
             <Link href="/captain/messages" className="border-b-2 border-transparent text-storm-gray hover:text-gray-900 py-4 px-1 font-medium">
               Messages
-              {stats.newMessages > 0 && (
-                <Badge variant="destructive" className="ml-2">{stats.newMessages}</Badge>
+              {(stats?.newMessages || 0) > 0 && (
+                <Badge variant="destructive" className="ml-2">{stats?.newMessages || 0}</Badge>
               )}
             </Link>
             <Link href="/captain/earnings" className="border-b-2 border-transparent text-storm-gray hover:text-gray-900 py-4 px-1 font-medium">
@@ -111,7 +113,7 @@ export default function CaptainOverview() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-storm-gray">Total Bookings</p>
-                  <p className="text-3xl font-bold">{stats.totalBookings}</p>
+                  <p className="text-3xl font-bold">{stats?.totalBookings || 0}</p>
                 </div>
                 <Calendar className="text-ocean-blue" size={32} />
               </div>
@@ -123,7 +125,7 @@ export default function CaptainOverview() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-storm-gray">Total Revenue</p>
-                  <p className="text-3xl font-bold">${stats.totalRevenue.toLocaleString()}</p>
+                  <p className="text-3xl font-bold">${(stats?.totalRevenue || 0).toLocaleString()}</p>
                 </div>
                 <DollarSign className="text-green-500" size={32} />
               </div>
@@ -147,7 +149,7 @@ export default function CaptainOverview() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-storm-gray">Response Rate</p>
-                  <p className="text-3xl font-bold">{stats.responseRate}%</p>
+                  <p className="text-3xl font-bold">{stats?.responseRate || 0}%</p>
                 </div>
                 <MessageCircle className="text-blue-500" size={32} />
               </div>
@@ -167,9 +169,9 @@ export default function CaptainOverview() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {recentBookings && recentBookings.length > 0 ? (
+              {bookings && bookings.length > 0 ? (
                 <div className="space-y-4">
-                  {recentBookings.slice(0, 3).map((booking) => (
+                  {bookings.slice(0, 3).map((booking: any) => (
                     <div key={booking.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
                         <p className="font-semibold">{booking.customerName}</p>
@@ -216,8 +218,8 @@ export default function CaptainOverview() {
                   <Link href="/captain/messages">
                     <MessageCircle className="w-4 h-4 mr-2" />
                     Check Messages
-                    {stats.newMessages > 0 && (
-                      <Badge variant="destructive" className="ml-auto">{stats.newMessages}</Badge>
+                    {(stats?.newMessages || 0) > 0 && (
+                      <Badge variant="destructive" className="ml-auto">{stats?.newMessages || 0}</Badge>
                     )}
                   </Link>
                 </Button>

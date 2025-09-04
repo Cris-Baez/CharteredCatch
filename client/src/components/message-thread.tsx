@@ -9,7 +9,7 @@ import type { User as UserType, Message } from "@shared/schema";
 interface MessageThreadProps {
   participant: UserType;
   messages: Message[];
-  currentUserId: number;
+  currentUserId: string;
   onSendMessage: (content: string) => void;
   isLoading?: boolean;
 }
@@ -60,7 +60,7 @@ export default function MessageThread({
               {participant.firstName} {participant.lastName}
             </h3>
             <p className="text-sm text-storm-gray font-normal">
-              {participant.isCaptin ? "Charter Captain" : "Angler"}
+              {participant.role === 'captain' ? "Charter Captain" : "Angler"}
             </p>
           </div>
         </CardTitle>
