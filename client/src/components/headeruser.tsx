@@ -1,12 +1,36 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User, Heart, Book, HelpCircle, LogOut, Menu } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useQueryClient } from "@tanstack/react-query";
 import SearchBar from "@/components/search-bar";
 
 export default function HeaderUser() {
   const [isOpen, setIsOpen] = useState(false);
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
+
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+      
+      if (response.ok) {
+        // Clear auth cache
+        await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        // Redirect to home
+        setLocation("/");
+      }
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">
@@ -39,20 +63,27 @@ export default function HeaderUser() {
             </Button>
           </Link>
           <Link href="/user/profile">
-            <Button variant="ghost" className="text-gray-700 hover:text-ocean-blue">
-              <User className="w-4 h-4 mr-2" /> Profile
-            </Button>
+            <div className="flex items-center space-x-2 text-gray-700 hover:text-ocean-blue cursor-pointer p-2 rounded transition-colors">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={user?.profileImage || ""} alt={user?.name || "User"} />
+                <AvatarFallback className="bg-ocean-blue text-white text-sm">
+                  {user?.name?.charAt(0)?.toUpperCase() || "U"}
+                </AvatarFallback>
+              </Avatar>
+              <span className="hidden lg:inline">Profile</span>
+            </div>
           </Link>
           <Link href="/help">
             <Button variant="ghost" className="text-gray-700 hover:text-ocean-blue">
               <HelpCircle className="w-4 h-4 mr-2" /> Help
             </Button>
           </Link>
-          <Link href="/logout">
-            <Button className="bg-ocean-blue hover:bg-blue-800 text-white">
-              <LogOut className="w-4 h-4 mr-2" /> Logout
-            </Button>
-          </Link>
+          <Button 
+            onClick={handleLogout}
+            className="bg-ocean-blue hover:bg-blue-800 text-white"
+          >
+            <LogOut className="w-4 h-4 mr-2" /> Logout
+          </Button>
         </div>
 
         {/* Mobile Menu */}
@@ -76,7 +107,13 @@ export default function HeaderUser() {
               </Link>
               <Link href="/user/profile" onClick={() => setIsOpen(false)}>
                 <Button variant="ghost" className="w-full justify-start">
-                  <User className="w-4 h-4 mr-2" /> Profile
+                  <Avatar className="h-6 w-6 mr-2">
+                    <AvatarImage src={user?.profileImage || ""} alt={user?.name || "User"} />
+                    <AvatarFallback className="bg-ocean-blue text-white text-xs">
+                      {user?.name?.charAt(0)?.toUpperCase() || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  Profile
                 </Button>
               </Link>
               <Link href="/help" onClick={() => setIsOpen(false)}>
@@ -84,11 +121,15 @@ export default function HeaderUser() {
                   <HelpCircle className="w-4 h-4 mr-2" /> Help
                 </Button>
               </Link>
-              <Link href="/logout" onClick={() => setIsOpen(false)}>
-                <Button className="w-full bg-ocean-blue hover:bg-blue-800 text-white">
-                  <LogOut className="w-4 h-4 mr-2" /> Logout
-                </Button>
-              </Link>
+              <Button 
+                onClick={() => {
+                  setIsOpen(false);
+                  handleLogout();
+                }}
+                className="w-full bg-ocean-blue hover:bg-blue-800 text-white"
+              >
+                <LogOut className="w-4 h-4 mr-2" /> Logout
+              </Button>
             </div>
           </SheetContent>
         </Sheet>
