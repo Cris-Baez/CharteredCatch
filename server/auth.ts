@@ -10,8 +10,8 @@ export function setupSession(app: Express) {
     session({
       store: new PgStore({
         conString: process.env.DATABASE_URL,
-        tableName: "session", // tabla para connect-pg-simple
-        createTableIfMissing: true, // permite que se cree automáticamente
+        tableName: "sessions", // usar el nombre correcto de la tabla existente
+        createTableIfMissing: false, // no crear tabla porque ya existe en el schema
       }),
       secret: process.env.SESSION_SECRET || "dev_secret",
       resave: false,

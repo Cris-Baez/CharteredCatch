@@ -6,6 +6,18 @@ async function populateDatabase() {
   try {
     console.log("🚀 Starting database population...");
 
+    // ============= LIMPIAR DATOS EXISTENTES =============
+    console.log("🧹 Cleaning existing data...");
+    
+    // Delete in order of dependencies
+    await db.delete(bookings);
+    await db.delete(availability);
+    await db.delete(charters);
+    await db.delete(captains);
+    await db.delete(users);
+    
+    console.log("✅ Existing data cleaned");
+
     // ============= CREAR USUARIOS =============
     console.log("📝 Creating users...");
 
