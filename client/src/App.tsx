@@ -65,6 +65,7 @@ function App() {
 
         {/* Usuario normal */}
         <Route path="/user/home" component={HomeUser} />
+        <Route path="/user/search" component={() => import("./pages/user/search-results-user").then(m => m.default)} />
         <Route path="/user/dashboard" component={UserDashboard} />
 
         {/* Capitán */}

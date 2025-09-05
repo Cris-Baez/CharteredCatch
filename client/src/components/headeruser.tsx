@@ -10,7 +10,7 @@ export default function HeaderUser() {
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">
-      <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 lg:px-8 h-20">
+      <div className="max-w-7xl mx-auto flex items-center justify-between px-3 sm:px-6 lg:px-8 h-16 md:h-20">
 
         {/* Logo */}
         <Link href="/">
@@ -18,7 +18,7 @@ export default function HeaderUser() {
             <img
               src="/attached_assets/IMG_2128-Photoroom_1749772590031.png"
               alt="Charterly Logo"
-              className="h-10 md:h-12 w-auto object-contain"
+              className="h-8 md:h-12 w-auto object-contain"
             />
           </div>
         </Link>
@@ -27,7 +27,7 @@ export default function HeaderUser() {
         <div className="hidden md:flex flex-1 justify-center px-6">
           <SearchBar onSearch={(filters) => {
             const params = new URLSearchParams(filters as any).toString();
-            window.location.href = `/search?${params}`;
+            window.location.href = `/user/search${params ? `?${params}` : ''}`;
           }} />
         </div>
 
@@ -100,10 +100,10 @@ export default function HeaderUser() {
       </div>
 
       {/* SearchBar para móvil */}
-      <div className="md:hidden border-t border-gray-100 p-3">
+      <div className="md:hidden border-t border-gray-100 p-2">
         <SearchBar onSearch={(filters) => {
           const params = new URLSearchParams(filters as any).toString();
-          window.location.href = `/search?${params}`;
+          window.location.href = `/user/search${params ? `?${params}` : ''}`;
         }} />
       </div>
     </header>

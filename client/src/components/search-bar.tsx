@@ -95,7 +95,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                       setLocation(e.target.value);
                       setShowSuggestions(true);
                     }}
-                    className="border border-gray-200 rounded-md h-10 text-sm"
+                    className="border border-gray-200 rounded-md h-8 text-sm"
                   />
                 </div>
                 {showSuggestions && suggestions.length > 0 && (
@@ -124,7 +124,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="border border-gray-200 rounded-md h-10 text-sm"
+                  className="border border-gray-200 rounded-md h-8 text-sm"
                 />
               </div>
             </div>
@@ -135,7 +135,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
               <div className="flex items-center gap-2">
                 <Fish className="w-4 h-4 text-gray-400 shrink-0" />
                 <Select value={targetSpecies} onValueChange={setTargetSpecies}>
-                  <SelectTrigger className="border border-gray-200 rounded-md h-10 text-sm">
+                  <SelectTrigger className="border border-gray-200 rounded-md h-8 text-sm">
                     <SelectValue placeholder="Species" />
                   </SelectTrigger>
                   <SelectContent>
@@ -152,7 +152,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-gray-400 shrink-0" />
                 <Select value={duration} onValueChange={setDuration}>
-                  <SelectTrigger className="border border-gray-200 rounded-md h-10 text-sm">
+                  <SelectTrigger className="border border-gray-200 rounded-md h-8 text-sm">
                     <SelectValue placeholder="Duration" />
                   </SelectTrigger>
                   <SelectContent>
@@ -281,4 +281,3 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
     </>
   );
 }
-
