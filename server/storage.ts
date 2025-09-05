@@ -223,25 +223,13 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async createUser(userData: {
-    email: string;
-    password: string;
-    firstName?: string;
-    lastName?: string;
-    role?: string;
-  }): Promise<User> {
+  async createUser(userData: Omit<InsertUser, "id">): Promise<User> {
+    // Generar ID único para usuarios locales
+    const userId = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
     const [user] = await db
       .insert(users)
-      .values({
-        id: crypto.randomUUID(),
-        email: userData.email,
-        password: userData.password, // hash antes
-        firstName: userData.firstName || null,
-        lastName: userData.lastName || null,
-        role: userData.role || "user",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })
+      .values({ ...userData, id: userId })
       .returning();
     return user;
   }

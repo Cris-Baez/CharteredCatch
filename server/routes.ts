@@ -82,6 +82,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/local/login", async (req, res) => {
     try {
       const { email, password } = req.body;
+      console.log("Login attempt:", { email: email?.substring(0, 3) + "***" });
+      
       if (!email || !password) {
         return res
           .status(400)
@@ -89,17 +91,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const user = await storage.findUserByEmail(email);
+      console.log("User found:", !!user);
+      
       if (!user) {
+        console.log("User not found for email:", email);
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      if (!user.password) {
+        console.log("User has no password set");
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
       const valid = await bcrypt.compare(password, user.password);
+      console.log("Password valid:", valid);
+      
       if (!valid) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
       req.session.userId = user.id;
       req.session.user = user;
+      console.log("Login successful for user:", user.id);
       res.json(user);
     } catch (err) {
       console.error("Login error:", err);
