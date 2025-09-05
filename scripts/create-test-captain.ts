@@ -12,7 +12,7 @@ async function createTestCaptain() {
       .insert(users)
       .values({
         id: `captain_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        email: "captain@example.com",
+        email: "captain1@example.com",
         password: hashedPassword,
         firstName: "Carlos",
         lastName: "Martinez",
@@ -40,7 +40,7 @@ async function createTestCaptain() {
 
     console.log("Captain creado:", newCaptain);
     console.log("\n=== CREDENCIALES DEL CAPTAIN ===");
-    console.log("Email: captain@example.com");
+    console.log("Email: captain1@example.com");
     console.log("Password: captain123");
     console.log("Nombre: Carlos Martinez");
     console.log("==================================");
