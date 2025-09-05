@@ -24,6 +24,7 @@ import Cancellation from "./pages/cancellation";
 
 // Usuario
 import HomeUser from "./pages/user/homeuser";
+import SearchResultsUser from "./pages/user/search-results-user";
 import UserDashboard from "./pages/user/userDashboard";
 
 // Capitán
@@ -65,7 +66,7 @@ function App() {
 
         {/* Usuario normal */}
         <Route path="/user/home" component={HomeUser} />
-        <Route path="/user/search" component={() => import("./pages/user/search-results-user").then(m => m.default)} />
+        <Route path="/user/search" component={SearchResultsUser} />
         <Route path="/user/dashboard" component={UserDashboard} />
 
         {/* Capitán */}
