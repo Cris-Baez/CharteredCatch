@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { useLocation } from "wouter";
 import HeaderUser from "@/components/headeruser";
 import Footer from "@/components/footer";
+import SearchBar from "@/components/search-bar";
 import { Card, CardContent } from "@/components/ui/card";
 import { MapPin, Star, User as UserIcon } from "lucide-react";
 import type { CharterWithCaptain } from "@shared/schema";
@@ -71,6 +72,22 @@ export default function HomeUser() {
     ? recommendedCharters
     : mockCharters;
 
+  const handleSearch = (filters: {
+    location: string;
+    targetSpecies: string;
+    duration: string;
+    date: string;
+  }) => {
+    const params = new URLSearchParams();
+    if (filters.location) params.set("location", filters.location);
+    if (filters.targetSpecies) params.set("targetSpecies", filters.targetSpecies);
+    if (filters.duration) params.set("duration", filters.duration);
+    if (filters.date) params.set("date", filters.date);
+    
+    const queryString = params.toString();
+    window.location.href = queryString ? `/user/search?${queryString}` : "/user/search";
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <HeaderUser />
@@ -89,6 +106,16 @@ export default function HomeUser() {
           <p className="text-gray-600">
             Ready for your next fishing adventure?
           </p>
+        </motion.div>
+
+        {/* Search Bar */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="mb-12"
+        >
+          <SearchBar onSearch={handleSearch} />
         </motion.div>
 
         {/* Categorías rápidas */}

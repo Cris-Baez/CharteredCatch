@@ -23,13 +23,8 @@ export default function HeaderUser() {
           </div>
         </Link>
 
-        {/* SearchBar en el centro */}
-        <div className="hidden md:flex flex-1 justify-center px-6">
-          <SearchBar onSearch={(filters) => {
-            const params = new URLSearchParams(filters as any).toString();
-            window.location.href = `/user/search${params ? `?${params}` : ''}`;
-          }} />
-        </div>
+        {/* Spacer for layout */}
+        <div className="flex-1"></div>
 
         {/* Menu de usuario (desktop) */}
         <div className="hidden md:flex items-center space-x-4">
@@ -99,13 +94,7 @@ export default function HeaderUser() {
         </Sheet>
       </div>
 
-      {/* SearchBar para móvil */}
-      <div className="md:hidden border-t border-gray-100 p-2">
-        <SearchBar onSearch={(filters) => {
-          const params = new URLSearchParams(filters as any).toString();
-          window.location.href = `/user/search${params ? `?${params}` : ''}`;
-        }} />
-      </div>
+      
     </header>
   );
 }
