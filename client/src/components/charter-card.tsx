@@ -26,12 +26,12 @@ export default function CharterCard({ charter }: CharterCardProps) {
             <Avatar className="w-10 h-10">
               <AvatarImage src={charter.captain.avatar || ""} />
               <AvatarFallback>
-                {charter.captain.user.firstName[0]}{charter.captain.user.lastName[0]}
+                {charter.captain?.name[0]}{charter.captain?.name[0]}
               </AvatarFallback>
             </Avatar>
             <div>
               <h3 className="font-semibold text-gray-900">
-                Captain {charter.captain.user.firstName} {charter.captain.user.lastName}
+                Captain {charter.captain?.name}
               </h3>
               <div className="flex items-center">
                 {charter.captain.verified && (

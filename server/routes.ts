@@ -1,351 +1,446 @@
 // server/routes.ts
-import type { Express } from "express";
-import { createServer, type Server } from "http";
-import path from "path";
+import type { Express, Request, Response } from "express";
 import express from "express";
+import path from "path";
+import { createServer, type Server } from "http";
 import bcrypt from "bcrypt";
-import { z } from "zod";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
 
-import { storage } from "./storage";
+import { db } from "./db";
 import {
-  insertBookingSchema,
-  insertMessageSchema,
-  insertReviewSchema,
-  insertAvailabilitySchema,
+  users,
+  captains,
+  charters,
+  type User,
 } from "@shared/schema";
+import { and, eq, ilike } from "drizzle-orm";
 
-// ========== HELPERS ==========
-
-// Verifica si el usuario es admin
-function isAdmin(req: any, res: any, next: any) {
-  if (!req.session.user || req.session.user.role !== "admin") {
-    return res.status(403).json({ message: "Admin access required" });
+/**
+ * Tipado de session para evitar los errores de TS:
+ * Property 'userId' / 'user' does not exist on type 'SessionData'
+ */
+declare module "express-session" {
+  interface SessionData {
+    userId?: string;
+    user?: User;
   }
-  next();
 }
 
-// Middleware: requiere sesión activa
-function requireAuth(req: any, res: any, next: any) {
-  if (!req.session.userId) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-  next();
+const PgStore = connectPg(session);
+
+// Helper para componer condiciones dinámicas en Drizzle
+function andAll<T>(conds: (T | undefined)[]) {
+  const filtered = conds.filter(Boolean) as T[];
+  if (filtered.length === 0) return undefined as unknown as T;
+  if (filtered.length === 1) return filtered[0];
+  // @ts-expect-error: drizzle and() acepta varargs; este wrapper es práctico
+  return and(...filtered);
 }
 
-// ========== ROUTES ==========
-
+// ==============================
+// registerRoutes
+// ==============================
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Serve static assets
+  // JSON y estáticos
+  app.use(express.json());
   app.use(
     "/attached_assets",
     express.static(path.join(process.cwd(), "attached_assets"))
   );
 
-  // -------- AUTH LOCAL --------
+  // Sesión en Postgres (tabla: session)
+  app.use(
+    session({
+      store: new PgStore({
+        conString: process.env.DATABASE_URL,
+        tableName: "session",
+        createTableIfMissing: false,
+      }),
+      secret: process.env.SESSION_SECRET || "dev_secret",
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        httpOnly: true,
+        secure: false, // ponlo en true si usas HTTPS
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 1 semana
+      },
+    })
+  );
 
-  // Registro
-  app.post("/api/auth/local/register", async (req, res) => {
+  // ==============================
+  // AUTH LOCAL
+  // ==============================
+
+  // Crear cuenta
+  app.post("/api/auth/local/register", async (req: Request, res: Response) => {
     try {
-      const { email, password, firstName, lastName, role } = req.body;
+      const { email, password, firstName, lastName, role } = req.body ?? {};
 
       if (!email || !password) {
-        return res
-          .status(400)
-          .json({ message: "Email and password are required" });
+        return res.status(400).json({ message: "Email and password required" });
       }
 
-      const existing = await storage.findUserByEmail(email);
+      const [existing] = await db.select().from(users).where(eq(users.email, email));
       if (existing) {
         return res.status(409).json({ message: "User already exists" });
       }
 
       const hashed = await bcrypt.hash(password, 10);
 
-      const user = await storage.createUser({
-        email,
-        password: hashed,
-        firstName,
-        lastName,
-        role: role || "user", // "user" o "captain"
-      });
+      // ojo: tu schema debe tener columna 'password' en users
+      // si no la tienes, agrégala: varchar("password")
+      const userId = `local_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
-      req.session.userId = user.id;
-      req.session.user = user;
-      res.status(201).json(user);
+      const [created] = await db
+        .insert(users)
+        .values({
+          id: userId,
+          email,
+          firstName: firstName ?? null,
+          lastName: lastName ?? null,
+          role: role ?? "user",
+          // @ts-expect-error password existe en DB (asegúrate en el schema)
+          password: hashed,
+        })
+        .returning();
+
+      req.session.userId = created.id;
+      req.session.user = created;
+      return res.status(201).json(created);
     } catch (err) {
       console.error("Register error:", err);
-      res.status(500).json({ message: "Failed to register" });
+      return res.status(500).json({ message: "Failed to register" });
     }
   });
 
   // Login
-  app.post("/api/auth/local/login", async (req, res) => {
+  app.post("/api/auth/local/login", async (req: Request, res: Response) => {
     try {
-      const { email, password } = req.body;
-      console.log("Login attempt:", { email: email?.substring(0, 3) + "***" });
-      
+      const { email, password } = req.body ?? {};
       if (!email || !password) {
-        return res
-          .status(400)
-          .json({ message: "Email and password are required" });
+        return res.status(400).json({ message: "Email and password required" });
       }
 
-      const user = await storage.findUserByEmail(email);
-      console.log("User found:", !!user);
-      
+      const [user] = await db.select().from(users).where(eq(users.email, email));
       if (!user) {
-        console.log("User not found for email:", email);
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
-      if (!user.password) {
-        console.log("User has no password set");
+      // el tipo de 'user' no trae password en TS, lo tomamos como any
+      const hashed = (user as any).password as string | undefined;
+      if (!hashed) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
-      const valid = await bcrypt.compare(password, user.password);
-      console.log("Password valid:", valid);
-      
-      if (!valid) {
+      const ok = await bcrypt.compare(password, hashed);
+      if (!ok) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
       req.session.userId = user.id;
       req.session.user = user;
-      console.log("Login successful for user:", user.id);
-      res.json(user);
+      return res.json(user);
     } catch (err) {
       console.error("Login error:", err);
-      res.status(500).json({ message: "Failed to login" });
+      return res.status(500).json({ message: "Failed to login" });
     }
   });
 
-  // Usuario de sesión
-  app.get("/api/auth/user", async (req, res) => {
+  // Obtener usuario actual
+  app.get("/api/auth/user", async (req: Request, res: Response) => {
     try {
       if (!req.session.userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
-
-      const user = await storage.getUser(req.session.userId);
+      // refrescamos desde DB
+      const [user] = await db.select().from(users).where(eq(users.id, req.session.userId));
       if (!user) {
+        req.session.destroy(() => {});
         return res.status(401).json({ message: "Unauthorized" });
       }
-
-      res.json(user);
+      return res.json(user);
     } catch (err) {
       console.error("Get user error:", err);
-      res.status(500).json({ message: "Failed to get user" });
+      return res.status(500).json({ message: "Failed to get user" });
     }
   });
 
   // Logout
-  app.post("/api/auth/logout", (req, res) => {
+  app.post("/api/auth/logout", (req: Request, res: Response) => {
     req.session.destroy(() => {
       res.json({ success: true });
     });
   });
 
-  // -------- CHARTERS --------
+  // ==============================
+  // CHARTERS (JOIN charters + captains + users)
+  // ==============================
 
-  // Recomendados (primeros 6)
-  app.get("/api/charters/recommended", async (req, res) => {
-    try {
-      const charters = await storage.getAllCharters();
-      const captains = await storage.getAllCaptains();
-
-      const recommended = charters.slice(0, 6).map((charter) => {
-        const captain = captains.find((c) => c.id === charter.captainId);
-        return {
-          ...charter,
-          captain: captain
-            ? {
-                id: captain.id,
-                name: `${captain.name ?? ""} ${captain.lastName ?? ""}`.trim() || "Unknown Captain",
-                location: captain.location,
-                avatar: captain.avatar,
-                rating: captain.rating,
-                reviewCount: captain.reviewCount,
-              }
-            : null,
-        };
-      });
-
-      res.json(recommended);
-    } catch (error) {
-      console.error("Recommended charters error:", error);
-      res.status(500).json({ message: "Failed to fetch recommended charters" });
-    }
-  });
-
-  // Todos los charters (con filtros opcionales)
-  app.get("/api/charters", async (req, res) => {
+  // /api/charters (con filtros opcionales: location, targetSpecies, duration)
+  app.get("/api/charters", async (req: Request, res: Response) => {
     try {
       const { location, targetSpecies, duration } = req.query;
 
-      const charters = await storage.getAllCharters();
-      const captains = await storage.getAllCaptains();
+      const whereCond = andAll([
+        eq(charters.isListed, true),
+        location ? ilike(charters.location, `%${String(location)}%`) : undefined,
+        targetSpecies ? ilike(charters.targetSpecies, `%${String(targetSpecies)}%`) : undefined,
+        duration ? eq(charters.duration, String(duration)) : undefined,
+      ]);
 
-      // aplica filtros básicos
-      let filtered = charters;
-      if (location) filtered = filtered.filter((c) => c.location === location);
-      if (targetSpecies) filtered = filtered.filter((c) => c.targetSpecies === targetSpecies);
-      if (duration) filtered = filtered.filter((c) => c.duration === duration);
+      const rows = await db
+        .select({
+          // Charter
+          id: charters.id,
+          captainId: charters.captainId,
+          title: charters.title,
+          description: charters.description,
+          location: charters.location,
+          lat: charters.lat,
+          lng: charters.lng,
+          targetSpecies: charters.targetSpecies,
+          duration: charters.duration,
+          maxGuests: charters.maxGuests,
+          price: charters.price,
+          boatSpecs: charters.boatSpecs,
+          included: charters.included,
+          images: charters.images,
+          available: charters.available,
+          isListed: charters.isListed,
+          // Captain
+          c_id: captains.id,
+          c_userId: captains.userId,
+          c_bio: captains.bio,
+          c_experience: captains.experience,
+          c_licenseNumber: captains.licenseNumber,
+          c_location: captains.location,
+          c_avatar: captains.avatar,
+          c_verified: captains.verified,
+          c_rating: captains.rating,
+          c_reviewCount: captains.reviewCount,
+          // User (del capitán, para armar name)
+          u_firstName: users.firstName,
+          u_lastName: users.lastName,
+        })
+        .from(charters)
+        .leftJoin(captains, eq(charters.captainId, captains.id))
+        .leftJoin(users, eq(captains.userId, users.id))
+        .where(whereCond);
 
-      // unimos charters + capitán
-      const result = filtered.map((charter) => {
-        const captain = captains.find((c) => c.id === charter.captainId);
-        return {
-          ...charter,
-          captain: captain
-            ? {
-                id: captain.id,
-                name: `${captain.name ?? ""} ${captain.avatar ?? ""}`.trim() || "Unknown Captain",
-                location: captain.location,
-                avatar: captain.avatar,
-                rating: captain.rating,
-                reviewCount: captain.reviewCount,
-              }
-            : null,
-        };
-      });
+      const result = rows.map((r) => ({
+        id: r.id,
+        captainId: r.captainId,
+        title: r.title,
+        description: r.description,
+        location: r.location,
+        lat: r.lat,
+        lng: r.lng,
+        targetSpecies: r.targetSpecies,
+        duration: r.duration,
+        maxGuests: r.maxGuests,
+        price: r.price,
+        boatSpecs: r.boatSpecs,
+        included: r.included,
+        images: r.images ?? [],
+        available: r.available,
+        isListed: r.isListed,
+        captain: r.c_id
+          ? {
+              id: r.c_id,
+              userId: r.c_userId,
+              bio: r.c_bio,
+              experience: r.c_experience,
+              licenseNumber: r.c_licenseNumber,
+              location: r.c_location,
+              avatar: r.c_avatar,
+              verified: r.c_verified,
+              rating: r.c_rating,
+              reviewCount: r.c_reviewCount,
+              // <- ESTO es lo que tu UI usa
+              name: [r.u_firstName, r.u_lastName].filter(Boolean).join(" ") || "Captain",
+            }
+          : undefined,
+      }));
 
-      res.json(result);
+      return res.json(result);
     } catch (error) {
-      console.error("Error fetching charters:", error);
-      res.status(500).json({ message: "Failed to fetch charters" });
+      console.error("Charters error:", error);
+      return res.status(500).json({ message: "Failed to fetch charters" });
     }
   });
 
-  // Charter por id (ya estaba bien 👇)
-  app.get("/api/charters/:id", async (req, res) => {
+  // /api/charters/recommended -> primeros 6 listados
+  app.get("/api/charters/recommended", async (_req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
-      const charter = await storage.getCharterWithCaptain(id);
+      const rows = await db
+        .select({
+          id: charters.id,
+          captainId: charters.captainId,
+          title: charters.title,
+          description: charters.description,
+          location: charters.location,
+          lat: charters.lat,
+          lng: charters.lng,
+          targetSpecies: charters.targetSpecies,
+          duration: charters.duration,
+          maxGuests: charters.maxGuests,
+          price: charters.price,
+          boatSpecs: charters.boatSpecs,
+          included: charters.included,
+          images: charters.images,
+          available: charters.available,
+          isListed: charters.isListed,
+          c_id: captains.id,
+          c_userId: captains.userId,
+          c_bio: captains.bio,
+          c_experience: captains.experience,
+          c_licenseNumber: captains.licenseNumber,
+          c_location: captains.location,
+          c_avatar: captains.avatar,
+          c_verified: captains.verified,
+          c_rating: captains.rating,
+          c_reviewCount: captains.reviewCount,
+          u_firstName: users.firstName,
+          u_lastName: users.lastName,
+        })
+        .from(charters)
+        .leftJoin(captains, eq(charters.captainId, captains.id))
+        .leftJoin(users, eq(captains.userId, users.id))
+        .where(eq(charters.isListed, true))
+        .limit(6);
 
-      if (!charter) {
-        return res.status(404).json({ message: "Charter not found" });
+      const result = rows.map((r) => ({
+        id: r.id,
+        captainId: r.captainId,
+        title: r.title,
+        description: r.description,
+        location: r.location,
+        lat: r.lat,
+        lng: r.lng,
+        targetSpecies: r.targetSpecies,
+        duration: r.duration,
+        maxGuests: r.maxGuests,
+        price: r.price,
+        boatSpecs: r.boatSpecs,
+        included: r.included,
+        images: r.images ?? [],
+        available: r.available,
+        isListed: r.isListed,
+        captain: r.c_id
+          ? {
+              id: r.c_id,
+              userId: r.c_userId,
+              bio: r.c_bio,
+              experience: r.c_experience,
+              licenseNumber: r.c_licenseNumber,
+              location: r.c_location,
+              avatar: r.c_avatar,
+              verified: r.c_verified,
+              rating: r.c_rating,
+              reviewCount: r.c_reviewCount,
+              name: [r.u_firstName, r.u_lastName].filter(Boolean).join(" ") || "Captain",
+            }
+          : undefined,
+      }));
+
+      return res.json(result);
+    } catch (error) {
+      console.error("Recommended charters error:", error);
+      return res.status(500).json({ message: "Failed to fetch recommended charters" });
+    }
+  });
+
+  // /api/charters/:id
+  app.get("/api/charters/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isFinite(id)) {
+        return res.status(400).json({ message: "Invalid id" });
       }
 
-      res.json(charter);
+      const [r] = await db
+        .select({
+          id: charters.id,
+          captainId: charters.captainId,
+          title: charters.title,
+          description: charters.description,
+          location: charters.location,
+          lat: charters.lat,
+          lng: charters.lng,
+          targetSpecies: charters.targetSpecies,
+          duration: charters.duration,
+          maxGuests: charters.maxGuests,
+          price: charters.price,
+          boatSpecs: charters.boatSpecs,
+          included: charters.included,
+          images: charters.images,
+          available: charters.available,
+          isListed: charters.isListed,
+          c_id: captains.id,
+          c_userId: captains.userId,
+          c_bio: captains.bio,
+          c_experience: captains.experience,
+          c_licenseNumber: captains.licenseNumber,
+          c_location: captains.location,
+          c_avatar: captains.avatar,
+          c_verified: captains.verified,
+          c_rating: captains.rating,
+          c_reviewCount: captains.reviewCount,
+          u_firstName: users.firstName,
+          u_lastName: users.lastName,
+        })
+        .from(charters)
+        .leftJoin(captains, eq(charters.captainId, captains.id))
+        .leftJoin(users, eq(captains.userId, users.id))
+        .where(eq(charters.id, id));
+
+      if (!r) return res.status(404).json({ message: "Charter not found" });
+
+      const result = {
+        id: r.id,
+        captainId: r.captainId,
+        title: r.title,
+        description: r.description,
+        location: r.location,
+        lat: r.lat,
+        lng: r.lng,
+        targetSpecies: r.targetSpecies,
+        duration: r.duration,
+        maxGuests: r.maxGuests,
+        price: r.price,
+        boatSpecs: r.boatSpecs,
+        included: r.included,
+        images: r.images ?? [],
+        available: r.available,
+        isListed: r.isListed,
+        captain: r.c_id
+          ? {
+              id: r.c_id,
+              userId: r.c_userId,
+              bio: r.c_bio,
+              experience: r.c_experience,
+              licenseNumber: r.c_licenseNumber,
+              location: r.c_location,
+              avatar: r.c_avatar,
+              verified: r.c_verified,
+              rating: r.c_rating,
+              reviewCount: r.c_reviewCount,
+              name: [r.u_firstName, r.u_lastName].filter(Boolean).join(" ") || "Captain",
+            }
+          : undefined,
+      };
+
+      return res.json(result);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch charter" });
+      console.error("Get charter error:", error);
+      return res.status(500).json({ message: "Failed to fetch charter" });
     }
   });
 
-
-  // -------- AVAILABILITY --------
-  app.get("/api/availability", async (req, res) => {
-    try {
-      const { charterId, month } = req.query;
-
-      if (!charterId || !month) {
-        return res
-          .status(400)
-          .json({ message: "charterId and month are required" });
-      }
-
-      const availability = await storage.getAvailability(
-        parseInt(charterId as string),
-        month as string
-      );
-      res.json(availability);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch availability" });
-    }
-  });
-
-  app.post("/api/availability", requireAuth, async (req: any, res) => {
-    try {
-      const availabilityData = insertAvailabilitySchema.parse(req.body);
-      const availability = await storage.createAvailability(availabilityData);
-      res.status(201).json(availability);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ message: "Invalid availability data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Failed to create availability" });
-    }
-  });
-
-  // -------- BOOKINGS --------
-  app.post("/api/bookings", async (req, res) => {
-    try {
-      const bookingData = insertBookingSchema.parse(req.body);
-
-      const isAvailable = await storage.checkAvailability(
-        bookingData.charterId,
-        bookingData.tripDate,
-        1
-      );
-
-      if (!isAvailable) {
-        return res.status(409).json({ message: "No availability for this date" });
-      }
-
-      const booking = await storage.createBooking(bookingData);
-      await storage.updateAvailabilitySlots(
-        bookingData.charterId,
-        bookingData.tripDate,
-        1
-      );
-
-      res.status(201).json(booking);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ message: "Invalid booking data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Failed to create booking" });
-    }
-  });
-
-  // -------- MESSAGES --------
-  app.post("/api/messages", async (req, res) => {
-    try {
-      const messageData = insertMessageSchema.parse(req.body);
-      const message = await storage.createMessage(messageData);
-      res.status(201).json(message);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ message: "Invalid message data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Failed to send message" });
-    }
-  });
-
-  // -------- REVIEWS --------
-  app.post("/api/reviews", async (req, res) => {
-    try {
-      const reviewData = insertReviewSchema.parse(req.body);
-      const review = await storage.createReview(reviewData);
-      res.status(201).json(review);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ message: "Invalid review data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Failed to create review" });
-    }
-  });
-
-  // -------- ADMIN --------
-  app.get("/api/admin/captains", requireAuth, isAdmin, async (_req, res) => {
-    try {
-      const captains = await storage.getAllCaptainsWithUsers();
-      res.json(captains);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch captains" });
-    }
-  });
-
+  // ==============================
+  // HTTP SERVER
+  // ==============================
   const httpServer = createServer(app);
   return httpServer;
 }
-

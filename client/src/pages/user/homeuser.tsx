@@ -9,6 +9,7 @@ import SearchBar from "@/components/search-bar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MapPin, Star, User as UserIcon } from "lucide-react";
+
 import type { CharterWithCaptain } from "@shared/schema";
 
 export default function HomeUser() {

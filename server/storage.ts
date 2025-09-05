@@ -25,8 +25,11 @@ import {
 } from "@shared/schema";
 
 import { db } from "./db";
-import { eq, and, or, ilike, sql } from "drizzle-orm";
-import crypto from "crypto";
+import { eq, ilike, and } from "drizzle-orm";
+
+// =======================================
+// INTERFAZ PRINCIPAL
+// =======================================
 
 export interface IStorage {
   // Users
@@ -47,7 +50,6 @@ export interface IStorage {
   getCaptainByUserId(userId: string): Promise<Captain | undefined>;
   createCaptain(captain: InsertCaptain): Promise<Captain>;
   getAllCaptains(): Promise<Captain[]>;
-  getAllCaptainsWithUsers(): Promise<(Captain & { user: User })[]>;
 
   // Charters
   getCharter(id: number): Promise<Charter | undefined>;
@@ -57,15 +59,10 @@ export interface IStorage {
     location?: string;
     targetSpecies?: string;
     duration?: string;
-    lat?: number;
-    lng?: number;
-    distance?: number;
   }): Promise<CharterWithCaptain[]>;
   getAllCharters(): Promise<CharterWithCaptain[]>;
   createCharter(charter: InsertCharter): Promise<Charter>;
   updateCharter(id: number, updates: Partial<Charter>): Promise<Charter | undefined>;
-  updateCharterVisibility(charterId: number, isListed: boolean): Promise<Charter | undefined>;
-  getAllChartersForAdmin(): Promise<Charter[]>;
 
   // Bookings
   createBooking(booking: InsertBooking): Promise<Booking>;
@@ -96,17 +93,22 @@ export interface IStorage {
   getCaptainMessageThreads(captainId: number): Promise<any[]>;
   getCaptainEarnings(captainId: number): Promise<any>;
 
-  // Admin
+  // Admin operations
+  getAllCaptainsWithUsers(): Promise<(Captain & { user: User })[]>;
   updateCaptainVerification(captainId: number, verified: boolean): Promise<Captain | undefined>;
+  getAllChartersForAdmin(): Promise<Charter[]>;
+  updateCharterVisibility(charterId: number, isListed: boolean): Promise<Charter | undefined>;
 }
 
+// =======================================
+// IMPLEMENTACIÓN
+// =======================================
+
 export class DatabaseStorage implements IStorage {
-  getChartersByCaptain(captainId: number): Promise<Charter[]> {
-      throw new Error("Method not implemented.");
-  }
   // =====================
-  // Users
+  // USERS
   // =====================
+
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
@@ -136,11 +138,8 @@ export class DatabaseStorage implements IStorage {
     lastName?: string;
     role?: string;
   }): Promise<User> {
-    const userId = `local_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
-    const [user] = await db
-      .insert(users)
-      .values({ ...userData, id: userId })
-      .returning();
+    const userId = `local_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    const [user] = await db.insert(users).values({ ...userData, id: userId }).returning();
     return user;
   }
 
@@ -154,8 +153,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // =====================
-  // Captains
+  // CAPTAINS
   // =====================
+
   async getCaptain(id: number): Promise<Captain | undefined> {
     const [captain] = await db.select().from(captains).where(eq(captains.id, id));
     return captain;
@@ -175,57 +175,10 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(captains);
   }
 
-  async getAllCaptainsWithUsers(): Promise<(Captain & { user: User })[]> {
-    const results = await db
-      .select({
-        id: captains.id,
-        name: captains.name,
-        userId: captains.userId,
-        bio: captains.bio,
-        experience: captains.experience,
-        licenseNumber: captains.licenseNumber,
-        location: captains.location,
-        avatar: captains.avatar,
-        verified: captains.verified,
-        rating: captains.rating,
-        reviewCount: captains.reviewCount,
-
-        user_id: users.id,
-        user_email: users.email,
-        user_firstName: users.firstName,
-        user_lastName: users.lastName,
-      })
-      .from(captains)
-      .leftJoin(users, eq(captains.userId, users.id));
-
-    return results.map((r) => ({
-      id: r.id,
-      name: r.name,
-      userId: r.userId,
-      bio: r.bio,
-      experience: r.experience,
-      licenseNumber: r.licenseNumber,
-      location: r.location,
-      avatar: r.avatar,
-      verified: r.verified,
-      rating: r.rating,
-      reviewCount: r.reviewCount,
-      user: {
-        id: r.user_id,
-        email: r.user_email,
-        firstName: r.user_firstName,
-        lastName: r.user_lastName,
-        password: "",
-        role: "user",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    }));
-  }
-
   // =====================
-  // Charters
+  // CHARTERS
   // =====================
+
   async getCharter(id: number): Promise<Charter | undefined> {
     const [charter] = await db.select().from(charters).where(eq(charters.id, id));
     return charter;
@@ -234,187 +187,124 @@ export class DatabaseStorage implements IStorage {
   async getCharterWithCaptain(id: number): Promise<CharterWithCaptain | undefined> {
     const [row] = await db
       .select({
-        id: charters.id,
-        captainId: charters.captainId,
-        title: charters.title,
-        description: charters.description,
-        location: charters.location,
-        lat: charters.lat,
-        lng: charters.lng,
-        targetSpecies: charters.targetSpecies,
-        duration: charters.duration,
-        maxGuests: charters.maxGuests,
-        price: charters.price,
-        boatSpecs: charters.boatSpecs,
-        included: charters.included,
-        images: charters.images,
-        available: charters.available,
-        isListed: charters.isListed,
-
-        captainId_fk: captains.id,
-        captainName: captains.name,
-        captainUserId: captains.userId,
-        captainBio: captains.bio,
-        captainExperience: captains.experience,
-        captainLicense: captains.licenseNumber,
-        captainLocation: captains.location,
-        captainAvatar: captains.avatar,
-        captainVerified: captains.verified,
-        captainRating: captains.rating,
-        captainReviewCount: captains.reviewCount,
+        ...charters,
+        captain: {
+          id: captains.id,
+          name: captains.name,
+          rating: captains.rating,
+          reviewCount: captains.reviewCount,
+        },
       })
       .from(charters)
       .leftJoin(captains, eq(charters.captainId, captains.id))
       .where(eq(charters.id, id));
 
-    if (!row) return undefined;
-
-    return {
-      id: row.id,
-      captainId: row.captainId,
-      title: row.title,
-      description: row.description,
-      location: row.location,
-      lat: row.lat,
-      lng: row.lng,
-      targetSpecies: row.targetSpecies,
-      duration: row.duration,
-      maxGuests: row.maxGuests,
-      price: row.price,
-      boatSpecs: row.boatSpecs,
-      included: row.included,
-      images: row.images,
-      available: row.available,
-      isListed: row.isListed,
-      captain: {
-        id: row.captainId_fk,
-        userId: row.captainUserId,
-        name: row.captainName,
-        bio: row.captainBio,
-        experience: row.captainExperience,
-        licenseNumber: row.captainLicense,
-        location: row.captainLocation,
-        avatar: row.captainAvatar,
-        verified: row.captainVerified,
-        rating: row.captainRating,
-        reviewCount: row.captainReviewCount,
-      },
-    };
+    return row
+      ? {
+          ...row,
+          captain: row.captain || { id: 0, name: "Unknown", rating: "0.0", reviewCount: 0 },
+        }
+      : undefined;
   }
 
-  async getAllCharters(): Promise<CharterWithCaptain[]> {
-    const rows = await db
-      .select({
-        id: charters.id,
-        captainId: charters.captainId,
-        title: charters.title,
-        description: charters.description,
-        location: charters.location,
-        lat: charters.lat,
-        lng: charters.lng,
-        targetSpecies: charters.targetSpecies,
-        duration: charters.duration,
-        maxGuests: charters.maxGuests,
-        price: charters.price,
-        boatSpecs: charters.boatSpecs,
-        included: charters.included,
-        images: charters.images,
-        available: charters.available,
-        isListed: charters.isListed,
+  async getChartersByCaptain(captainId: number): Promise<Charter[]> {
+    return await db.select().from(charters).where(eq(charters.captainId, captainId));
+  }
 
-        captainId_fk: captains.id,
-        captainName: captains.name,
-        captainUserId: captains.userId,
-        captainBio: captains.bio,
-        captainExperience: captains.experience,
-        captainLicense: captains.licenseNumber,
-        captainLocation: captains.location,
-        captainAvatar: captains.avatar,
-        captainVerified: captains.verified,
-        captainRating: captains.rating,
-        captainReviewCount: captains.reviewCount,
+  async searchCharters(filters: {
+    location?: string;
+    targetSpecies?: string;
+    duration?: string;
+  }): Promise<CharterWithCaptain[]> {
+    let query = db
+      .select({
+        ...charters,
+        captain: {
+          id: captains.id,
+          name: captains.name,
+          rating: captains.rating,
+          reviewCount: captains.reviewCount,
+        },
       })
       .from(charters)
       .leftJoin(captains, eq(charters.captainId, captains.id));
 
-    return rows.map((row) => ({
-      id: row.id,
-      captainId: row.captainId,
-      title: row.title,
-      description: row.description,
-      location: row.location,
-      lat: row.lat,
-      lng: row.lng,
-      targetSpecies: row.targetSpecies,
-      duration: row.duration,
-      maxGuests: row.maxGuests,
-      price: row.price,
-      boatSpecs: row.boatSpecs,
-      included: row.included,
-      images: row.images,
-      available: row.available,
-      isListed: row.isListed,
-      captain: {
-        id: row.captainId_fk,
-        userId: row.captainUserId,
-        name: row.captainName,
-        bio: row.captainBio,
-        experience: row.captainExperience,
-        licenseNumber: row.captainLicense,
-        location: row.captainLocation,
-        avatar: row.captainAvatar,
-        verified: row.captainVerified,
-        rating: row.captainRating,
-        reviewCount: row.captainReviewCount,
-      },
+    if (filters.location) {
+      query = query.where(ilike(charters.location, `%${filters.location}%`));
+    }
+    if (filters.targetSpecies) {
+      query = query.where(ilike(charters.targetSpecies, `%${filters.targetSpecies}%`));
+    }
+    if (filters.duration) {
+      query = query.where(eq(charters.duration, filters.duration));
+    }
+
+    const results = await query;
+    return results.map((row: any) => ({
+      ...row,
+      captain: row.captain || { id: 0, name: "Unknown", rating: "0.0", reviewCount: 0 },
     }));
   }
 
-  // TODO: implementar searchCharters y demás con mismo patrón
-  searchCharters(): Promise<CharterWithCaptain[]> {
-    return this.getAllCharters();
+  async getAllCharters(): Promise<CharterWithCaptain[]> {
+    const results = await db
+      .select({
+        ...charters,
+        captain: {
+          id: captains.id,
+          name: captains.name,
+          rating: captains.rating,
+          reviewCount: captains.reviewCount,
+        },
+      })
+      .from(charters)
+      .leftJoin(captains, eq(charters.captainId, captains.id));
+
+    return results.map((row: any) => ({
+      ...row,
+      captain: row.captain || { id: 0, name: "Unknown", rating: "0.0", reviewCount: 0 },
+    }));
   }
 
-  async createCharter(charter: InsertCharter): Promise<Charter> {
-    const [c] = await db.insert(charters).values(charter).returning();
-    return c;
+  async createCharter(insertCharter: InsertCharter): Promise<Charter> {
+    const [charter] = await db.insert(charters).values(insertCharter).returning();
+    return charter;
   }
 
   async updateCharter(id: number, updates: Partial<Charter>): Promise<Charter | undefined> {
-    const [c] = await db.update(charters).set(updates).where(eq(charters.id, id)).returning();
-    return c;
-  }
-
-  async updateCharterVisibility(charterId: number, isListed: boolean): Promise<Charter | undefined> {
-    const [c] = await db.update(charters).set({ isListed }).where(eq(charters.id, charterId)).returning();
-    return c;
-  }
-
-  async getAllChartersForAdmin(): Promise<Charter[]> {
-    return db.select().from(charters);
+    const [charter] = await db.update(charters).set(updates).where(eq(charters.id, id)).returning();
+    return charter;
   }
 
   // =====================
-  // Bookings / Messages / Reviews / Availability / Dashboard
+  // BOOKING (solo base)
   // =====================
-  async createBooking(b: InsertBooking): Promise<Booking> {
-    const [bk] = await db.insert(bookings).values(b).returning();
-    return bk;
+
+  async createBooking(insertBooking: InsertBooking): Promise<Booking> {
+    const [booking] = await db.insert(bookings).values(insertBooking).returning();
+    return booking;
   }
+
   async getBookingsByUser(userId: string): Promise<Booking[]> {
-    return db.select().from(bookings).where(eq(bookings.userId, userId));
-  }
-  async getBookingsByCaptain(captainId: number): Promise<Booking[]> {
-    return db.select().from(bookings).where(eq(bookings.captainId, captainId));
-  }
-  async updateBookingStatus(id: number, status: string): Promise<Booking | undefined> {
-    const [bk] = await db.update(bookings).set({ status }).where(eq(bookings.id, id)).returning();
-    return bk;
+    return await db.select().from(bookings).where(eq(bookings.userId, userId));
   }
 
-  async createMessage(m: InsertMessage): Promise<Message> {
-    const [msg] = await db.insert(messages).values(m).returning();
-    return msg;
+  async getBookingsByCaptain(captainId: number): Promise<Booking[]> {
+    return await db.select().from(bookings).where(eq(bookings.captainId, captainId));
+  }
+
+  async updateBookingStatus(id: number, status: string): Promise<Booking | undefined> {
+    const [booking] = await db.update(bookings).set({ status }).where(eq(bookings.id, id)).returning();
+    return booking;
+  }
+
+  // =====================
+  // MENSAJES / REVIEWS / AVAILABILITY
+  // (puedes implementar según necesidad real)
+  // =====================
+
+  async createMessage(): Promise<Message> {
+    throw new Error("Not implemented");
   }
   async getMessageThread(): Promise<Message[]> {
     return [];
@@ -422,20 +312,22 @@ export class DatabaseStorage implements IStorage {
   async getMessageThreads(): Promise<MessageThread[]> {
     return [];
   }
-  async markMessageAsRead(): Promise<void> {}
-
-  async createReview(r: InsertReview): Promise<Review> {
-    const [rev] = await db.insert(reviews).values(r).returning();
-    return rev;
+  async markMessageAsRead(): Promise<void> {
+    return;
   }
-  async getReviewsByCaptain(captainId: number): Promise<Review[]> {
-    return db.select().from(reviews).where(eq(reviews.captainId, captainId));
-  }
-  async updateCaptainRating(): Promise<void> {}
 
-  async createAvailability(a: InsertAvailability): Promise<Availability> {
-    const [av] = await db.insert(availability).values(a).returning();
-    return av;
+  async createReview(): Promise<Review> {
+    throw new Error("Not implemented");
+  }
+  async getReviewsByCaptain(): Promise<Review[]> {
+    return [];
+  }
+  async updateCaptainRating(): Promise<void> {
+    return;
+  }
+
+  async createAvailability(): Promise<Availability> {
+    throw new Error("Not implemented");
   }
   async getAvailability(): Promise<Availability[]> {
     return [];
@@ -460,9 +352,43 @@ export class DatabaseStorage implements IStorage {
     return {};
   }
 
+  async getAllCaptainsWithUsers(): Promise<(Captain & { user: User })[]> {
+    const rows = await db
+      .select({
+        ...captains,
+        user: {
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+        },
+      })
+      .from(captains)
+      .leftJoin(users, eq(captains.userId, users.id));
+
+    return rows as any;
+  }
+
   async updateCaptainVerification(captainId: number, verified: boolean): Promise<Captain | undefined> {
-    const [c] = await db.update(captains).set({ verified }).where(eq(captains.id, captainId)).returning();
-    return c;
+    const [captain] = await db
+      .update(captains)
+      .set({ verified })
+      .where(eq(captains.id, captainId))
+      .returning();
+    return captain;
+  }
+
+  async getAllChartersForAdmin(): Promise<Charter[]> {
+    return await db.select().from(charters);
+  }
+
+  async updateCharterVisibility(charterId: number, isListed: boolean): Promise<Charter | undefined> {
+    const [charter] = await db
+      .update(charters)
+      .set({ isListed })
+      .where(eq(charters.id, charterId))
+      .returning();
+    return charter;
   }
 }
 
