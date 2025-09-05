@@ -26,51 +26,9 @@ export default function HomeUser() {
     }
   }, [isLoading, isAuthenticated, user, setLocation]);
 
-  // Datos mock (ajustados al tipo real CharterWithCaptain)
-  const mockCharters: CharterWithCaptain[] = [
-    {
-      id: 1,
-      title: "Sunset Reef Adventure",
-      location: "Key West, FL",
-      price: "450", // 👈 string porque en tu schema es VARCHAR/TEXT
-      images: ["/attached_assets/image_1749589187411.png"],
-      captain: {
-        userId: "u1",
-        bio: "Experienced captain",
-        experience: "10 years",
-        licenseNumber: "ABC123",
-        location: "Key West, FL",
-        avatar: null,
-        verified: true,
-        rating: "4.8",
-        reviewCount: 120,
-        name: "Captain Mike",
-      },
-    },
-    {
-      id: 2,
-      title: "Deep Sea Mahi Hunt",
-      location: "Miami, FL",
-      price: "850",
-      images: ["/attached_assets/image_1749589049214.png"],
-      captain: {
-        userId: "u2",
-        bio: "Specialist in Mahi fishing",
-        experience: "7 years",
-        licenseNumber: "XYZ789",
-        location: "Miami, FL",
-        avatar: null,
-        verified: true,
-        rating: "5.0",
-        reviewCount: 98,
-        name: "XYZ789",
-      },
-    },
-  ];
-
   const charters = recommendedCharters?.length
     ? recommendedCharters
-    : mockCharters;
+    : []; // Inicialmente vacío si no hay datos del backend
 
   const handleSearch = (filters: {
     location: string;
@@ -83,7 +41,7 @@ export default function HomeUser() {
     if (filters.targetSpecies) params.set("targetSpecies", filters.targetSpecies);
     if (filters.duration) params.set("duration", filters.duration);
     if (filters.date) params.set("date", filters.date);
-    
+
     const queryString = params.toString();
     window.location.href = queryString ? `/user/search?${queryString}` : "/user/search";
   };
@@ -118,7 +76,7 @@ export default function HomeUser() {
           <SearchBar onSearch={handleSearch} />
         </motion.div>
 
-        {/* Recommended for You */}
+        {/* Recommended for you */}
         <section className="mb-12">
           <h2 className="text-2xl font-semibold text-gray-800 mb-6">
             Recommended for you
@@ -222,7 +180,7 @@ export default function HomeUser() {
           <h2 className="text-2xl font-semibold text-gray-800 mb-6">
             Popular near you
           </h2>
-          
+
           {/* Mobile Carousel */}
           <div className="md:hidden">
             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
@@ -316,7 +274,7 @@ export default function HomeUser() {
           <h2 className="text-2xl font-semibold text-gray-800 mb-6">
             Top rated charters
           </h2>
-          
+
           {/* Mobile Carousel */}
           <div className="md:hidden">
             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
@@ -410,4 +368,3 @@ export default function HomeUser() {
     </div>
   );
 }
-
