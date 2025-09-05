@@ -13,7 +13,9 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Session storage table for Replit Auth
+// =====================
+// Session storage table
+// =====================
 export const sessions = pgTable(
   "sessions",
   {
@@ -21,21 +23,27 @@ export const sessions = pgTable(
     sess: jsonb("sess").notNull(),
     expire: timestamp("expire").notNull(),
   },
-  (table) => [index("IDX_session_expire").on(table.expire)],
+  (table) => [index("IDX_session_expire").on(table.expire)]
 );
 
-// User storage table for Replit Auth
+// =====================
+// Users
+// =====================
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().notNull(),
   email: varchar("email").unique(),
+  password: text("password").notNull(), // 👈 NECESARIO PARA LOGIN LOCAL
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
-  role: varchar("role").default("user"),
+  role: varchar("role").default("user"), // "user" | "captain" | "admin"
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// =====================
+// Captains
+// =====================
 export const captains = pgTable("captains", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").references(() => users.id).notNull(),
@@ -49,6 +57,9 @@ export const captains = pgTable("captains", {
   reviewCount: integer("review_count").default(0),
 });
 
+// =====================
+// Charters
+// =====================
 export const charters = pgTable("charters", {
   id: serial("id").primaryKey(),
   captainId: integer("captain_id").references(() => captains.id).notNull(),
@@ -68,6 +79,9 @@ export const charters = pgTable("charters", {
   isListed: boolean("is_listed").default(true),
 });
 
+// =====================
+// Bookings
+// =====================
 export const bookings = pgTable("bookings", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").references(() => users.id).notNull(),
@@ -80,6 +94,9 @@ export const bookings = pgTable("bookings", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// =====================
+// Messages
+// =====================
 export const messages = pgTable("messages", {
   id: serial("id").primaryKey(),
   senderId: varchar("sender_id").references(() => users.id).notNull(),
@@ -90,6 +107,9 @@ export const messages = pgTable("messages", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// =====================
+// Reviews
+// =====================
 export const reviews = pgTable("reviews", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").references(() => users.id).notNull(),
@@ -100,7 +120,9 @@ export const reviews = pgTable("reviews", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Availability table for real slot management
+// =====================
+// Availability
+// =====================
 export const availability = pgTable(
   "availability",
   {
@@ -116,7 +138,9 @@ export const availability = pgTable(
   ]
 );
 
-// Insert schemas
+// =====================
+// Insert Schemas
+// =====================
 export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
   updatedAt: true,
@@ -153,7 +177,9 @@ export const insertAvailabilitySchema = createInsertSchema(availability).omit({
   createdAt: true,
 });
 
+// =====================
 // Types
+// =====================
 export type User = typeof users.$inferSelect;
 export type Captain = typeof captains.$inferSelect;
 export type Charter = typeof charters.$inferSelect;
