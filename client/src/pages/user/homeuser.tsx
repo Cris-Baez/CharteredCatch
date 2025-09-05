@@ -18,11 +18,11 @@ export default function HomeUser() {
   // Traemos recomendaciones de charters
   const { data: recommendedCharters, isLoading: loadingCharters, error } =
     useQuery<CharterWithCaptain[]>({
-      queryKey: ["charters", "recommended"],
+      queryKey: ["charters"],
       queryFn: async () => {
-        const response = await fetch("/api/charters/recommended");
+        const response = await fetch("/api/charters");
         if (!response.ok) {
-          throw new Error("Failed to fetch recommended charters");
+          throw new Error("Failed to fetch charters");
         }
         return response.json();
       },
@@ -69,7 +69,7 @@ export default function HomeUser() {
           className="mb-10 text-center"
         >
           <h1 className="text-3xl font-bold text-gray-900">
-            Welcome back, {user?.first_name || "Angler"} 🎣
+            Welcome back, {user?.firstName || "Angler"} 🎣
           </h1>
           <p className="text-gray-600">
             Ready for your next fishing adventure?
