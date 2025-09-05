@@ -147,11 +147,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // -------- CHARTERS --------
+
+  // Recomendados (primeros 6)
   app.get("/api/charters/recommended", async (req, res) => {
     try {
-      // Get first 6 charters for recommendations
       const charters = await storage.getAllCharters();
-      const recommended = charters.slice(0, 6);
+      const captains = await storage.getAllCaptains();
+
+      const recommended = charters.slice(0, 6).map((charter) => {
+        const captain = captains.find((c) => c.id === charter.captainId);
+        return {
+          ...charter,
+          captain: captain
+            ? {
+                id: captain.id,
+                name: `${captain.name ?? ""} ${captain.lastName ?? ""}`.trim() || "Unknown Captain",
+                location: captain.location,
+                avatar: captain.avatar,
+                rating: captain.rating,
+                reviewCount: captain.reviewCount,
+              }
+            : null,
+        };
+      });
+
       res.json(recommended);
     } catch (error) {
       console.error("Recommended charters error:", error);
@@ -159,27 +178,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Todos los charters (con filtros opcionales)
   app.get("/api/charters", async (req, res) => {
     try {
-      const { location, targetSpecies, duration, lat, lng, distance } =
-        req.query;
+      const { location, targetSpecies, duration } = req.query;
 
-      const filters = {
-        ...(location && { location: location as string }),
-        ...(targetSpecies && { targetSpecies: targetSpecies as string }),
-        ...(duration && { duration: duration as string }),
-        ...(lat && { lat: parseFloat(lat as string) }),
-        ...(lng && { lng: parseFloat(lng as string) }),
-        ...(distance && { distance: parseFloat(distance as string) }),
-      };
+      const charters = await storage.getAllCharters();
+      const captains = await storage.getAllCaptains();
 
-      const charters = await storage.searchCharters(filters);
-      res.json(charters);
+      // aplica filtros básicos
+      let filtered = charters;
+      if (location) filtered = filtered.filter((c) => c.location === location);
+      if (targetSpecies) filtered = filtered.filter((c) => c.targetSpecies === targetSpecies);
+      if (duration) filtered = filtered.filter((c) => c.duration === duration);
+
+      // unimos charters + capitán
+      const result = filtered.map((charter) => {
+        const captain = captains.find((c) => c.id === charter.captainId);
+        return {
+          ...charter,
+          captain: captain
+            ? {
+                id: captain.id,
+                name: `${captain.name ?? ""} ${captain.avatar ?? ""}`.trim() || "Unknown Captain",
+                location: captain.location,
+                avatar: captain.avatar,
+                rating: captain.rating,
+                reviewCount: captain.reviewCount,
+              }
+            : null,
+        };
+      });
+
+      res.json(result);
     } catch (error) {
+      console.error("Error fetching charters:", error);
       res.status(500).json({ message: "Failed to fetch charters" });
     }
   });
 
+  // Charter por id (ya estaba bien 👇)
   app.get("/api/charters/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -194,6 +232,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch charter" });
     }
   });
+
 
   // -------- AVAILABILITY --------
   app.get("/api/availability", async (req, res) => {
