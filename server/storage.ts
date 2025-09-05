@@ -118,8 +118,24 @@ export class DatabaseStorage implements IStorage {
   }): Promise<CharterWithCaptain[]> {
       throw new Error("Method not implemented.");
   }
-  getAllCharters(): Promise<CharterWithCaptain[]> {
-      throw new Error("Method not implemented.");
+  async getAllCharters(): Promise<CharterWithCaptain[]> {
+    return db
+      .select()
+      .from(charters)
+      .innerJoin(captains, eq(charters.captainId, captains.id))
+      .innerJoin(users, eq(captains.userId, users.id))
+      .where(and(eq(charters.available, true), eq(charters.isListed, true)))
+      .then((rows) =>
+        rows.map((row) => ({
+          ...row.charters,
+          captain: {
+            ...row.captains,
+            name: `${row.users.firstName} ${row.users.lastName}`,
+            user: row.users,
+          },
+          reviews: [], // You can fetch reviews separately if needed
+        }))
+      );
   }
   createCharter(charter: InsertCharter): Promise<Charter> {
       throw new Error("Method not implemented.");

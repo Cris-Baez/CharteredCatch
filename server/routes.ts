@@ -147,6 +147,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // -------- CHARTERS --------
+  app.get("/api/charters/recommended", async (req, res) => {
+    try {
+      // Get first 6 charters for recommendations
+      const charters = await storage.getAllCharters();
+      const recommended = charters.slice(0, 6);
+      res.json(recommended);
+    } catch (error) {
+      console.error("Recommended charters error:", error);
+      res.status(500).json({ message: "Failed to fetch recommended charters" });
+    }
+  });
+
   app.get("/api/charters", async (req, res) => {
     try {
       const { location, targetSpecies, duration, lat, lng, distance } =
