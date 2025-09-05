@@ -2,16 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer utilities {
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-}
-
 :root {
   --background: hsl(0, 0%, 100%);
   --foreground: hsl(222, 84%, 4.9%);

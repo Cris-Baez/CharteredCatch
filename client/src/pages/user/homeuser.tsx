@@ -126,94 +126,46 @@ export default function HomeUser() {
           {loadingCharters ? (
             <p className="text-gray-500">Loading recommendations…</p>
           ) : (
-            <>
-              {/* Mobile Carousel */}
-              <div className="md:hidden">
-                <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-                  {charters.map((charter, idx) => (
-                    <motion.div
-                      key={charter.id}
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.6, delay: idx * 0.1 }}
-                      className="flex-shrink-0 w-72"
-                    >
-                      <Card className="overflow-hidden shadow hover:shadow-lg transition">
-                        <img
-                          src={charter.images?.[0] || "/placeholder.jpg"}
-                          alt={charter.title}
-                          className="h-40 w-full object-cover"
-                        />
-                        <CardContent className="p-4 space-y-2">
-                          <h3 className="text-lg font-bold text-gray-900">
-                            {charter.title}
-                          </h3>
-                          <p className="flex items-center text-gray-600 text-sm">
-                            <MapPin className="w-4 h-4 mr-1" />
-                            {charter.location}
-                          </p>
-                          <p className="flex items-center text-gray-600 text-sm">
-                            <UserIcon className="w-4 h-4 mr-1" />
-                            Capt. {charter.captain?.name}
-                          </p>
-                          <div className="flex justify-between items-center mt-3">
-                            <span className="flex items-center text-yellow-500">
-                              <Star className="w-4 h-4 mr-1 fill-yellow-400" />
-                              {charter.captain?.rating}
-                            </span>
-                            <span className="font-semibold text-ocean-blue">
-                              ${charter.price}
-                            </span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Desktop Grid */}
-              <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-6">
-                {charters.map((charter, idx) => (
-                  <motion.div
-                    key={charter.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: idx * 0.1 }}
-                  >
-                    <Card className="overflow-hidden shadow hover:shadow-lg transition">
-                      <img
-                        src={charter.images?.[0] || "/placeholder.jpg"}
-                        alt={charter.title}
-                        className="h-40 w-full object-cover"
-                      />
-                      <CardContent className="p-4 space-y-2">
-                        <h3 className="text-lg font-bold text-gray-900">
-                          {charter.title}
-                        </h3>
-                        <p className="flex items-center text-gray-600 text-sm">
-                          <MapPin className="w-4 h-4 mr-1" />
-                          {charter.location}
-                        </p>
-                        <p className="flex items-center text-gray-600 text-sm">
-                          <UserIcon className="w-4 h-4 mr-1" />
-                          Capt. {charter.captain?.name}
-                        </p>
-                        <div className="flex justify-between items-center mt-3">
-                          <span className="flex items-center text-yellow-500">
-                            <Star className="w-4 h-4 mr-1 fill-yellow-400" />
-                            {charter.captain?.rating}
-                          </span>
-                          <span className="font-semibold text-ocean-blue">
-                            ${charter.price}
-                          </span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
-              </div>
-            </>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {charters.map((charter, idx) => (
+                <motion.div
+                  key={charter.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: idx * 0.1 }}
+                >
+                  <Card className="overflow-hidden shadow hover:shadow-lg transition">
+                    <img
+                      src={charter.images?.[0] || "/placeholder.jpg"}
+                      alt={charter.title}
+                      className="h-40 w-full object-cover"
+                    />
+                    <CardContent className="p-4 space-y-2">
+                      <h3 className="text-lg font-bold text-gray-900">
+                        {charter.title}
+                      </h3>
+                      <p className="flex items-center text-gray-600 text-sm">
+                        <MapPin className="w-4 h-4 mr-1" />
+                        {charter.location}
+                      </p>
+                      <p className="flex items-center text-gray-600 text-sm">
+                        <UserIcon className="w-4 h-4 mr-1" />
+                        Capt. {charter.captain?.name}
+                      </p>
+                      <div className="flex justify-between items-center mt-3">
+                        <span className="flex items-center text-yellow-500">
+                          <Star className="w-4 h-4 mr-1 fill-yellow-400" />
+                          {charter.captain?.rating}
+                        </span>
+                        <span className="font-semibold text-ocean-blue">
+                          ${charter.price}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
           )}
         </section>
 
@@ -269,54 +221,7 @@ export default function HomeUser() {
           <h2 className="text-2xl font-semibold text-gray-800 mb-6">
             Top rated charters
           </h2>
-          
-          {/* Mobile Carousel */}
-          <div className="md:hidden">
-            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-              {charters.slice(0, 3).map((charter, idx) => (
-                <motion.div
-                  key={`top-rated-${charter.id}`}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.6, delay: idx * 0.1 }}
-                  className="flex-shrink-0 w-72"
-                >
-                  <Card className="overflow-hidden shadow hover:shadow-lg transition">
-                    <img
-                      src={charter.images?.[0] || "/placeholder.jpg"}
-                      alt={charter.title}
-                      className="h-40 w-full object-cover"
-                    />
-                    <CardContent className="p-4 space-y-2">
-                      <h3 className="text-lg font-bold text-gray-900">
-                        {charter.title}
-                      </h3>
-                      <p className="flex items-center text-gray-600 text-sm">
-                        <MapPin className="w-4 h-4 mr-1" />
-                        {charter.location}
-                      </p>
-                      <p className="flex items-center text-gray-600 text-sm">
-                        <UserIcon className="w-4 h-4 mr-1" />
-                        Capt. {charter.captain?.name}
-                      </p>
-                      <div className="flex justify-between items-center mt-3">
-                        <span className="flex items-center text-yellow-500">
-                          <Star className="w-4 h-4 mr-1 fill-yellow-400" />
-                          {charter.captain?.rating}
-                        </span>
-                        <span className="font-semibold text-ocean-blue">
-                          ${charter.price}
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-
-          {/* Desktop Grid */}
-          <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {charters.slice(0, 3).map((charter, idx) => (
               <motion.div
                 key={`top-rated-${charter.id}`}
