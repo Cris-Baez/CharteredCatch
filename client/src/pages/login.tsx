@@ -10,14 +10,14 @@ import Header from "@/components/header";
 import Footer from "@/components/footer";
 
 export default function Login() {
-  const { user, isAuthenticated, isLoading } = useAuth();
-  const queryClient = useQueryClient();
-
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPwd, setShowPwd] = useState(false);
+
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const queryClient = useQueryClient();
 
   const redirectTo = useMemo(() => {
     const p = new URLSearchParams(window.location.search);
