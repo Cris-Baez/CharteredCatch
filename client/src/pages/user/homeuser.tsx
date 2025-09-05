@@ -118,34 +118,8 @@ export default function HomeUser() {
           <SearchBar onSearch={handleSearch} />
         </motion.div>
 
-        {/* Categorías rápidas */}
+        {/* Recommended for You */}
         <section className="mb-12">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { name: "Charters", href: "/search", icon: "🛥️" },
-              { name: "Captains", href: "/captains", icon: "👨‍✈️" },
-              { name: "Bookings", href: "/user/dashboard", icon: "📅" },
-              { name: "Messages", href: "/messages", icon: "💬" },
-            ].map((cat, idx) => (
-              <motion.a
-                key={cat.name}
-                href={cat.href}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: idx * 0.1 }}
-                className="flex flex-col items-center justify-center rounded-xl bg-white p-6 shadow hover:shadow-md transition"
-              >
-                <span className="text-3xl mb-2">{cat.icon}</span>
-                <span className="font-semibold text-gray-700">
-                  {cat.name}
-                </span>
-              </motion.a>
-            ))}
-          </div>
-        </section>
-
-        {/* Recomendaciones */}
-        <section>
           <h2 className="text-2xl font-semibold text-gray-800 mb-6">
             Recommended for you
           </h2>
@@ -193,6 +167,100 @@ export default function HomeUser() {
               ))}
             </div>
           )}
+        </section>
+
+        {/* Popular Near You */}
+        <section className="mb-12">
+          <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+            Popular near you
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {charters.slice().reverse().map((charter, idx) => (
+              <motion.div
+                key={`popular-${charter.id}`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: idx * 0.1 }}
+              >
+                <Card className="overflow-hidden shadow hover:shadow-lg transition">
+                  <img
+                    src={charter.images?.[0] || "/placeholder.jpg"}
+                    alt={charter.title}
+                    className="h-40 w-full object-cover"
+                  />
+                  <CardContent className="p-4 space-y-2">
+                    <h3 className="text-lg font-bold text-gray-900">
+                      {charter.title}
+                    </h3>
+                    <p className="flex items-center text-gray-600 text-sm">
+                      <MapPin className="w-4 h-4 mr-1" />
+                      {charter.location}
+                    </p>
+                    <p className="flex items-center text-gray-600 text-sm">
+                      <UserIcon className="w-4 h-4 mr-1" />
+                      Capt. {charter.captain?.name}
+                    </p>
+                    <div className="flex justify-between items-center mt-3">
+                      <span className="flex items-center text-yellow-500">
+                        <Star className="w-4 h-4 mr-1 fill-yellow-400" />
+                        {charter.captain?.rating}
+                      </span>
+                      <span className="font-semibold text-ocean-blue">
+                        ${charter.price}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+
+        {/* Top Rated Charters */}
+        <section className="mb-12">
+          <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+            Top rated charters
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {charters.slice(0, 3).map((charter, idx) => (
+              <motion.div
+                key={`top-rated-${charter.id}`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: idx * 0.1 }}
+              >
+                <Card className="overflow-hidden shadow hover:shadow-lg transition">
+                  <img
+                    src={charter.images?.[0] || "/placeholder.jpg"}
+                    alt={charter.title}
+                    className="h-40 w-full object-cover"
+                  />
+                  <CardContent className="p-4 space-y-2">
+                    <h3 className="text-lg font-bold text-gray-900">
+                      {charter.title}
+                    </h3>
+                    <p className="flex items-center text-gray-600 text-sm">
+                      <MapPin className="w-4 h-4 mr-1" />
+                      {charter.location}
+                    </p>
+                    <p className="flex items-center text-gray-600 text-sm">
+                      <UserIcon className="w-4 h-4 mr-1" />
+                      Capt. {charter.captain?.name}
+                    </p>
+                    <div className="flex justify-between items-center mt-3">
+                      <span className="flex items-center text-yellow-500">
+                        <Star className="w-4 h-4 mr-1 fill-yellow-400" />
+                        {charter.captain?.rating}
+                      </span>
+                      <span className="font-semibold text-ocean-blue">
+                        ${charter.price}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
         </section>
       </main>
 
