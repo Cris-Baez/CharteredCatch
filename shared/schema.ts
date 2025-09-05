@@ -47,6 +47,7 @@ export const users = pgTable("users", {
 export const captains = pgTable("captains", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").references(() => users.id).notNull(),
+  name: text("name").notNull(),
   bio: text("bio").notNull(),
   experience: text("experience").notNull(),
   licenseNumber: text("license_number").notNull(),
@@ -199,8 +200,11 @@ export type InsertAvailability = z.infer<typeof insertAvailabilitySchema>;
 
 // Extended types for API responses
 export type CharterWithCaptain = Charter & {
-  captain: Captain & { user: User };
-  reviews: Review[];
+  captain: Captain & {
+    name: string;
+    user?: User;
+  };
+  reviews?: Review[];
 };
 
 export type MessageThread = {

@@ -7,6 +7,7 @@ import HeaderUser from "@/components/headeruser";
 import Footer from "@/components/footer";
 import SearchBar from "@/components/search-bar";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { MapPin, Star, User as UserIcon } from "lucide-react";
 import type { CharterWithCaptain } from "@shared/schema";
 
@@ -15,9 +16,18 @@ export default function HomeUser() {
   const [, setLocation] = useLocation();
 
   // Traemos recomendaciones de charters
-  const { data: recommendedCharters, isLoading: loadingCharters } =
+  const { data: recommendedCharters, isLoading: loadingCharters, error } =
     useQuery<CharterWithCaptain[]>({
-      queryKey: ["/api/charters/recommended"],
+      queryKey: ["charters", "recommended"],
+      queryFn: async () => {
+        const response = await fetch("/api/charters/recommended");
+        if (!response.ok) {
+          throw new Error("Failed to fetch recommended charters");
+        }
+        return response.json();
+      },
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: 2,
     });
 
   useEffect(() => {
@@ -82,7 +92,32 @@ export default function HomeUser() {
             Recommended for you
           </h2>
           {loadingCharters ? (
-            <p className="text-gray-500">Loading recommendations…</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, idx) => (
+                <Card key={idx} className="overflow-hidden">
+                  <div className="h-40 bg-gray-200 animate-pulse" />
+                  <CardContent className="p-4 space-y-3">
+                    <div className="h-4 bg-gray-200 rounded animate-pulse" />
+                    <div className="h-3 bg-gray-200 rounded w-2/3 animate-pulse" />
+                    <div className="h-3 bg-gray-200 rounded w-1/2 animate-pulse" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <p className="text-red-500 mb-4">Failed to load recommendations</p>
+              <Button onClick={() => window.location.reload()} variant="outline">
+                Try Again
+              </Button>
+            </div>
+          ) : charters.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500 mb-4">No charters available at the moment</p>
+              <Button onClick={() => setLocation("/user/search")} variant="outline">
+                Browse All Charters
+              </Button>
+            </div>
           ) : (
             <>
               {/* Mobile Carousel */}

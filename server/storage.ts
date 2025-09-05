@@ -119,23 +119,58 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Method not implemented.");
   }
   async getAllCharters(): Promise<CharterWithCaptain[]> {
-    return db
-      .select()
+    const results = await db
+      .select({
+        id: charters.id,
+        captainId: charters.captainId,
+        title: charters.title,
+        description: charters.description,
+        location: charters.location,
+        lat: charters.lat,
+        lng: charters.lng,
+        targetSpecies: charters.targetSpecies,
+        duration: charters.duration,
+        maxGuests: charters.maxGuests,
+        price: charters.price,
+        boatSpecs: charters.boatSpecs,
+        included: charters.included,
+        images: charters.images,
+        available: charters.available,
+        isListed: charters.isListed,
+        captain: {
+          id: captains.id,
+          userId: captains.userId,
+          name: captains.name,
+          bio: captains.bio,
+          experience: captains.experience,
+          licenseNumber: captains.licenseNumber,
+          location: captains.location,
+          avatar: captains.avatar,
+          verified: captains.verified,
+          rating: captains.rating,
+          reviewCount: captains.reviewCount,
+        },
+      })
       .from(charters)
-      .innerJoin(captains, eq(charters.captainId, captains.id))
-      .innerJoin(users, eq(captains.userId, users.id))
-      .where(and(eq(charters.available, true), eq(charters.isListed, true)))
-      .then((rows) =>
-        rows.map((row) => ({
-          ...row.charters,
-          captain: {
-            ...row.captains,
-            name: `${row.users.firstName} ${row.users.lastName}`,
-            user: row.users,
-          },
-          reviews: [], // You can fetch reviews separately if needed
-        }))
-      );
+      .leftJoin(captains, eq(charters.captainId, captains.id))
+      .where(eq(charters.isListed, true));
+
+    return results.map(row => ({
+      ...row,
+      captain: row.captain || {
+        id: 0,
+        userId: "",
+        name: "Unknown Captain",
+        bio: "",
+        experience: "",
+        licenseNumber: "",
+        location: "",
+        avatar: null,
+        verified: false,
+        rating: "0.00",
+        reviewCount: 0,
+      },
+    }));
   }
   createCharter(charter: InsertCharter): Promise<Charter> {
       throw new Error("Method not implemented.");

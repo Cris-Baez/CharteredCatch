@@ -1,4 +1,3 @@
-
 import { db } from "../server/db";
 import { users, captains, charters, bookings, availability } from "../shared/schema";
 import bcrypt from "bcrypt";
@@ -9,7 +8,7 @@ async function populateDatabase() {
 
     // ============= CREAR USUARIOS =============
     console.log("📝 Creating users...");
-    
+
     const userPasswords = await Promise.all([
       bcrypt.hash("password123", 10),
       bcrypt.hash("password123", 10),
@@ -32,7 +31,7 @@ async function populateDatabase() {
       },
       {
         id: `user_${Date.now()}_2`,
-        email: "sarah.wilson@example.com", 
+        email: "sarah.wilson@example.com",
         password: userPasswords[1],
         firstName: "Sarah",
         lastName: "Wilson",
@@ -68,7 +67,7 @@ async function populateDatabase() {
         email: "captain.garcia@example.com",
         password: userPasswords[5],
         firstName: "Diego",
-        lastName: "Garcia", 
+        lastName: "Garcia",
         role: "captain",
       },
       {
@@ -87,10 +86,11 @@ async function populateDatabase() {
     console.log("⛵ Creating captains...");
 
     const captainUsers = newUsers.filter(u => u.role === "captain");
-    
+
     const newCaptains = await db.insert(captains).values([
       {
         userId: captainUsers[0].id,
+        name: "Captain Rodriguez",
         bio: "Experienced captain with over 15 years navigating Caribbean waters. Specialist in deep sea fishing and family tours.",
         experience: "15 years of experience in sport fishing, family tours and diving excursions. Certified in maritime first aid.",
         licenseNumber: "CAP-2024-001",
@@ -102,9 +102,10 @@ async function populateDatabase() {
       },
       {
         userId: captainUsers[1].id,
+        name: "Captain Martinez",
         bio: "Professional fishing guide specializing in inshore and offshore adventures. Expert in Mahi, Tuna, and Marlin fishing.",
         experience: "12 years guiding fishing expeditions in Florida Keys. Coast Guard licensed and insured.",
-        licenseNumber: "CAP-2024-002", 
+        licenseNumber: "CAP-2024-002",
         location: "Key West, FL",
         avatar: "/attached_assets/image_1749589049214.png",
         verified: true,
@@ -113,10 +114,11 @@ async function populateDatabase() {
       },
       {
         userId: captainUsers[2].id,
+        name: "Captain Garcia",
         bio: "Sunset cruise specialist and fishing enthusiast. Perfect for romantic getaways and family adventures.",
         experience: "8 years providing memorable ocean experiences. Specialized in sunset tours and reef fishing.",
         licenseNumber: "CAP-2024-003",
-        location: "Fort Lauderdale, FL", 
+        location: "Fort Lauderdale, FL",
         avatar: "/attached_assets/image_1749589265116.png",
         verified: true,
         rating: "4.7",
@@ -124,11 +126,12 @@ async function populateDatabase() {
       },
       {
         userId: captainUsers[3].id,
+        name: "Captain Lopez",
         bio: "Charter boat captain focused on big game fishing. Tournaments winner with multiple records.",
         experience: "20+ years in sport fishing. Tournament champion and big game specialist.",
         licenseNumber: "CAP-2024-004",
         location: "Naples, FL",
-        avatar: "/attached_assets/image_1749589117238.png", 
+        avatar: "/attached_assets/image_1749589117238.png",
         verified: true,
         rating: "5.0",
         reviewCount: 156,
@@ -148,7 +151,7 @@ async function populateDatabase() {
         description: "Join us for an unforgettable deep sea fishing experience targeting Mahi-Mahi, Tuna, and other pelagic species. Our 35ft sport fishing boat is fully equipped with top-of-the-line gear.",
         location: "Miami, FL",
         lat: "25.7617",
-        lng: "-80.1918", 
+        lng: "-80.1918",
         targetSpecies: "Mahi-Mahi, Tuna, Wahoo",
         duration: "8 hours",
         maxGuests: 6,
@@ -163,7 +166,7 @@ async function populateDatabase() {
         captainId: newCaptains[0].id,
         title: "Half Day Reef Fishing",
         description: "Perfect for families and beginners. Target Grouper, Snapper, and other reef fish in the beautiful waters off Miami.",
-        location: "Miami, FL", 
+        location: "Miami, FL",
         lat: "25.7617",
         lng: "-80.1918",
         targetSpecies: "Grouper, Snapper, Amberjack",
@@ -184,7 +187,7 @@ async function populateDatabase() {
         location: "Key West, FL",
         lat: "24.5551",
         lng: "-81.7800",
-        targetSpecies: "Yellowtail, Grouper, Mutton Snapper", 
+        targetSpecies: "Yellowtail, Grouper, Mutton Snapper",
         duration: "4 hours",
         maxGuests: 4,
         price: "520.00",
@@ -196,10 +199,10 @@ async function populateDatabase() {
       },
       {
         captainId: newCaptains[1].id,
-        title: "Tarpon Fishing Expedition", 
+        title: "Tarpon Fishing Expedition",
         description: "Chase the Silver King in the pristine waters around Key West. Seasonal availability for the ultimate fishing challenge.",
         location: "Key West, FL",
-        lat: "24.5551", 
+        lat: "24.5551",
         lng: "-81.7800",
         targetSpecies: "Tarpon, Permit, Bonefish",
         duration: "6 hours",
@@ -220,7 +223,7 @@ async function populateDatabase() {
         lat: "26.1224",
         lng: "-80.1373",
         targetSpecies: "Snapper, Grouper, Triggerfish",
-        duration: "4 hours", 
+        duration: "4 hours",
         maxGuests: 6,
         price: "400.00",
         boatSpecs: "32ft Family Cruiser, Bathroom, Shade, Safety gear",
@@ -235,7 +238,7 @@ async function populateDatabase() {
         description: "Intimate sunset cruise for couples. Includes champagne, appetizers, and the most beautiful sunset views in South Florida.",
         location: "Fort Lauderdale, FL",
         lat: "26.1224",
-        lng: "-80.1373", 
+        lng: "-80.1373",
         targetSpecies: "Light fishing available",
         duration: "3 hours",
         maxGuests: 2,
@@ -252,7 +255,7 @@ async function populateDatabase() {
         title: "Monster Marlin Hunt",
         description: "Big game fishing at its finest. Target Blue and White Marlin, Sailfish, and other billfish in the deep waters off Naples.",
         location: "Naples, FL",
-        lat: "26.1420", 
+        lat: "26.1420",
         lng: "-81.7948",
         targetSpecies: "Blue Marlin, White Marlin, Sailfish",
         duration: "10 hours",
@@ -270,11 +273,11 @@ async function populateDatabase() {
         description: "High-speed trolling for Yellowfin and Blackfin Tuna. Experience the thrill of big fish and open ocean fishing.",
         location: "Naples, FL",
         lat: "26.1420",
-        lng: "-81.7948", 
+        lng: "-81.7948",
         targetSpecies: "Yellowfin Tuna, Blackfin Tuna, Wahoo",
         duration: "8 hours",
         maxGuests: 6,
-        price: "950.00", 
+        price: "950.00",
         boatSpecs: "38ft Express, Twin diesels, Full tower, Electronics",
         included: "All gear, licenses, ice, fish processing",
         images: ["/attached_assets/image_1751311608507.png", "/attached_assets/image_1749588943897.png"],
@@ -295,7 +298,7 @@ async function populateDatabase() {
     for (let i = 1; i <= 60; i++) {
       const date = new Date(now);
       date.setDate(date.getDate() + i);
-      
+
       // Cada charter tiene disponibilidad aleatoria (no todos los días)
       for (const charter of newCharters) {
         if (Math.random() > 0.3) { // 70% de probabilidad de disponibilidad
@@ -316,7 +319,7 @@ async function populateDatabase() {
     console.log("📋 Creating sample bookings...");
 
     const regularUsers = newUsers.filter(u => u.role === "user");
-    
+
     const sampleBookings = [
       {
         userId: regularUsers[0].id,
@@ -332,7 +335,7 @@ async function populateDatabase() {
         charterId: newCharters[2].id,
         tripDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 2 weeks from now
         guests: 2,
-        totalPrice: "520.00", 
+        totalPrice: "520.00",
         status: "confirmed",
         message: "Anniversary trip - hoping for a beautiful sunset!",
       },
@@ -347,7 +350,7 @@ async function populateDatabase() {
       },
       {
         userId: regularUsers[0].id,
-        charterId: newCharters[6].id, 
+        charterId: newCharters[6].id,
         tripDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 1 month from now
         guests: 3,
         totalPrice: "1200.00",
@@ -369,11 +372,11 @@ async function populateDatabase() {
     console.log(`   • Availability: ${availabilitySlots.length} slots`);
     console.log(`   • Bookings: ${sampleBookings.length}`);
     console.log("==========================================");
-    
+
     console.log("\n👥 USER CREDENTIALS:");
     console.log("Regular Users:");
     console.log("  - john.doe@example.com / password123");
-    console.log("  - sarah.wilson@example.com / password123"); 
+    console.log("  - sarah.wilson@example.com / password123");
     console.log("  - mike.johnson@example.com / password123");
     console.log("\nCaptains:");
     console.log("  - captain.rodriguez@example.com / captain123");
