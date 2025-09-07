@@ -23,14 +23,74 @@ import {
   Bot,
   Star,
   Trophy,
+  User as UserIcon,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import type { CharterWithCaptain } from "@shared/schema";
+
+/** Carrusel de imágenes SOLO para móvil (dentro de cada card) */
+function MobileImageCarousel({ images }: { images?: string[] | null }) {
+  const pics = images && images.length > 0 ? images : ["/placeholder.jpg"];
+  const [idx, setIdx] = useState(0);
+
+  if (pics.length <= 1) {
+    return (
+      <img
+        src={pics[0]}
+        alt="charter"
+        className="h-40 w-full object-cover"
+      />
+    );
+  }
+
+  const prev = () => setIdx((i) => (i - 1 + pics.length) % pics.length);
+  const next = () => setIdx((i) => (i + 1) % pics.length);
+
+  return (
+    <div className="relative h-40 w-full overflow-hidden md:hidden">
+      <img
+        key={idx}
+        src={pics[idx]}
+        alt={`charter-${idx + 1}`}
+        className="h-40 w-full object-cover transition-opacity duration-300"
+      />
+      <button
+        type="button"
+        onClick={prev}
+        className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-1 text-white"
+        aria-label="Prev image"
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </button>
+      <button
+        type="button"
+        onClick={next}
+        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-1 text-white"
+        aria-label="Next image"
+      >
+        <ChevronRight className="w-4 h-4" />
+      </button>
+
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+        {pics.map((_, i) => (
+          <span
+            key={i}
+            className={`h-1.5 w-1.5 rounded-full ${
+              i === idx ? "bg-white" : "bg-white/50"
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
   const [, setLocation] = useLocation();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [assistantOpen, setAssistantOpen] = useState(false);
-
+  
   const fishingPhotos = [
     { src: "/attached_assets/image_1749589187411.png", alt: "Large wahoo with fishing lure" },
     { src: "/attached_assets/image_1749588943897.png", alt: "School of yellowtail fish underwater" },
@@ -50,8 +110,9 @@ export default function Home() {
     }, 5000);
     return () => clearInterval(interval);
   }, [fishingPhotos.length]);
-
-  const { data: featuredCharters, isLoading } = useQuery<CharterWithCaptain[]>({
+  
+  // DATOS REALES de /api/charters
+  const { data: featuredCharters, isLoading, error } = useQuery<CharterWithCaptain[]>({
     queryKey: ["/api/charters"],
   });
 
@@ -60,7 +121,6 @@ export default function Home() {
     if (filters.location) searchParams.set("location", filters.location);
     if (filters.targetSpecies) searchParams.set("targetSpecies", filters.targetSpecies);
     if (filters.duration) searchParams.set("duration", filters.duration);
-
     setLocation(`/search?${searchParams.toString()}`);
   };
 
@@ -97,50 +157,13 @@ export default function Home() {
     },
   ];
 
-  // --- MOCKS para Featured Charters (fallback si la API no devuelve datos) ---
-  const mockCharters: CharterWithCaptain[] = [
-    {
-      id: 1,
-      title: "Sunset Reef Adventure",
-      location: "Key West, FL",
-      price: 450,
-      boatType: "Center Console",
-      rating: 4.8,
-      images: ["/attached_assets/image_1749589187411.png"],
-      captain: { name: "Captain Mike" } as any,
-    },
-    {
-      id: 2,
-      title: "Deep Sea Mahi Hunt",
-      location: "Miami, FL",
-      price: 850,
-      boatType: "Sport Fisher",
-      rating: 5.0,
-      images: ["/attached_assets/image_1749589049214.png"],
-      captain: { name: "Captain Sarah" } as any,
-    },
-    {
-      id: 3,
-      title: "Family Fun Charter",
-      location: "Tampa Bay, FL",
-      price: 300,
-      boatType: "Pontoon",
-      rating: 4.6,
-      images: ["/attached_assets/image_1749588811332.png"],
-      captain: { name: "Captain Luis" } as any,
-    },
-  ];
-
-  const chartersToShow = featuredCharters?.length ? featuredCharters : mockCharters;
-
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
-      {/* Hero Section with Slideshow - Agregando animaciones sutiles */}
+      {/* Hero Section with Slideshow */}
       <section className="relative overflow-hidden">
         <div className="h-96 md:h-[500px] relative">
-          {/* Slideshow Images */}
           {fishingPhotos.map((photo, index) => (
             <motion.div
               key={index}
@@ -149,7 +172,7 @@ export default function Home() {
                 opacity: index === currentSlide ? 1 : 0,
                 scale: index === currentSlide ? 1 : 1.1,
               }}
-              transition={{ duration: 1.5 , ease: "easeInOut" }}
+              transition={{ duration: 1.8 , ease: "easeInOut" }}
               className="absolute inset-0"
             >
               <div
@@ -168,13 +191,13 @@ export default function Home() {
                 key={index}
                 onClick={() => setCurrentSlide(index)}
                 className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                  index === currentSlide ? "bg-white/01 w-1" : "bg-white/01"
+                  index === currentSlide ? "bg-white/01" : "bg-white/01"
                 }`}
               />
             ))}
           </div>
 
-          {/* Content Overlay - Agregando animaciones */}
+          {/* Content Overlay */}
           <div className="absolute inset-0 flex items-center justify-center z-10">
             <div className="text-center text-white px-4 max-w-4xl">
               <motion.h1
@@ -193,14 +216,6 @@ export default function Home() {
               >
                 Connect with verified captains. No hidden fees. Book your perfect fishing adventure.
               </motion.p>
-
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.4 }}
-              >
-
-              </motion.div>
 
               <motion.div
                 initial={{ opacity: 0 }}
@@ -225,9 +240,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured Charters Section - Estilo inmersivo (con fallback de mocks) */}
+      {/* SearchBar debajo del hero */}
+      <div className="max-w-4xl mx-auto px-4 -mt-12 relative z-10">
+      </div>
+
+      {/* Featured Charters (real data) */}
       <section className="py-20 bg-gradient-to-b from-sea-foam via-white to-white relative overflow-hidden">
-        {/* Decoración blobs */}
+        {/* Decoración */}
         <div className="absolute -top-32 -left-32 h-80 w-80 rounded-full bg-ocean-blue/10 blur-3xl" />
         <div className="absolute -bottom-32 -right-32 h-80 w-80 rounded-full bg-cyan-400/10 blur-3xl" />
 
@@ -256,83 +275,137 @@ export default function Home() {
                 </div>
               ))}
             </div>
+          ) : error ? (
+            <p className="text-center text-red-500">Failed to load charters</p>
+          ) : !featuredCharters || featuredCharters.length === 0 ? (
+            <p className="text-center text-gray-500">No charters available</p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-              {chartersToShow.slice(0, 6).map((charter, index) => (
-                <motion.div
-                  key={charter.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: index * 0.15 }}
-                  viewport={{ once: true }}
-                  className="group cursor-pointer"
-                  onClick={() => setLocation(`/charters/${charter.id}`)}
-                >
-                  <Card className="overflow-hidden rounded-2xl border border-gray-100 shadow-md hover:shadow-2xl transition-all duration-300 group-hover:-translate-y-2">
-                    {/* Imagen principal */}
-                    <div className="relative h-52 overflow-hidden">
+            <>
+              {/* Carrusel de tarjetas en móvil */}
+              <div className="md:hidden flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+                {featuredCharters.slice(0, 6).map((charter, index) => (
+                  <motion.div
+                    key={charter.id}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.6, delay: index * 0.1 }}
+                    className="flex-shrink-0 w-72"
+                    onClick={() => setLocation(`/charters/${charter.id}`)}
+                  >
+                    <Card className="overflow-hidden shadow hover:shadow-lg transition">
+                      {/* Carrusel de imágenes dentro de la card (solo móvil) */}
+                      <MobileImageCarousel images={charter.images} />
+
+                      {/* En desktop mostramos la primera imagen, así que oculto esto en md+ */}
                       <img
                         src={charter.images?.[0] || "/placeholder.jpg"}
                         alt={charter.title}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        className="hidden md:block h-40 w-full object-cover"
                       />
-                      <div className="absolute top-4 left-4">
-                        <Badge className="bg-white/90 text-ocean-blue border border-ocean-blue/20 font-semibold shadow-sm">
-                          {charter.boatType}
-                        </Badge>
-                      </div>
-                    </div>
 
-                    {/* Info del charter */}
-                    <CardContent className="p-6">
-                      <h3 className="text-xl font-bold text-gray-900 mb-1">{charter.title}</h3>
-                      <p className="text-gray-600 mb-2 flex items-center">
-                        <MapPin className="w-4 h-4 mr-1 text-ocean-blue" />
-                        {charter.location}
-                      </p>
-                      <p className="text-ocean-blue font-medium mb-4">Capt. {charter.captain?.name || "Unknown Captain"}</p>
-
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <svg
-                            className="w-5 h-5 text-yellow-400 fill-yellow-400 mr-1"
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.974a1 1 0 00.95.69h4.18c.969 0 1.371 1.24.588 1.81l-3.39 2.463a1 1 0 00-.364 1.118l1.287 3.974c.3.922-.755 1.688-1.54 1.118l-3.39-2.462a1 1 0 00-1.175 0l-3.39 2.462c-.785.57-1.84-.196-1.54-1.118l1.287-3.974a1 1 0 00-.364-1.118L2.098 9.4c-.783-.57-.38-1.81.588-1.81h4.18a1 1 0 00.95-.69l1.286-3.974z" />
-                          </svg>
-                          <span className="font-semibold">{charter.rating || "New"}</span>
+                      <CardContent className="p-4 space-y-2">
+                        <h3 className="text-lg font-bold text-gray-900">{charter.title}</h3>
+                        <p className="flex items-center text-gray-600 text-sm">
+                          <MapPin className="w-4 h-4 mr-1" />
+                          {charter.location}
+                        </p>
+                        <p className="text-ocean-blue font-medium text-sm flex items-center">
+                          <UserIcon className="w-4 h-4 mr-1" />
+                          Capt. {charter.captain?.name || "Unknown"}
+                        </p>
+                        <div className="flex justify-between items-center mt-3">
+                          <span className="flex items-center text-yellow-500">
+                            <Star className="w-4 h-4 mr-1 fill-yellow-400" />
+                            {charter.captain?.rating || "New"}
+                          </span>
+                          <span className="font-semibold text-ocean-blue">
+                            ${charter.price}
+                          </span>
                         </div>
-                        <div className="text-sm text-gray-600">${charter.price} / trip</div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-          )}
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
 
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            viewport={{ once: true }}
-            className="text-center mt-12"
-          >
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() => setLocation("/search")}
-              className="border-ocean-blue text-ocean-blue hover:bg-ocean-blue hover:text-white transition"
-            >
-              View All Charters
-            </Button>
-          </motion.div>
+              {/* Grid en desktop */}
+              <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-10">
+                {featuredCharters.slice(0, 6).map((charter, index) => (
+                  <motion.div
+                    key={charter.id}
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: index * 0.15 }}
+                    viewport={{ once: true }}
+                    className="group cursor-pointer"
+                    onClick={() => setLocation(`/charters/${charter.id}`)}
+                  >
+                    <Card className="overflow-hidden rounded-2xl border border-gray-100 shadow-md hover:shadow-2xl transition-all duration-300 group-hover:-translate-y-2">
+                      <div className="relative h-52 overflow-hidden">
+                        <img
+                          src={charter.images?.[0] || "/placeholder.jpg"}
+                          alt={charter.title}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                        <div className="absolute top-4 left-4">
+                          <Badge className="bg-white/90 text-ocean-blue border border-ocean-blue/20 font-semibold shadow-sm">
+                            {charter.duration || "Trip"}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      <CardContent className="p-6">
+                        <h3 className="text-xl font-bold text-gray-900 mb-1">{charter.title}</h3>
+                        <p className="text-gray-600 mb-2 flex items-center">
+                          <MapPin className="w-4 h-4 mr-1 text-ocean-blue" />
+                          {charter.location}
+                        </p>
+                        <p className="text-ocean-blue font-medium mb-4">
+                          Capt. {charter.captain?.name || "Unknown Captain"}
+                        </p>
+
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <svg
+                              className="w-5 h-5 text-yellow-400 fill-yellow-400 mr-1"
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.974a1 1 0 00.95.69h4.18c.969 0 1.371 1.24.588 1.81l-3.39 2.463a1 1 0 00-.364 1.118l1.287 3.974c.3.922-.755 1.688-1.54 1.118l-3.39-2.462a1 1 0 00-1.175 0l-3.39 2.462c-.785.57-1.84-.196-1.54-1.118l1.287-3.974a1 1 0 00-.364-1.118L2.098 9.4c-.783-.57-.38-1.81.588-1.81h4.18a1 1 0 00.95-.69l1.286-3.974z" />
+                            </svg>
+                            <span className="font-semibold">{charter.captain?.rating || "New"}</span>
+                          </div>
+                          <div className="text-sm text-gray-600">${charter.price} / trip</div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+
+              <motion.div
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                viewport={{ once: true }}
+                className="text-center mt-12"
+              >
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => setLocation("/search")}
+                  className="border-ocean-blue text-ocean-blue hover:bg-ocean-blue hover:text-white transition"
+                >
+                  View All Charters
+                </Button>
+              </motion.div>
+            </>
+          )}
         </div>
       </section>
 
-      {/* Captains of the Month - Nueva sección */}
+      {/* Captains of the Month */}
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
@@ -390,7 +463,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* How It Works Section */}
+      {/* How It Works */}
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
@@ -498,7 +571,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Photo Gallery Section - Nueva sección */}
+      {/* Photo Gallery */}
       <section className="py-16 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
@@ -536,9 +609,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Captain CTA Section - Mejorado */}
+      {/* Captain CTA */}
       <section className="py-16 bg-white relative overflow-hidden">
-        {/* Elementos decorativos */}
         <div className="absolute top-0 left-0 w-32 h-32 bg-ocean-blue/5 rounded-full -translate-x-16 -translate-y-16"></div>
         <div className="absolute bottom-0 right-0 w-48 h-48 bg-ocean-blue/5 rounded-full translate-x-24 translate-y-24"></div>
 

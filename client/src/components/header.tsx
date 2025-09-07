@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { MessageCircle, User } from "lucide-react";
+import { User, Search } from "lucide-react";
 import SearchBar from "@/components/search-bar";
 
 export default function Header() {
@@ -37,7 +37,7 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-gray-100">
-      {/* Fila superior: logo + navegación + acciones */}
+      {/* Top row */}
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -51,7 +51,7 @@ export default function Header() {
             </div>
           </Link>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Nav */}
           <div className="hidden md:flex items-center space-x-8">
             {navigation.map((item) => (
               <Link
@@ -70,14 +70,6 @@ export default function Header() {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center space-x-4">
-            <Link href="/messages">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-gray-900 hover:text-ocean-blue"
-              >
-              </Button>
-            </Link>
             <Link href="/login">
               <Button
                 variant="ghost"
@@ -134,15 +126,7 @@ export default function Header() {
                     {item.name}
                   </Link>
                 ))}
-
                 <div className="border-t pt-4 space-y-2">
-                  <Link href="/messages" onClick={() => setIsOpen(false)}>
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start text-gray-900 hover:text-ocean-blue"
-                    >
-                    </Button>
-                  </Link>
                   <Link href="/login" onClick={() => setIsOpen(false)}>
                     <Button
                       variant="ghost"
@@ -164,11 +148,25 @@ export default function Header() {
         </div>
       </nav>
 
-      {/* Fila inferior: SearchBar SOLO en Home */}
+      {/* Bottom row: Search */}
       {location === "/" && (
         <div className="border-t border-gray-100">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-            <SearchBar onSearch={handleSearch} />
+            {/* Mobile: placeholder pill */}
+            <div className="md:hidden">
+              <button
+                onClick={() => setLocation("/search")}
+                className="w-full flex items-center gap-2 rounded-full border border-gray-300 bg-gray-50 px-4 py-2 text-left text-gray-500 shadow-sm focus:outline-none focus:ring-2 focus:ring-ocean-blue"
+              >
+                <Search className="w-4 h-4 text-gray-400" />
+                <span className="text-sm">Where to?</span>
+              </button>
+            </div>
+
+            {/* Desktop: full search bar */}
+            <div className="hidden md:block">
+              <SearchBar onSearch={handleSearch} />
+            </div>
           </div>
         </div>
       )}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/header";
@@ -7,16 +7,44 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+} from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { MapPin, Clock, Users, Star, MessageCircle, Calendar as CalendarIcon, Shield, Fish, Anchor } from "lucide-react";
+import {
+  MapPin,
+  Clock,
+  Users,
+  Star,
+  MessageCircle,
+  Calendar as CalendarIcon,
+  Shield,
+  Fish,
+  Anchor,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import type { CharterWithCaptain } from "@shared/schema";
 
 const bookingSchema = z.object({
@@ -24,405 +52,270 @@ const bookingSchema = z.object({
   guests: z.number().min(1),
   message: z.string().optional(),
 });
-
 type BookingForm = z.infer<typeof bookingSchema>;
 
 export default function CharterDetail() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
-  const [selectedDate, setSelectedDate] = useState<Date>();
   const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
 
   const { data: charter, isLoading } = useQuery<CharterWithCaptain>({
-    queryKey: [`/api/charters/${id}`],
+    queryKey: ["charter", id],
+    queryFn: async () => {
+      const res = await fetch(`/api/charters/${id}`);
+      if (!res.ok) throw new Error("Failed to fetch charter");
+      return res.json();
+    },
     enabled: !!id,
   });
 
   const form = useForm<BookingForm>({
     resolver: zodResolver(bookingSchema),
-    defaultValues: {
-      guests: 1,
-      message: "",
-    },
+    defaultValues: { guests: 1, message: "" },
   });
 
+  const scrollToIndex = (idx: number) => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.scrollTo({ left: idx * el.clientWidth, behavior: "smooth" });
+    setActive(idx);
+  };
+
   const handleBooking = async (data: BookingForm) => {
-    try {
-      const bookingData = {
-        userId: 1, // Mock user ID - in real app this would come from auth
+    if (!charter) return;
+    await fetch("/api/bookings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: 1,
         charterId: charter.id,
         tripDate: data.tripDate,
         guests: data.guests,
         totalPrice: charter.price,
         status: "pending",
         message: data.message || "",
-      };
-
-      const response = await fetch("/api/bookings", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(bookingData),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to create booking");
-      }
-
-      console.log("Booking created successfully");
-      setIsBookingOpen(false);
-      // Redirect to messages or confirmation
-      setLocation("/messages");
-    } catch (error) {
-      console.error("Error creating booking:", error);
-      // In a real app, show error message to user
-    }
+      }),
+    });
+    setIsBookingOpen(false);
+    setLocation("/messages");
   };
 
   const handleMessage = async () => {
     if (!charter) return;
-    
-    try {
-      // Create an initial message to start the conversation
-      const response = await fetch("/api/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          senderId: 1, // Mock user ID
-          receiverId: charter.captain.userId,
-          charterId: charter.id,
-          content: `Hi! I'm interested in your charter: ${charter.title}`,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to create message");
-      }
-
-      // Redirect to messages page
-      setLocation("/messages");
-    } catch (error) {
-      console.error("Error creating message:", error);
-      // Fallback to just going to messages page
-      setLocation("/messages");
-    }
+    await fetch("/api/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        senderId: 1,
+        receiverId: charter.captain?.userId,
+        charterId: charter.id,
+        content: `Hi! I'm interested in your charter: ${charter.title}`,
+      }),
+    });
+    setLocation("/messages");
   };
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="animate-pulse">
-            <div className="h-64 bg-gray-200 rounded-lg mb-8" />
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 space-y-6">
-                <div className="h-8 bg-gray-200 rounded w-3/4" />
-                <div className="h-4 bg-gray-200 rounded" />
-                <div className="h-4 bg-gray-200 rounded w-2/3" />
-              </div>
-              <div className="h-96 bg-gray-200 rounded-lg" />
-            </div>
-          </div>
+        <div className="max-w-4xl mx-auto px-4 py-8 animate-pulse">
+          <div className="h-60 bg-gray-200 rounded-lg mb-6" />
         </div>
       </div>
     );
   }
+  if (!charter) return <p>No charter found</p>;
 
-  if (!charter) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Card>
-            <CardContent className="p-8 text-center">
-              <h1 className="text-2xl font-bold mb-4">Charter Not Found</h1>
-              <p className="text-storm-gray mb-6">The charter you're looking for doesn't exist.</p>
-              <Button onClick={() => setLocation("/")}>Return Home</Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
+  const images =
+    charter.images?.length > 0
+      ? charter.images
+      : [
+          "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1200&h=800&fit=crop",
+        ];
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Charter Images */}
-        <div className="mb-8">
-          <img
-            src={charter.images?.[0] || "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1200&h=400&fit=crop"}
-            alt={charter.title}
-            className="w-full h-64 md:h-96 object-cover rounded-lg"
-          />
+      {/* Hero imágenes */}
+      <div className="mb-6 relative">
+        {/* Desktop → grid compacto */}
+        <div className="hidden md:grid grid-cols-3 gap-2 h-[350px] rounded-lg overflow-hidden">
+          <img src={images[0]} alt="main" className="col-span-2 object-cover w-full h-full" />
+          <div className="grid grid-rows-2 gap-2">
+            {images.slice(1, 3).map((src, i) => (
+              <img key={i} src={src} alt="thumb" className="object-cover w-full h-full" />
+            ))}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Title and Basic Info */}
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold mb-4">{charter.title}</h1>
-              <div className="flex flex-wrap items-center gap-4 text-storm-gray mb-4">
-                <span className="flex items-center">
-                  <MapPin className="w-4 h-4 mr-1" />
-                  {charter.location}
-                </span>
-                <span className="flex items-center">
-                  <Clock className="w-4 h-4 mr-1" />
-                  {charter.duration}
-                </span>
-                <span className="flex items-center">
-                  <Users className="w-4 h-4 mr-1" />
-                  Up to {charter.maxGuests} guests
-                </span>
-                <span className="flex items-center">
-                  <Fish className="w-4 h-4 mr-1" />
-                  {charter.targetSpecies}
-                </span>
-              </div>
+        {/* Mobile → carrusel */}
+        <div
+          ref={scrollerRef}
+          className="md:hidden flex overflow-x-auto snap-x snap-mandatory no-scrollbar w-full h-56 rounded-lg"
+        >
+          {images.map((src, i) => (
+            <div key={i} className="snap-center shrink-0 w-full h-full">
+              <img src={src} alt="" className="w-full h-full object-cover" />
+            </div>
+          ))}
+        </div>
+
+        {/* Flechas móvil */}
+        {images.length > 1 && (
+          <>
+            <button
+              onClick={() => active > 0 && scrollToIndex(active - 1)}
+              className="md:hidden absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white p-1 rounded-full"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => active < images.length - 1 && scrollToIndex(active + 1)}
+              className="md:hidden absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white p-1 rounded-full"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Contenido */}
+      <div className="max-w-4xl mx-auto px-4 pb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Info principal */}
+          <div className="lg:col-span-2 space-y-5">
+            <h1 className="text-2xl font-bold">{charter.title}</h1>
+            <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+              <span className="flex items-center"><MapPin className="w-3 h-3 mr-1" /> {charter.location}</span>
+              <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> {charter.duration}</span>
+              <span className="flex items-center"><Users className="w-3 h-3 mr-1" /> {charter.maxGuests} guests</span>
+              <span className="flex items-center"><Fish className="w-3 h-3 mr-1" /> {charter.targetSpecies}</span>
             </div>
 
-            {/* Captain Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-4">
-                  <Avatar className="w-16 h-16">
-                    <AvatarImage src={charter.captain.avatar || ""} />
-                    <AvatarFallback>
-                      {charter.captain.user.firstName[0]}{charter.captain.user.lastName[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h3 className="text-xl font-semibold">
-                      Captain {charter.captain.user.firstName} {charter.captain.user.lastName}
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      {charter.captain.verified && (
-                        <Badge className="bg-verified-green text-white">
-                          <Shield className="w-3 h-3 mr-1" />
-                          Verified
-                        </Badge>
-                      )}
-                      <div className="flex items-center text-yellow-500">
-                        <Star className="w-4 h-4 fill-current" />
-                        <span className="ml-1 font-semibold">{charter.captain.rating}</span>
-                        <span className="text-gray-500 text-sm ml-1">
-                          ({charter.captain.reviewCount} reviews)
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-storm-gray mb-4">{charter.captain.bio}</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <strong>Experience:</strong> {charter.captain.experience}
-                  </div>
-                  <div>
-                    <strong>License:</strong> {charter.captain.licenseNumber}
-                  </div>
+            {/* Capitán */}
+            <Card className="rounded-xl shadow-sm">
+              <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                <Avatar className="w-12 h-12">
+                  <AvatarImage src={charter.captain?.avatar || ""} />
+                  <AvatarFallback>{charter.captain?.name?.[0]}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium text-sm">Captain {charter.captain?.name}</p>
+                  {charter.captain?.verified && (
+                    <Badge className="bg-green-500 text-white text-[10px] px-2 py-0.5 mt-1">
+                      <Shield className="w-3 h-3 mr-1" /> Verified
+                    </Badge>
+                  )}
                 </div>
+              </CardHeader>
+              <CardContent className="text-sm text-gray-600">
+                {charter.captain?.bio}
               </CardContent>
             </Card>
 
-            {/* Description */}
-            <Card>
-              <CardHeader>
-                <CardTitle>About This Charter</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-storm-gray mb-4">{charter.description}</p>
-
+            {/* Descripción */}
+            <Card className="rounded-xl shadow-sm">
+              <CardHeader><CardTitle className="text-base">About</CardTitle></CardHeader>
+              <CardContent className="text-sm text-gray-600">
+                <p>{charter.description}</p>
                 {charter.boatSpecs && (
-                  <div className="mb-4">
-                    <h4 className="font-semibold flex items-center mb-2">
-                      <Anchor className="w-4 h-4 mr-2" />
-                      Boat Specifications
-                    </h4>
-                    <p className="text-storm-gray">{charter.boatSpecs}</p>
-                  </div>
-                )}
-
-                {charter.included && (
-                  <div>
-                    <h4 className="font-semibold mb-2">What's Included</h4>
-                    <p className="text-storm-gray">{charter.included}</p>
-                  </div>
+                  <p className="mt-2"><Anchor className="w-4 h-4 inline mr-1" /> {charter.boatSpecs}</p>
                 )}
               </CardContent>
             </Card>
 
             {/* Reviews */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Reviews</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {charter.reviews.length === 0 ? (
-                  <p className="text-storm-gray">No reviews yet.</p>
-                ) : (
-                  <div className="space-y-4">
-                    {charter.reviews.map((review) => (
-                      <div key={review.id} className="border-b border-gray-200 pb-4 last:border-b-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="flex items-center text-yellow-500">
-                            {Array.from({ length: review.rating }).map((_, i) => (
-                              <Star key={i} className="w-4 h-4 fill-current" />
-                            ))}
-                          </div>
-                          <span className="text-sm text-storm-gray">
-                            {new Date(review.createdAt).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <p className="text-storm-gray">{review.comment}</p>
+            <Card className="rounded-xl shadow-sm">
+              <CardHeader><CardTitle className="text-base">Reviews</CardTitle></CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                {charter.reviews?.length ? (
+                  charter.reviews.map((rev) => (
+                    <div key={rev.id} className="border-b last:border-0 pb-2">
+                      <div className="flex items-center text-yellow-500">
+                        {Array.from({ length: rev.rating }).map((_, i) => (
+                          <Star key={i} className="w-4 h-4 fill-current" />
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                      <p className="text-gray-600">{rev.comment}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500">No reviews yet.</p>
                 )}
               </CardContent>
             </Card>
           </div>
 
-          {/* Booking Sidebar */}
-          <div className="lg:col-span-1">
-            <Card className="sticky top-4">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span className="text-2xl font-bold text-ocean-blue">
-                    ${charter.price}
-                  </span>
-                  <span className="text-storm-gray text-sm">/trip</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Button 
-                  className="w-full bg-ocean-blue hover:bg-blue-800"
-                  onClick={() => setIsBookingOpen(true)}
-                >
-                  <CalendarIcon className="w-4 h-4 mr-2" />
-                  Book Now
-                </Button>
-
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={handleMessage}
-                >
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  Message Captain
-                </Button>
-
-                <div className="pt-4 border-t">
-                  <h4 className="font-semibold mb-2">Trip Details</h4>
-                  <div className="space-y-2 text-sm text-storm-gray">
-                    <div className="flex justify-between">
-                      <span>Duration:</span>
-                      <span>{charter.duration}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Max Guests:</span>
-                      <span>{charter.maxGuests}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Target Species:</span>
-                      <span>{charter.targetSpecies}</span>
-                    </div>
-                  </div>
+          {/* Sidebar */}
+          <div>
+            <Card className="sticky top-28 rounded-2xl shadow-lg border border-gray-100">
+              <CardContent className="space-y-3 pt-4">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-xl font-bold text-black">${charter.price}</span>
+                  <span className="text-xs text-gray-500">/trip</span>
                 </div>
+                <Button className="w-full bg-ocean-blue hover:bg-blue-800 text-sm" onClick={() => setIsBookingOpen(true)}>
+                  <CalendarIcon className="w-4 h-4 mr-1" /> Book Now
+                </Button>
+                <Button variant="outline" className="w-full text-sm" onClick={handleMessage}>
+                  <MessageCircle className="w-4 h-4 mr-1" /> Message Captain
+                </Button>
               </CardContent>
             </Card>
           </div>
         </div>
       </div>
 
-      {/* Booking Dialog */}
+      {/* Booking modal */}
       <Dialog open={isBookingOpen} onOpenChange={setIsBookingOpen}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Book Your Charter</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Book Your Charter</DialogTitle></DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleBooking)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(handleBooking)} className="space-y-3">
               <FormField
                 control={form.control}
                 name="tripDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Trip Date</FormLabel>
+                    <FormLabel>Date</FormLabel>
                     <FormControl>
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        disabled={(date) => date < new Date()}
-                        className="rounded-md border"
-                      />
+                      <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(d) => d < new Date()} />
                     </FormControl>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="guests"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Number of Guests</FormLabel>
-                    <Select 
-                      value={field.value?.toString() || "1"}
-                      onValueChange={(value) => {
-                        const numValue = Number(value);
-                        if (!isNaN(numValue)) {
-                          field.onChange(numValue);
-                        }
-                      }}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select guests" />
-                        </SelectTrigger>
-                      </FormControl>
+                    <FormLabel>Guests</FormLabel>
+                    <Select value={field.value?.toString()} onValueChange={(v) => field.onChange(Number(v))}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
                       <SelectContent>
-                        {Array.from({ length: charter.maxGuests }, (_, i) => (
-                          <SelectItem key={i + 1} value={(i + 1).toString()}>
-                            {i + 1} {i === 0 ? "guest" : "guests"}
-                          </SelectItem>
+                        {Array.from({ length: charter.maxGuests }, (_, i) => i + 1).map((n) => (
+                          <SelectItem key={n} value={n.toString()}>{n}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="message"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Message to Captain (optional)</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Any special requests or questions?"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
+                    <FormLabel>Message (optional)</FormLabel>
+                    <FormControl><Textarea {...field} /></FormControl>
                   </FormItem>
                 )}
               />
-
-              <Button type="submit" className="w-full bg-ocean-blue hover:bg-blue-800">
+              <Button type="submit" className="w-full bg-ocean-blue hover:bg-blue-800 text-sm">
                 Confirm Booking - ${charter.price}
               </Button>
             </form>
@@ -434,3 +327,9 @@ export default function CharterDetail() {
     </div>
   );
 }
+
+/* Ocultar scrollbars */
+const style = document.createElement("style");
+style.innerHTML = `.no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}`;
+document.head.appendChild(style);
+

@@ -21,11 +21,13 @@ import Support from "./pages/support";
 import Terms from "./pages/terms";
 import Privacy from "./pages/privacy";
 import Cancellation from "./pages/cancellation";
-
+import CaptainsPage from "./pages/captainspage";
+import CaptainDetail from "./pages/captain-detail"
 // Usuario
 import HomeUser from "./pages/user/homeuser";
 import SearchResultsUser from "./pages/user/search-results-user";
 import UserDashboard from "./pages/user/userDashboard";
+import CharterDetailUser from "./pages/user/charter-detail-user";
 
 // Capitán
 import CaptainDashboard from "./pages/captain/captain-dashboard";
@@ -49,7 +51,7 @@ function App() {
         {/* Público */}
         <Route path="/" component={Home} />
         <Route path="/search" component={SearchResults} />
-        <Route path="/charter/:id" component={CharterDetail} />
+        <Route path="/charters/:id" component={CharterDetail} />
         <Route path="/messages" component={Messages} />
         <Route path="/assistant" component={Assistant} />
         <Route path="/help" component={Help} />
@@ -63,11 +65,13 @@ function App() {
         <Route path="/captain-resources" component={CaptainResources} />
         <Route path="/safety-standards" component={SafetyStandards} />
         <Route path="/support" component={Support} />
-
+        <Route path="/captains" component={CaptainsPage} />
+        <Route path="/captains/:id" component={CaptainDetail}/>
         {/* Usuario normal */}
         <Route path="/user/home" component={HomeUser} />
         <Route path="/user/search" component={SearchResultsUser} />
         <Route path="/user/dashboard" component={UserDashboard} />
+        <Route path="/user/charters/:id" component={CharterDetailUser} />
 
         {/* Capitán */}
         <Route path="/captain/dashboard" component={CaptainDashboard} />

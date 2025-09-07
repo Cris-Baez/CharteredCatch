@@ -11,7 +11,7 @@ export default defineConfig({
     process.env.REPL_ID !== undefined
       ? [
           await import("@replit/vite-plugin-cartographer").then((m) =>
-            m.cartographer(),
+            m.cartographer()
           ),
         ]
       : []),
@@ -33,5 +33,13 @@ export default defineConfig({
       strict: true,
       deny: ["**/.*"],
     },
+    // 👇 fallback nativo de vite
+    middlewareMode: false,
+  },
+  optimizeDeps: {
+    include: ["react-map-gl", "mapbox-gl"],
+  },
+  define: {
+    "process.env": {},
   },
 });
