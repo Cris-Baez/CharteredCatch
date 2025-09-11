@@ -1,134 +1,120 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Send, User } from "lucide-react";
-import type { User as UserType, Message } from "@shared/schema";
 
-interface MessageThreadProps {
-  participant: UserType;
-  messages: Message[];
-  currentUserId: string;
-  onSendMessage: (content: string) => void;
-  isLoading?: boolean;
+interface Message {
+  id?: number;               // puede no venir en el optimista
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  created_at: string;        // ISO string del backend
+  _optimistic?: boolean;     // marca local
 }
 
-export default function MessageThread({ 
-  participant, 
-  messages, 
-  currentUserId, 
-  onSendMessage, 
-  isLoading 
-}: MessageThreadProps) {
-  const [newMessage, setNewMessage] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+interface Participant {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  profileImageUrl?: string;
+}
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+interface Props {
+  participant: Participant;
+  messages: Message[];
+  currentUserId: string;
+  onSendMessage: (content: string, onError: () => void) => void;
+  isLoading: boolean;
+}
+
+export default function MessageThread({
+  participant,
+  messages,
+  currentUserId,
+  onSendMessage,
+  isLoading,
+}: Props) {
+  const [newMessage, setNewMessage] = useState("");
+  const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    scrollToBottom();
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSend = () => {
-    if (newMessage.trim()) {
-      onSendMessage(newMessage.trim());
-      setNewMessage("");
-    }
-  };
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const content = newMessage.trim();
+    if (!content) return;
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+    // Si falla, NO limpiamos el input:
+    onSendMessage(content, () => {
+      // onError -> dejamos el contenido tal cual
+    });
+
+    // Si todo va bien, el padre limpiará el input via state lifting, aquí lo limpiamos por UX
+    setNewMessage("");
   };
 
   return (
-    <>
-      <CardHeader className="border-b">
-        <CardTitle className="flex items-center space-x-3">
-          <Avatar>
-            <AvatarFallback>
-              <User className="w-4 h-4" />
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <h3 className="font-semibold">
-              {participant.firstName} {participant.lastName}
-            </h3>
-            <p className="text-sm text-storm-gray font-normal">
-              {participant.role === 'captain' ? "Charter Captain" : "Angler"}
-            </p>
+    <div className="flex flex-col h-[600px]">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {messages.length === 0 ? (
+          <div className="text-center text-storm-gray mt-20">
+            <p>No messages yet. Start the conversation!</p>
           </div>
-        </CardTitle>
-      </CardHeader>
+        ) : (
+          messages.map((msg, idx) => {
+            const isMine = String(msg.sender_id) === String(currentUserId);
+            const created = msg.created_at ? new Date(msg.created_at) : null;
 
-      <CardContent className="flex flex-col h-[400px] p-0">
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.length === 0 ? (
-            <div className="text-center text-storm-gray py-8">
-              <p>No messages yet. Start the conversation!</p>
-            </div>
-          ) : (
-            messages.map((message) => (
+            return (
               <div
-                key={message.id}
-                className={`flex ${
-                  message.senderId === currentUserId ? "justify-end" : "justify-start"
-                }`}
+                key={msg.id ?? `optimistic-${idx}`}
+                className={`flex ${isMine ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                    message.senderId === currentUserId
-                      ? "bg-ocean-blue text-white"
-                      : "bg-gray-100 text-gray-900"
+                  className={`max-w-xs px-4 py-2 rounded-lg ${
+                    isMine
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-200 text-gray-900"
                   }`}
                 >
-                  <p className="text-sm">{message.content}</p>
-                  <p
-                    className={`text-xs mt-1 ${
-                      message.senderId === currentUserId
-                        ? "text-blue-100"
-                        : "text-gray-500"
-                    }`}
-                  >
-                    {new Date(message.createdAt).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
+                  <p className="text-sm">{msg.content}</p>
+                  <span className="block text-xs mt-1 opacity-70">
+                    {created && !isNaN(created.getTime())
+                      ? created.toLocaleString()
+                      : ""}
+                    {msg._optimistic ? " • sending…" : ""}
+                  </span>
                 </div>
               </div>
-            ))
-          )}
-          <div ref={messagesEndRef} />
-        </div>
+            );
+          })
+        )}
+        <div ref={bottomRef} />
+      </div>
 
-        {/* Message Input */}
-        <div className="border-t p-4">
-          <div className="flex space-x-2">
-            <Input
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Type your message..."
-              disabled={isLoading}
-              className="flex-1"
-            />
-            <Button
-              onClick={handleSend}
-              disabled={isLoading || !newMessage.trim()}
-              className="bg-ocean-blue hover:bg-blue-800"
-            >
-              <Send className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </>
+      {/* Input */}
+      <form
+        onSubmit={handleSubmit}
+        className="p-3 border-t flex items-center space-x-2"
+      >
+        <input
+          type="text"
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          placeholder="Type your message..."
+          className="flex-1 border rounded-lg px-3 py-2 text-sm"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              (e.currentTarget.form as HTMLFormElement)?.requestSubmit();
+            }
+          }}
+        />
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? "Sending…" : "Send"}
+        </Button>
+      </form>
+    </div>
   );
 }
+

@@ -1,18 +1,57 @@
+import { useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import HeaderCaptain from "@/components/headercaptain";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Ship, Plus, Edit, Eye, Trash2, Search, MapPin, Clock, Users, DollarSign } from "lucide-react";
+import {
+  Ship,
+  Plus,
+  Edit,
+  Eye,
+  Search,
+  MapPin,
+  Clock,
+  Users,
+  DollarSign,
+} from "lucide-react";
+
+/** Charter type aligned with your backend schema */
+type Charter = {
+  id: number;
+  captainId: number;
+  title: string;
+  description: string | null;
+  location: string;
+  lat?: number | null;
+  lng?: number | null;
+  targetSpecies: string | null;
+  duration: string | null;
+  maxGuests: number;
+  price: number;
+  boatSpecs?: string | null;
+  included?: string | null;
+  images?: string[] | null;
+  available: boolean;
+  isListed: boolean;
+};
 
 export default function CaptainCharters() {
   const { user } = useAuth();
+  const [query, setQuery] = useState("");
 
-  const { data: charters, isLoading } = useQuery({
+  const { data: charters, isLoading, isError, refetch } = useQuery<Charter[]>({
     queryKey: ["/api/captain/charters"],
+    queryFn: async () => {
+      const res = await fetch("/api/captain/charters", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch charters");
+      return res.json();
+    },
     enabled: !!user,
+    staleTime: 60 * 1000,
   });
 
   if (!user) {
@@ -22,7 +61,9 @@ export default function CaptainCharters() {
           <CardContent className="p-8 text-center">
             <Ship className="mx-auto mb-4 text-ocean-blue" size={48} />
             <h2 className="text-2xl font-bold mb-4">Captain Portal</h2>
-            <p className="text-storm-gray mb-6">Please log in to access your captain dashboard</p>
+            <p className="text-storm-gray mb-6">
+              Please log in to access your captain dashboard
+            </p>
             <Button asChild>
               <Link href="/api/login">Log In</Link>
             </Button>
@@ -32,67 +73,44 @@ export default function CaptainCharters() {
     );
   }
 
+  // filtro local por título, ubicación, especies, specs
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!charters || !q) return charters || [];
+    return charters.filter((c) => {
+      const haystack = [
+        c.title,
+        c.location,
+        c.targetSpecies || "",
+        c.boatSpecs || "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [charters, query]);
+
+  const fmtUSD = (n: number) =>
+    new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(n);
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Ship className="text-ocean-blue mr-3" size={32} />
-              <div>
-                <h1 className="text-xl font-bold">Captain Portal</h1>
-                <p className="text-sm text-storm-gray">Manage Your Charters</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button variant="outline" asChild>
-                <Link href="/">View Public Site</Link>
-              </Button>
-              <Button asChild>
-                <Link href="/captain/charters/new">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Charter
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Header unificado */}
+      <HeaderCaptain />
 
-      {/* Navigation */}
-      <nav className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8">
-            <Link href="/captain/overview" className="border-b-2 border-transparent text-storm-gray hover:text-gray-900 py-4 px-1 font-medium">
-              Overview
-            </Link>
-            <Link href="/captain/charters" className="border-b-2 border-ocean-blue text-ocean-blue py-4 px-1 font-medium">
-              My Charters
-            </Link>
-            <Link href="/captain/bookings" className="border-b-2 border-transparent text-storm-gray hover:text-gray-900 py-4 px-1 font-medium">
-              Bookings
-            </Link>
-            <Link href="/captain/messages" className="border-b-2 border-transparent text-storm-gray hover:text-gray-900 py-4 px-1 font-medium">
-              Messages
-            </Link>
-            <Link href="/captain/earnings" className="border-b-2 border-transparent text-storm-gray hover:text-gray-900 py-4 px-1 font-medium">
-              Earnings
-            </Link>
-            <Link href="/captain/profile" className="border-b-2 border-transparent text-storm-gray hover:text-gray-900 py-4 px-1 font-medium">
-              Profile
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header Section */}
         <div className="mb-8">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-6">
             <div>
               <h2 className="text-2xl font-bold">My Charter Listings</h2>
-              <p className="text-storm-gray">Manage and optimize your fishing charter listings</p>
+              <p className="text-storm-gray">
+                Manage and optimize your fishing charter listings
+              </p>
             </div>
             <Button asChild>
               <Link href="/captain/charters/new">
@@ -102,92 +120,153 @@ export default function CaptainCharters() {
             </Button>
           </div>
 
-          {/* Search and Filters */}
+          {/* Search */}
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-storm-gray" size={20} />
-              <Input 
-                placeholder="Search your charters..." 
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-storm-gray"
+                size={20}
+              />
+              <Input
+                placeholder="Search your charters…"
                 className="pl-10"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
               />
             </div>
-            <Button variant="outline">Filter</Button>
+            <Button variant="outline" onClick={() => setQuery("")}>
+              Clear
+            </Button>
           </div>
         </div>
 
-        {/* Charter Listings */}
+        {/* Grid */}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <Card key={i} className="animate-pulse">
-                <div className="h-48 bg-gray-200 rounded-t-lg" />
+              <Card key={i} className="overflow-hidden">
+                <div className="h-48 bg-gray-200 animate-pulse" />
                 <CardContent className="p-6">
                   <div className="space-y-3">
-                    <div className="h-4 bg-gray-200 rounded w-3/4" />
-                    <div className="h-3 bg-gray-200 rounded w-1/2" />
-                    <div className="h-3 bg-gray-200 rounded w-2/3" />
+                    <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4" />
+                    <div className="h-3 bg-gray-200 rounded animate-pulse w-1/2" />
+                    <div className="h-3 bg-gray-200 rounded animate-pulse w-2/3" />
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
-        ) : charters && charters.length > 0 ? (
+        ) : isError ? (
+          <div className="text-center py-20">
+            <p className="text-red-500 mb-4">Failed to load your charters.</p>
+            <Button variant="outline" onClick={() => refetch()}>
+              Try again
+            </Button>
+          </div>
+        ) : filtered && filtered.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {charters.map((charter) => (
-              <Card key={charter.id} className="hover:shadow-lg transition-shadow">
-                <div className="relative">
-                  <img 
-                    src={charter.images?.[0] || '/fishing1.jpg'} 
-                    alt={charter.title}
-                    className="w-full h-48 object-cover rounded-t-lg"
-                  />
-                  <Badge 
-                    className="absolute top-2 right-2"
-                    variant={charter.isActive ? "default" : "secondary"}
-                  >
-                    {charter.isActive ? "Active" : "Inactive"}
-                  </Badge>
-                </div>
-                
-                <CardContent className="p-6">
-                  <h3 className="font-semibold text-lg mb-2">{charter.title}</h3>
-                  
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center text-sm text-storm-gray">
-                      <MapPin className="w-4 h-4 mr-2" />
-                      {charter.location}
-                    </div>
-                    <div className="flex items-center text-sm text-storm-gray">
-                      <Clock className="w-4 h-4 mr-2" />
-                      {charter.duration}
-                    </div>
-                    <div className="flex items-center text-sm text-storm-gray">
-                      <Users className="w-4 h-4 mr-2" />
-                      Up to {charter.maxPassengers} passengers
-                    </div>
-                    <div className="flex items-center text-sm font-semibold text-ocean-blue">
-                      <DollarSign className="w-4 h-4 mr-2" />
-                      ${charter.price}
+            {filtered.map((charter) => {
+              const image =
+                (charter.images && charter.images[0]) || "/fishing1.jpg";
+              return (
+                <Card
+                  key={charter.id}
+                  className="hover:shadow-lg transition-shadow overflow-hidden rounded-xl"
+                >
+                  <div className="relative">
+                    <img
+                      src={image}
+                      alt={charter.title}
+                      className="w-full h-48 object-cover"
+                    />
+                    <div className="absolute top-2 right-2 flex gap-2">
+                      <Badge
+                        variant={charter.isListed ? "default" : "secondary"}
+                        className={
+                          charter.isListed ? "" : "bg-gray-200 text-gray-700"
+                        }
+                      >
+                        {charter.isListed ? "Published" : "Unpublished"}
+                      </Badge>
+                      <Badge
+                        className={
+                          charter.available
+                            ? "bg-green-600 text-white"
+                            : "bg-gray-400 text-white"
+                        }
+                      >
+                        {charter.available ? "Available" : "Unavailable"}
+                      </Badge>
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1" asChild>
-                      <Link href={`/charter/${charter.id}`}>
-                        <Eye className="w-4 h-4 mr-1" />
-                        View
-                      </Link>
-                    </Button>
-                    <Button variant="outline" size="sm" className="flex-1" asChild>
-                      <Link href={`/captain/charters/${charter.id}/edit`}>
-                        <Edit className="w-4 h-4 mr-1" />
-                        Edit
-                      </Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  <CardContent className="p-6">
+                    <h3 className="font-semibold text-lg mb-1 line-clamp-1">
+                      {charter.title}
+                    </h3>
+
+                    <div className="space-y-2 mb-4 text-sm text-storm-gray">
+                      <div className="flex items-center">
+                        <MapPin className="w-4 h-4 mr-2" />
+                        <span className="truncate">{charter.location}</span>
+                      </div>
+                      {charter.duration && (
+                        <div className="flex items-center">
+                          <Clock className="w-4 h-4 mr-2" />
+                          <span>{charter.duration}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center">
+                        <Users className="w-4 h-4 mr-2" />
+                        <span>Up to {charter.maxGuests} guests</span>
+                      </div>
+                      <div className="flex items-center font-semibold text-ocean-blue">
+                        <DollarSign className="w-4 h-4 mr-1" />
+                        <span>{fmtUSD(charter.price)}</span>
+                      </div>
+
+                      {(charter.targetSpecies || charter.boatSpecs) && (
+                        <div className="pt-2 border-t text-xs text-gray-600">
+                          {charter.targetSpecies && (
+                            <div>
+                              <span className="font-medium text-gray-700">
+                                Species:
+                              </span>{" "}
+                              {charter.targetSpecies}
+                            </div>
+                          )}
+                          {charter.boatSpecs && (
+                            <div>
+                              <span className="font-medium text-gray-700">
+                                Boat:
+                              </span>{" "}
+                              {charter.boatSpecs}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2">
+                      {/* Preview público */}
+                      <Button variant="outline" size="sm" className="flex-1" asChild>
+                        <Link href={`/charter/${charter.id}`}>
+                          <Eye className="w-4 h-4 mr-1" />
+                          Preview
+                        </Link>
+                      </Button>
+                      {/* Edit (ruta interna) */}
+                      <Button variant="outline" size="sm" className="flex-1" asChild>
+                        <Link href={`/captain/charters/${charter.id}/edit`}>
+                          <Edit className="w-4 h-4 mr-1" />
+                          Edit
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         ) : (
           <Card className="text-center py-12">
@@ -207,7 +286,7 @@ export default function CaptainCharters() {
           </Card>
         )}
 
-        {/* Tips Card */}
+        {/* Tips */}
         <Card className="mt-8 bg-blue-50 border-blue-200">
           <CardHeader>
             <CardTitle className="text-blue-900">Tips for Better Listings</CardTitle>
@@ -233,7 +312,7 @@ export default function CaptainCharters() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </main>
     </div>
   );
 }

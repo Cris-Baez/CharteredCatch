@@ -1,277 +1,531 @@
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { useLocation, Link } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import HeaderCaptain from "@/components/headercaptain";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Ship, Star, Edit, Camera, Save } from "lucide-react";
+import {
+  Save,
+  Camera,
+  BadgeCheck,
+  MapPin,
+  User as UserIcon,
+  Mail,
+  Shield,
+  KeyRound,
+  Loader2,
+} from "lucide-react";
 
+/* ===========================
+   Tipos
+=========================== */
+type CaptainMe = {
+  id: number;
+  userId: string;
+  bio: string | null;
+  experience: string | null;
+  licenseNumber: string | null;
+  location: string | null;
+  avatar: string | null;
+  verified: boolean | null;
+  rating: string | number | null;
+  reviewCount: number | null;
+};
+
+type UpdateUserPayload = {
+  firstName?: string | null;
+  lastName?: string | null;
+};
+
+type UpdateCaptainPayload = {
+  bio?: string | null;
+  experience?: string | null;
+  licenseNumber?: string | null;
+  location?: string | null;
+};
+
+/* ===========================
+   Page
+=========================== */
 export default function CaptainProfile() {
-  const { user } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
 
-  const { data: captain, isLoading } = useQuery({
-    queryKey: ["/api/captain/profile"],
-    enabled: !!user,
+  // redirect si no logueado
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) setLocation("/login");
+  }, [authLoading, isAuthenticated, setLocation]);
+
+  // ======== FETCH: captain/me ========
+  const {
+    data: captain,
+    isLoading: loadingCaptain,
+  } = useQuery<CaptainMe>({
+    queryKey: ["/api/captain/me"],
+    queryFn: async () => {
+      const r = await fetch("/api/captain/me", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to load captain profile");
+      return r.json();
+    },
+    enabled: !!isAuthenticated,
   });
 
-  if (!user) {
+  // ======== FORM STATE ========
+  // user basics (firstName/lastName/email readonly)
+  const [firstName, setFirstName] = useState<string>("");
+  const [lastName, setLastName] = useState<string>("");
+
+  // captain details
+  const [bio, setBio] = useState<string>("");
+  const [experience, setExperience] = useState<string>("");
+  const [licenseNumber, setLicenseNumber] = useState<string>("");
+  const [locationStr, setLocationStr] = useState<string>("");
+
+  // password form
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+
+  // avatar upload
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  // inicializa form cuando carga
+  useEffect(() => {
+    if (!user) return;
+    setFirstName(user.firstName ?? "");
+    setLastName(user.lastName ?? "");
+  }, [user]);
+
+  useEffect(() => {
+    if (!captain) return;
+    setBio(captain.bio ?? "");
+    setExperience(captain.experience ?? "");
+    setLicenseNumber(captain.licenseNumber ?? "");
+    setLocationStr(captain.location ?? "");
+  }, [captain]);
+
+  // helpers UI
+  const fullName = useMemo(
+    () =>
+      [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+      "Captain",
+    [user]
+  );
+
+  /* ===========================
+     Mutations
+  =========================== */
+
+  // Save: user
+  const updateUser = useMutation({
+    mutationFn: async (payload: UpdateUserPayload) => {
+      const r = await fetch("/api/users/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) {
+        const msg = await r.text();
+        throw new Error(msg || "Failed to update user");
+      }
+      return r.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+    },
+  });
+
+  // Save: captain
+  const updateCaptain = useMutation({
+    mutationFn: async (payload: UpdateCaptainPayload) => {
+      const r = await fetch("/api/captain/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) {
+        const msg = await r.text();
+        throw new Error(msg || "Failed to update captain");
+      }
+      return r.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/captain/me"] });
+    },
+  });
+
+  // Change password
+  const changePassword = useMutation({
+    mutationFn: async (payload: { currentPassword: string; newPassword: string }) => {
+      const r = await fetch("/api/users/me/password", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) {
+        const msg = await r.text();
+        throw new Error(msg || "Failed to change password");
+      }
+      return r.json();
+    },
+  });
+
+  // Avatar
+  const handleAvatarUpload = async (file: File) => {
+    try {
+      setUploadingAvatar(true);
+      const fd = new FormData();
+      fd.append("avatar", file);
+      const r = await fetch("/api/captain/avatar", {
+        method: "PATCH",
+        credentials: "include",
+        body: fd,
+      });
+      if (!r.ok) {
+        const t = await r.text();
+        throw new Error(t || "Avatar upload failed");
+      }
+      await queryClient.invalidateQueries({ queryKey: ["/api/captain/me"] });
+    } catch (e: any) {
+      alert(e?.message || "Avatar upload failed");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const onSaveAll = async () => {
+    try {
+      await Promise.all([
+        updateUser.mutateAsync({
+          firstName: firstName || null,
+          lastName: lastName || null,
+        }),
+        updateCaptain.mutateAsync({
+          bio: bio || null,
+          experience: experience || null,
+          licenseNumber: licenseNumber || null,
+          location: locationStr || null,
+        }),
+      ]);
+      alert("Profile updated ✔");
+    } catch (e: any) {
+      alert(e?.message || "Failed to save");
+    }
+  };
+
+  if (authLoading || loadingCaptain) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="p-8 text-center">
-            <Ship className="mx-auto mb-4 text-ocean-blue" size={48} />
-            <h2 className="text-2xl font-bold mb-4">Captain Portal</h2>
-            <p className="text-storm-gray mb-6">Please log in to access your captain dashboard</p>
-            <Button asChild>
-              <Link href="/api/login">Log In</Link>
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex items-center gap-3 text-gray-600">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          Loading profile…
+        </div>
       </div>
     );
   }
 
+  if (!isAuthenticated) return null;
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Ship className="text-ocean-blue mr-3" size={32} />
-              <div>
-                <h1 className="text-xl font-bold">Captain Portal</h1>
-                <p className="text-sm text-storm-gray">Profile Settings</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button variant="outline" asChild>
-                <Link href="/">View Public Site</Link>
-              </Button>
-              <Button>
-                <Save className="w-4 h-4 mr-2" />
-                Save Changes
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Header unificado */}
+      <HeaderCaptain />
 
-      {/* Navigation */}
-      <nav className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8">
-            <Link href="/captain/overview" className="border-b-2 border-transparent text-storm-gray hover:text-gray-900 py-4 px-1 font-medium">
-              Overview
-            </Link>
-            <Link href="/captain/charters" className="border-b-2 border-transparent text-storm-gray hover:text-gray-900 py-4 px-1 font-medium">
-              My Charters
-            </Link>
-            <Link href="/captain/bookings" className="border-b-2 border-transparent text-storm-gray hover:text-gray-900 py-4 px-1 font-medium">
-              Bookings
-            </Link>
-            <Link href="/captain/messages" className="border-b-2 border-transparent text-storm-gray hover:text-gray-900 py-4 px-1 font-medium">
-              Messages
-            </Link>
-            <Link href="/captain/earnings" className="border-b-2 border-transparent text-storm-gray hover:text-gray-900 py-4 px-1 font-medium">
-              Earnings
-            </Link>
-            <Link href="/captain/profile" className="border-b-2 border-ocean-blue text-ocean-blue py-4 px-1 font-medium">
-              Profile
-            </Link>
-          </div>
-        </div>
-      </nav>
+      {/* ======== CONTENT ======== */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+        {/* Intro */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="mb-6 lg:mb-8"
+        >
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
+            Profile
+          </h1>
+          <p className="text-gray-600">
+            Keep your captain profile up to date — it helps guests book with confidence.
+          </p>
+        </motion.div>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Profile Photo & Basic Info */}
-          <div className="lg:col-span-1">
-            <Card>
-              <CardHeader>
-                <CardTitle>Profile Photo</CardTitle>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+          {/* LEFT: Avatar + Summary */}
+          <section className="lg:col-span-1 space-y-6">
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Profile Photo</CardTitle>
               </CardHeader>
-              <CardContent className="text-center">
-                <div className="relative inline-block">
-                  <Avatar className="w-32 h-32 mx-auto">
-                    <AvatarImage src={user.profileImageUrl} />
-                    <AvatarFallback className="text-2xl">
-                      {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <Button
-                    size="sm"
-                    className="absolute bottom-0 right-0 rounded-full w-8 h-8 p-0"
-                  >
-                    <Camera className="w-4 h-4" />
-                  </Button>
-                </div>
-                <h3 className="text-xl font-semibold mt-4">{user?.firstName || ''} {user?.lastName || ''}</h3>
-                <p className="text-storm-gray text-sm break-words">{user?.email || ''}</p>
-                <div className="flex items-center justify-center mt-2">
-                  <Star className="text-yellow-500 mr-1" size={16} />
-                  <span className="font-medium">4.8</span>
-                  <span className="text-storm-gray ml-1">(47 reviews)</span>
+              <CardContent className="pb-6">
+                <div className="flex flex-col items-center">
+                  <div className="relative">
+                    <Avatar className="w-28 h-28 ring-2 ring-white shadow">
+                      <AvatarImage src={captain?.avatar || ""} />
+                      <AvatarFallback className="text-xl">
+                        {user?.firstName?.[0] || "C"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="absolute -bottom-2 -right-2 rounded-full h-9 w-9 p-0 bg-ocean-blue hover:bg-blue-800"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingAvatar}
+                    >
+                      {uploadingAvatar ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Camera className="w-4 h-4" />
+                      )}
+                    </Button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleAvatarUpload(f);
+                      }}
+                    />
+                  </div>
+
+                  <div className="mt-4 text-center">
+                    <div className="text-lg font-semibold">{fullName}</div>
+                    <div className="text-sm text-gray-500 break-all">
+                      {user?.email || "—"}
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-center gap-3 text-sm">
+                      <span className="inline-flex items-center text-yellow-600">
+                        <BadgeCheck className="w-4 h-4 mr-1" />
+                        {Number(captain?.rating ?? 0).toFixed(1)} rating
+                      </span>
+                      <span className="text-gray-500">
+                        {captain?.reviewCount ?? 0} reviews
+                      </span>
+                    </div>
+
+                    {captain?.verified ? (
+                      <span className="mt-3 inline-flex items-center text-green-600 text-xs">
+                        <Shield className="w-3.5 h-3.5 mr-1" />
+                        Verified Captain
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle>Quick Stats</CardTitle>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Public Snapshot</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between">
-                    <span className="text-storm-gray">Total Trips</span>
-                    <span className="font-semibold">142</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-storm-gray">Years Experience</span>
-                    <span className="font-semibold">15</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-storm-gray">Response Rate</span>
-                    <span className="font-semibold">98%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-storm-gray">Member Since</span>
-                    <span className="font-semibold">2023</span>
-                  </div>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex items-center gap-2 text-gray-700">
+                  <UserIcon className="w-4 h-4" />
+                  <span>{fullName}</span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-700">
+                  <Mail className="w-4 h-4" />
+                  <span className="break-all">{user?.email || "—"}</span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-700">
+                  <MapPin className="w-4 h-4" />
+                  <span>{captain?.location || "Add your base location"}</span>
+                </div>
+                <div className="text-xs text-gray-500">
+                  Tip: Keep this info accurate — it appears on your public profile and helps guests discover you.
                 </div>
               </CardContent>
             </Card>
-          </div>
+          </section>
 
-          {/* Profile Details */}
-          <div className="lg:col-span-2 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Basic Information</CardTitle>
+          {/* RIGHT: Editable sections */}
+          <section className="lg:col-span-2 space-y-6">
+            {/* Account */}
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Account</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input id="firstName" defaultValue={user?.firstName || ""} />
+                    <Label htmlFor="firstName">First name</Label>
+                    <Input
+                      id="firstName"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                    />
                   </div>
                   <div>
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input id="lastName" defaultValue={user?.lastName || ""} />
+                    <Label htmlFor="lastName">Last name</Label>
+                    <Input
+                      id="lastName"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                    />
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input id="email" type="email" defaultValue={user?.email || ""} className="break-words" />
-                </div>
-                <div>
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input id="phone" placeholder="(555) 123-4567" />
-                </div>
-                <div>
-                  <Label htmlFor="location">Location</Label>
-                  <Input id="location" placeholder="Key West, FL" />
+                  <Label htmlFor="email">Email (read-only)</Label>
+                  <Input id="email" value={user?.email || ""} readOnly />
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Professional Information</CardTitle>
+            {/* Captain Profile */}
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Captain Profile</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="experience">Years of Experience</Label>
-                  <Input id="experience" placeholder="15" />
-                </div>
-                <div>
-                  <Label htmlFor="license">Captain's License Number</Label>
-                  <Input id="license" placeholder="USCG License #" />
-                </div>
-                <div>
-                  <Label htmlFor="specialties">Fishing Specialties</Label>
-                  <Input id="specialties" placeholder="Offshore, Tarpon, Inshore" />
-                </div>
-                <div>
-                  <Label htmlFor="bio">About Me</Label>
-                  <Textarea 
-                    id="bio" 
-                    placeholder="Tell customers about your experience, fishing style, and what makes your charters special..."
+                  <Label htmlFor="bio">About you</Label>
+                  <Textarea
+                    id="bio"
                     rows={4}
+                    placeholder="Tell guests about your experience, style, and what makes your charters special."
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="experience">Experience</Label>
+                    <Input
+                      id="experience"
+                      placeholder="e.g., 12 years guiding offshore & inshore"
+                      value={experience}
+                      onChange={(e) => setExperience(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="license">Captain License #</Label>
+                    <Input
+                      id="license"
+                      placeholder="USCG-XXXX"
+                      value={licenseNumber}
+                      onChange={(e) => setLicenseNumber(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="location">Base Location</Label>
+                  <Input
+                    id="location"
+                    placeholder="City, State (e.g., Key West, FL)"
+                    value={locationStr}
+                    onChange={(e) => setLocationStr(e.target.value)}
                   />
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Boat Information</CardTitle>
+            {/* Security */}
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Security</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="boatName">Boat Name</Label>
-                    <Input id="boatName" placeholder="Sea Hunter" />
+                    <Label htmlFor="currentPassword">Current password</Label>
+                    <Input
+                      id="currentPassword"
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                    />
                   </div>
                   <div>
-                    <Label htmlFor="boatType">Boat Type</Label>
-                    <Input id="boatType" placeholder="Center Console" />
+                    <Label htmlFor="newPassword">New password</Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                    />
                   </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="boatLength">Length (ft)</Label>
-                    <Input id="boatLength" placeholder="32" />
-                  </div>
-                  <div>
-                    <Label htmlFor="maxPassengers">Max Passengers</Label>
-                    <Input id="maxPassengers" placeholder="6" />
-                  </div>
-                  <div>
-                    <Label htmlFor="engines">Engines</Label>
-                    <Input id="engines" placeholder="Twin 300hp" />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="equipment">Equipment & Amenities</Label>
-                  <Textarea 
-                    id="equipment" 
-                    placeholder="List your fishing equipment, safety gear, and boat amenities..."
-                    rows={3}
-                  />
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                        if (!currentPassword || !newPassword) {
+                          alert("Please fill both password fields.");
+                          return;
+                        }
+                        await changePassword.mutateAsync({
+                          currentPassword,
+                          newPassword,
+                        });
+                        setCurrentPassword("");
+                        setNewPassword("");
+                        alert("Password updated ✔");
+                      } catch (e: any) {
+                        alert(e?.message || "Failed to change password");
+                      }
+                    }}
+                  >
+                    <KeyRound className="w-4 h-4 mr-2" />
+                    Update Password
+                  </Button>
+                  {changePassword.isPending && (
+                    <span className="text-sm text-gray-500 flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Saving…
+                    </span>
+                  )}
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Business Settings</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="cancellation">Cancellation Policy</Label>
-                  <Textarea 
-                    id="cancellation" 
-                    placeholder="Describe your cancellation and refund policy..."
-                    rows={3}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="policies">Additional Policies</Label>
-                  <Textarea 
-                    id="policies" 
-                    placeholder="Any additional rules, requirements, or policies for your charters..."
-                    rows={3}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+            {/* Save all */}
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                onClick={onSaveAll}
+                className="bg-ocean-blue hover:bg-blue-800 text-white"
+                disabled={updateUser.isPending || updateCaptain.isPending}
+              >
+                {updateUser.isPending || updateCaptain.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving…
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
+              {(updateUser.isError || updateCaptain.isError) && (
+                <span className="text-sm text-red-600">
+                  Failed to save. Try again.
+                </span>
+              )}
+              {(updateUser.isSuccess || updateCaptain.isSuccess) && (
+                <span className="text-sm text-green-600">All set!</span>
+              )}
+            </div>
+          </section>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

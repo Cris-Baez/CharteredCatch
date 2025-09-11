@@ -1,20 +1,42 @@
+// src/pages/captain/charters/create.tsx
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { z } from "zod";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, Save, Upload, X } from "lucide-react";
-import { Link } from "wouter";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "@/components/ui/use-toast";
 
+import {
+  ArrowLeft,
+  Save,
+  Upload,
+  X,
+  Star,
+  MapPin,
+  Users,
+  Clock,
+  Anchor,
+  Image as ImageIcon,
+  Shield,
+} from "lucide-react";
+
+/* =========================================
+   Schema (idéntico a lo que ya usas)
+========================================= */
 const charterSchema = z.object({
   title: z.string().min(10, "Title must be at least 10 characters"),
   description: z.string().min(50, "Description must be at least 50 characters"),
@@ -26,15 +48,15 @@ const charterSchema = z.object({
   boatType: z.string().min(1, "Boat type is required"),
   experienceLevel: z.string().min(1, "Experience level is required"),
   includes: z.string().optional(),
-  excludes: z.string().optional(),
+  excludes: z.string().optional(), // no existe en DB; se ignora en POST
 });
 
 type CharterForm = z.infer<typeof charterSchema>;
 
 export default function CreateCharter() {
   const [, setLocation] = useLocation();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
+
   const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
   const [customLocation, setCustomLocation] = useState("");
   const [customSpecies, setCustomSpecies] = useState("");
@@ -60,81 +82,151 @@ export default function CreateCharter() {
     },
   });
 
+  /* ======================
+     Foto: subir / cover
+  ====================== */
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (files) {
-      Array.from(files).forEach(file => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const result = e.target?.result as string;
-          setUploadedPhotos(prev => [...prev, result]);
-        };
-        reader.readAsDataURL(file);
+    if (!files) return;
+
+    const nextCount = uploadedPhotos.length + files.length;
+    if (nextCount > 10) {
+      toast({
+        title: "Limit reached",
+        description: "You can upload up to 10 photos.",
+        variant: "destructive",
       });
+      return;
     }
+
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setUploadedPhotos((prev) => [...prev, result]);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // reset input para poder volver a seleccionar el mismo archivo si hace falta
+    event.currentTarget.value = "";
   };
 
   const removePhoto = (index: number) => {
-    setUploadedPhotos(prev => prev.filter((_, i) => i !== index));
+    setUploadedPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const makeCover = (index: number) => {
+    setUploadedPhotos((prev) => {
+      const copy = [...prev];
+      const [picked] = copy.splice(index, 1);
+      return [picked, ...copy];
+    });
+  };
+
+  /* ======================
+     Mutación crear charter
+  ====================== */
   const createCharterMutation = useMutation({
     mutationFn: async (data: CharterForm) => {
-      const charterData = {
-        ...data,
-        photos: uploadedPhotos
+      const payload = {
+        title: data.title,
+        description: data.description,
+        location: data.location,
+        duration: data.duration,
+        maxGuests: data.maxGuests,
+        price: data.price,
+        targetSpecies: data.targetSpecies,
+        boatSpecs: `${data.boatType} • ${data.experienceLevel}`, // DB: boatSpecs (string)
+        included: data.includes || null, // DB: included
+        images: uploadedPhotos, // DB: images (string[])
+        isListed: true,
+        available: true,
       };
-      return await apiRequest("POST", "/api/captain/charters", charterData);
+
+      const res = await fetch("/api/captain/charters", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || "Failed to create charter");
+      }
+      return res.json();
     },
     onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Charter listing created successfully!",
-      });
+      toast({ title: "Charter created", description: "Your listing is live." });
       queryClient.invalidateQueries({ queryKey: ["/api/captain/charters"] });
       setLocation("/captain/charters");
     },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create charter listing",
-        variant: "destructive",
-      });
+    onError: (err: unknown) => {
+      const message = (err as any)?.message ?? "Failed to create charter";
+      toast({ title: "Error", description: message, variant: "destructive" });
     },
   });
 
-  const onSubmit = (data: CharterForm) => {
-    createCharterMutation.mutate(data);
-  };
+  const onSubmit = (data: CharterForm) => createCharterMutation.mutate(data);
+
+  /* ======================
+     Sugerencias rápidas
+  ====================== */
+  const quickLocations = ["Key Largo", "Islamorada", "Marathon", "Big Pine Key", "Key West"];
+  const quickDurations = ["4 hours", "6 hours", "8 hours", "Full day"];
+  const quickSpecies = ["Mahi-Mahi", "Tarpon", "Sailfish", "Marlin", "Snapper", "Grouper", "Tuna", "Mixed Bag"];
+  const quickBoats = ["Center Console", "Sport Fishing", "Flats Boat", "Bay Boat"];
+
+  /* ======================
+     Preview derivado
+  ====================== */
+  const cover = uploadedPhotos[0] || "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1200&h=800&fit=crop";
+  const titlePreview = form.watch("title") || "Your charter title";
+  const locationPreview = form.watch("location") || "—";
+  const durationPreview = form.watch("duration") || "—";
+  const guestsPreview = form.watch("maxGuests") || 0;
+  const pricePreview = form.watch("price") || 0;
+  const speciesPreview = form.watch("targetSpecies") || "—";
+  const boatPreview = form.watch("boatType") || "—";
+  const levelPreview = form.watch("experienceLevel") || "—";
+  const includedPreview = form.watch("includes") || "";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-ocean-50 to-seafoam-50 p-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
-            <Button variant="outline" asChild>
-              <Link href="/captain">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Dashboard
-              </Link>
-            </Button>
-            <h1 className="text-3xl font-bold text-deep-sea">Create New Charter Listing</h1>
+    <div className="min-h-screen bg-gradient-to-br from-ocean-50 to-seafoam-50">
+      {/* Top bar */}
+      <div className="max-w-6xl mx-auto px-4 pt-4 pb-2">
+        <div className="flex items-center justify-between">
+          <Button variant="outline" asChild>
+            <Link href="/captain/overview">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Overview
+            </Link>
+          </Button>
+
+          <div className="hidden md:flex items-center gap-2 text-xs text-gray-600">
+            <Shield className="w-4 h-4" />
+            <span>Tips: clear photos & detailed description improve conversion</span>
           </div>
         </div>
+      </div>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <Card>
+      <div className="max-w-6xl mx-auto px-4 pb-10 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* LEFT: Form */}
+        <form onSubmit={form.handleSubmit(onSubmit)} className="lg:col-span-2 space-y-6">
+          {/* Básicos */}
+          <Card className="rounded-2xl shadow-sm">
             <CardHeader>
               <CardTitle>Basic Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="title">Charter Title</Label>
-                <Input 
-                  id="title" 
+                <Input
+                  id="title"
                   placeholder="e.g., Full Day Deep Sea Fishing Adventure"
                   {...form.register("title")}
                 />
+                <p className="text-xs text-gray-500 mt-1">Make it descriptive and specific.</p>
                 {form.formState.errors.title && (
                   <p className="text-red-500 text-sm mt-1">{form.formState.errors.title.message}</p>
                 )}
@@ -142,42 +234,70 @@ export default function CreateCharter() {
 
               <div>
                 <Label htmlFor="description">Description</Label>
-                <Textarea 
-                  id="description" 
-                  placeholder="Describe your charter experience, what guests can expect, and what makes it special..."
-                  rows={4}
+                <Textarea
+                  id="description"
+                  placeholder="Describe the experience, what’s included, what to bring, meeting point, etc."
+                  rows={5}
                   {...form.register("description")}
                 />
                 {form.formState.errors.description && (
-                  <p className="text-red-500 text-sm mt-1">{form.formState.errors.description.message}</p>
+                  <p className="text-red-500 text-sm mt-1">
+                    {form.formState.errors.description.message}
+                  </p>
                 )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="location">Location</Label>
-                  <Select onValueChange={(value) => {
-                    if (value === "other") {
-                      setShowCustomLocation(true);
-                    } else {
-                      setShowCustomLocation(false);
-                      form.setValue("location", value);
-                    }
-                  }}>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {quickLocations.map((l) => (
+                      <Button
+                        key={l}
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          setShowCustomLocation(false);
+                          form.setValue("location", l);
+                        }}
+                      >
+                        {l}
+                      </Button>
+                    ))}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={showCustomLocation ? "default" : "outline"}
+                      onClick={() => setShowCustomLocation((s) => !s)}
+                    >
+                      Other
+                    </Button>
+                  </div>
+                  <Select
+                    onValueChange={(value) => {
+                      if (value === "other") {
+                        setShowCustomLocation(true);
+                      } else {
+                        setShowCustomLocation(false);
+                        form.setValue("location", value);
+                      }
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select location" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Key Largo">Key Largo</SelectItem>
-                      <SelectItem value="Islamorada">Islamorada</SelectItem>
-                      <SelectItem value="Marathon">Marathon</SelectItem>
-                      <SelectItem value="Big Pine Key">Big Pine Key</SelectItem>
-                      <SelectItem value="Key West">Key West</SelectItem>
+                      {quickLocations.map((l) => (
+                        <SelectItem key={l} value={l}>
+                          {l}
+                        </SelectItem>
+                      ))}
                       <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                   {showCustomLocation && (
-                    <Input 
+                    <Input
                       placeholder="Enter custom location"
                       className="mt-2"
                       value={customLocation}
@@ -188,25 +308,43 @@ export default function CreateCharter() {
                     />
                   )}
                   {form.formState.errors.location && (
-                    <p className="text-red-500 text-sm mt-1">{form.formState.errors.location.message}</p>
+                    <p className="text-red-500 text-sm mt-1">
+                      {form.formState.errors.location.message}
+                    </p>
                   )}
                 </div>
 
                 <div>
                   <Label htmlFor="duration">Duration</Label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {quickDurations.map((d) => (
+                      <Button
+                        key={d}
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => form.setValue("duration", d)}
+                      >
+                        {d}
+                      </Button>
+                    ))}
+                  </div>
                   <Select onValueChange={(value) => form.setValue("duration", value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select duration" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="4 hours">4 hours</SelectItem>
-                      <SelectItem value="6 hours">6 hours</SelectItem>
-                      <SelectItem value="8 hours">8 hours</SelectItem>
-                      <SelectItem value="Full day">Full day</SelectItem>
+                      {quickDurations.map((d) => (
+                        <SelectItem key={d} value={d}>
+                          {d}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   {form.formState.errors.duration && (
-                    <p className="text-red-500 text-sm mt-1">{form.formState.errors.duration.message}</p>
+                    <p className="text-red-500 text-sm mt-1">
+                      {form.formState.errors.duration.message}
+                    </p>
                   )}
                 </div>
               </div>
@@ -214,67 +352,99 @@ export default function CreateCharter() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="maxGuests">Maximum Guests</Label>
-                  <Input 
-                    id="maxGuests" 
-                    type="number" 
-                    min="1" 
-                    max="20"
+                  <Input
+                    id="maxGuests"
+                    type="number"
+                    min={1}
+                    max={20}
                     {...form.register("maxGuests", { valueAsNumber: true })}
                   />
+                  <p className="text-xs text-gray-500 mt-1">Up to 20 guests.</p>
                   {form.formState.errors.maxGuests && (
-                    <p className="text-red-500 text-sm mt-1">{form.formState.errors.maxGuests.message}</p>
+                    <p className="text-red-500 text-sm mt-1">
+                      {form.formState.errors.maxGuests.message}
+                    </p>
                   )}
                 </div>
 
                 <div>
                   <Label htmlFor="price">Price (USD)</Label>
-                  <Input 
-                    id="price" 
-                    type="number" 
-                    min="1"
+                  <Input
+                    id="price"
+                    type="number"
+                    min={1}
                     placeholder="0"
                     {...form.register("price", { valueAsNumber: true })}
                   />
+                  <p className="text-xs text-gray-500 mt-1">Per trip (not per person).</p>
                   {form.formState.errors.price && (
-                    <p className="text-red-500 text-sm mt-1">{form.formState.errors.price.message}</p>
+                    <p className="text-red-500 text-sm mt-1">
+                      {form.formState.errors.price.message}
+                    </p>
                   )}
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          {/* Detalles */}
+          <Card className="rounded-2xl shadow-sm">
             <CardHeader>
               <CardTitle>Charter Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="targetSpecies">Target Species</Label>
-                <Select onValueChange={(value) => {
-                  if (value === "other") {
-                    setShowCustomSpecies(true);
-                  } else {
-                    setShowCustomSpecies(false);
-                    form.setValue("targetSpecies", value);
-                  }
-                }}>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {quickSpecies.map((s) => (
+                    <Button
+                      key={s}
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setShowCustomSpecies(false);
+                        form.setValue("targetSpecies", s);
+                      }}
+                    >
+                      {s}
+                    </Button>
+                  ))}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={showCustomSpecies ? "default" : "outline"}
+                    onClick={() => setShowCustomSpecies((s) => !s)}
+                  >
+                    Other
+                  </Button>
+                </div>
+
+                <Select
+                  onValueChange={(value) => {
+                    if (value === "other") {
+                      setShowCustomSpecies(true);
+                    } else {
+                      setShowCustomSpecies(false);
+                      form.setValue("targetSpecies", value);
+                    }
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select target species" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Mahi-Mahi">Mahi-Mahi</SelectItem>
-                    <SelectItem value="Tarpon">Tarpon</SelectItem>
-                    <SelectItem value="Sailfish">Sailfish</SelectItem>
-                    <SelectItem value="Marlin">Marlin</SelectItem>
-                    <SelectItem value="Snapper">Snapper</SelectItem>
-                    <SelectItem value="Grouper">Grouper</SelectItem>
-                    <SelectItem value="Tuna">Tuna</SelectItem>
-                    <SelectItem value="Mixed Bag">Mixed Bag</SelectItem>
+                    {quickSpecies.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
+
                 {showCustomSpecies && (
-                  <Input 
+                  <Input
                     placeholder="Enter target species"
                     className="mt-2"
                     value={customSpecies}
@@ -285,34 +455,65 @@ export default function CreateCharter() {
                   />
                 )}
                 {form.formState.errors.targetSpecies && (
-                  <p className="text-red-500 text-sm mt-1">{form.formState.errors.targetSpecies.message}</p>
+                  <p className="text-red-500 text-sm mt-1">
+                    {form.formState.errors.targetSpecies.message}
+                  </p>
                 )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="boatType">Boat Type</Label>
-                  <Select onValueChange={(value) => {
-                    if (value === "other") {
-                      setShowCustomBoatType(true);
-                    } else {
-                      setShowCustomBoatType(false);
-                      form.setValue("boatType", value);
-                    }
-                  }}>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {quickBoats.map((b) => (
+                      <Button
+                        key={b}
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          setShowCustomBoatType(false);
+                          form.setValue("boatType", b);
+                        }}
+                      >
+                        {b}
+                      </Button>
+                    ))}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={showCustomBoatType ? "default" : "outline"}
+                      onClick={() => setShowCustomBoatType((s) => !s)}
+                    >
+                      Other
+                    </Button>
+                  </div>
+
+                  <Select
+                    onValueChange={(value) => {
+                      if (value === "other") {
+                        setShowCustomBoatType(true);
+                      } else {
+                        setShowCustomBoatType(false);
+                        form.setValue("boatType", value);
+                      }
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select boat type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Center Console">Center Console</SelectItem>
-                      <SelectItem value="Sport Fishing">Sport Fishing</SelectItem>
-                      <SelectItem value="Flats Boat">Flats Boat</SelectItem>
-                      <SelectItem value="Bay Boat">Bay Boat</SelectItem>
+                      {quickBoats.map((b) => (
+                        <SelectItem key={b} value={b}>
+                          {b}
+                        </SelectItem>
+                      ))}
                       <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
+
                   {showCustomBoatType && (
-                    <Input 
+                    <Input
                       placeholder="Enter boat type"
                       className="mt-2"
                       value={customBoatType}
@@ -323,7 +524,9 @@ export default function CreateCharter() {
                     />
                   )}
                   {form.formState.errors.boatType && (
-                    <p className="text-red-500 text-sm mt-1">{form.formState.errors.boatType.message}</p>
+                    <p className="text-red-500 text-sm mt-1">
+                      {form.formState.errors.boatType.message}
+                    </p>
                   )}
                 </div>
 
@@ -341,16 +544,18 @@ export default function CreateCharter() {
                     </SelectContent>
                   </Select>
                   {form.formState.errors.experienceLevel && (
-                    <p className="text-red-500 text-sm mt-1">{form.formState.errors.experienceLevel.message}</p>
+                    <p className="text-red-500 text-sm mt-1">
+                      {form.formState.errors.experienceLevel.message}
+                    </p>
                   )}
                 </div>
               </div>
 
               <div>
                 <Label htmlFor="includes">What's Included (Optional)</Label>
-                <Textarea 
-                  id="includes" 
-                  placeholder="e.g., Fishing equipment, bait, ice, cooler, water..."
+                <Textarea
+                  id="includes"
+                  placeholder="e.g., Rods & reels, bait, licenses, ice & cooler, water…"
                   rows={3}
                   {...form.register("includes")}
                 />
@@ -358,9 +563,9 @@ export default function CreateCharter() {
 
               <div>
                 <Label htmlFor="excludes">What's Not Included (Optional)</Label>
-                <Textarea 
-                  id="excludes" 
-                  placeholder="e.g., Fishing license, food, drinks, gratuity..."
+                <Textarea
+                  id="excludes"
+                  placeholder="(Optional note for your description — not stored separately)"
                   rows={3}
                   {...form.register("excludes")}
                 />
@@ -368,29 +573,35 @@ export default function CreateCharter() {
             </CardContent>
           </Card>
 
-          <Card>
+          {/* Fotos */}
+          <Card className="rounded-2xl shadow-sm">
             <CardHeader>
               <CardTitle>Charter Photos</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="photos">Upload Photos</Label>
-                <div className="mt-2">
-                  <Input
-                    id="photos"
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handlePhotoUpload}
-                    className="cursor-pointer"
-                  />
-                  <p className="text-sm text-storm-gray mt-2">
-                    Upload high-quality photos of your boat, fishing equipment, and previous catches. Maximum 10 photos.
-                  </p>
-                </div>
+              <div className="rounded-lg border-2 border-dashed border-gray-300/70 p-6 text-center bg-white">
+                <ImageIcon className="w-10 h-10 text-gray-400 mx-auto mb-3" />
+                <Label
+                  htmlFor="photos"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-md border bg-white hover:bg-gray-50 cursor-pointer"
+                >
+                  <Upload className="w-4 h-4" />
+                  Upload photos
+                </Label>
+                <Input
+                  id="photos"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handlePhotoUpload}
+                  className="hidden"
+                />
+                <p className="text-sm text-gray-500 mt-2">
+                  Up to 10 images. First image is used as the cover.
+                </p>
               </div>
 
-              {uploadedPhotos.length > 0 && (
+              {uploadedPhotos.length > 0 ? (
                 <div>
                   <Label>Uploaded Photos ({uploadedPhotos.length}/10)</Label>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-2">
@@ -399,47 +610,44 @@ export default function CreateCharter() {
                         <img
                           src={photo}
                           alt={`Charter photo ${index + 1}`}
-                          className="w-full h-32 object-cover rounded-lg border"
+                          className={`w-full h-32 object-cover rounded-lg border ${index === 0 ? "ring-2 ring-ocean-blue" : ""}`}
                         />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => removePhoto(index)}
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition"></div>
+                        <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition">
+                          {index !== 0 && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="secondary"
+                              className="bg-white/95"
+                              onClick={() => makeCover(index)}
+                            >
+                              Make cover
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => removePhoto(index)}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
-              )}
-
-              {uploadedPhotos.length === 0 && (
-                <div className="border-2 border-dashed border-storm-gray/30 rounded-lg p-8 text-center">
-                  <Upload className="w-12 h-12 text-storm-gray mx-auto mb-4" />
-                  <p className="text-storm-gray">No photos uploaded yet</p>
-                  <p className="text-sm text-storm-gray mt-1">
-                    Add photos to make your charter listing more appealing to potential customers
-                  </p>
-                </div>
-              )}
+              ) : null}
             </CardContent>
           </Card>
 
-          <div className="flex justify-end space-x-4">
+          <div className="flex justify-end gap-3">
             <Button type="button" variant="outline" asChild>
-              <Link href="/captain">Cancel</Link>
+              <Link href="/captain/charters">Cancel</Link>
             </Button>
-            <Button 
-              type="submit" 
-              disabled={createCharterMutation.isPending}
-              className="min-w-[120px]"
-            >
-              {createCharterMutation.isPending ? (
-                "Creating..."
-              ) : (
+            <Button type="submit" disabled={createCharterMutation.isPending} className="min-w-[140px]">
+              {createCharterMutation.isPending ? "Creating..." : (
                 <>
                   <Save className="w-4 h-4 mr-2" />
                   Create Charter
@@ -448,6 +656,64 @@ export default function CreateCharter() {
             </Button>
           </div>
         </form>
+
+        {/* RIGHT: Live Preview (sticky) */}
+        <div className="lg:col-span-1">
+          <Card className="rounded-2xl shadow-md sticky top-6">
+            <div className="h-40 w-full overflow-hidden rounded-t-2xl">
+              <img src={cover} alt="cover" className="w-full h-full object-cover" />
+            </div>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-lg font-semibold truncate">{titlePreview}</div>
+                  <div className="text-sm text-gray-600 flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-ocean-blue" />
+                    <span className="truncate">{locationPreview}</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-bold">${pricePreview || 0}</div>
+                  <div className="text-xs text-gray-500">per trip</div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-700">
+                <span className="inline-flex items-center">
+                  <Clock className="w-4 h-4 mr-1" />
+                  {durationPreview}
+                </span>
+                <span className="inline-flex items-center">
+                  <Users className="w-4 h-4 mr-1" />
+                  {guestsPreview} guests
+                </span>
+                <span className="inline-flex items-center">
+                  <Star className="w-4 h-4 mr-1 text-yellow-500" />
+                  New
+                </span>
+              </div>
+
+              <div className="text-sm text-gray-700">
+                {speciesPreview !== "—" && (
+                  <div className="mb-1">
+                    🎣 <span className="font-medium">Target:</span> {speciesPreview}
+                  </div>
+                )}
+                {(boatPreview !== "—" || levelPreview !== "—") && (
+                  <div className="mb-1">
+                    <Anchor className="w-4 h-4 inline mr-1" />
+                    {boatPreview} • {levelPreview}
+                  </div>
+                )}
+                {includedPreview && (
+                  <div className="text-xs text-gray-600 mt-1">
+                    <span className="font-medium">Includes:</span> {includedPreview}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

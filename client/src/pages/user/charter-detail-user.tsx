@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 
-import Header from "@/components/headeruser";
+import HeaderUser from "@/components/headeruser";
 import Footer from "@/components/footer";
 
 import { Button } from "@/components/ui/button";
@@ -51,7 +51,6 @@ import {
 } from "lucide-react";
 
 import type { CharterWithCaptain } from "@shared/schema";
-import HeaderUser from "@/components/headeruser";
 
 /* ===========================
    Tipos y schema
@@ -104,7 +103,7 @@ export default function CharterDetailUser() {
   const { data: charter, isLoading } = useQuery<CharterWithCaptain>({
     queryKey: ["charter", id],
     queryFn: async () => {
-      const res = await fetch(`/api/charters/${id}`);
+      const res = await fetch(`/api/charters/${id}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch charter");
       return res.json();
     },
@@ -143,45 +142,92 @@ export default function CharterDetailUser() {
       const res = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // usa el id real del usuario autenticado
+        credentials: "include",
         body: JSON.stringify({
+          // idealmente el backend toma el userId desde la sesión
           userId: me.id,
           charterId: charter.id,
-          tripDate: data.tripDate,
+          tripDate: data.tripDate.toISOString(),
           guests: data.guests,
           totalPrice: charter.price,
           status: "pending",
           message: data.message || "",
         }),
       });
-      // aunque tu backend no esté aún, manejamos error suavemente
+
       if (!res.ok) throw new Error("Booking failed");
+      const created = await res.json(); // se espera { id, ... }
+
       setIsBookingOpen(false);
-      setLocation("/messages");
+
+      // Redirige a checkout con bookingId (y fallback si no viene id)
+      const bookingId =
+        typeof created?.id === "number" || typeof created?.id === "string"
+          ? String(created.id)
+          : "";
+      const q = new URLSearchParams({
+        ...(bookingId ? { bookingId } : {}),
+        charterId: String(charter.id),
+        date: data.tripDate.toISOString(),
+        guests: String(data.guests),
+      }).toString();
+
+      setLocation(`/user/checkout?${q}`);
     } catch (err) {
       console.error(err);
       setIsBookingOpen(false);
-      setLocation("/messages");
+      // En caso de error igual llevamos a checkout con datos mínimos para reintentar pago
+      const q = new URLSearchParams({
+        charterId: String(charter?.id ?? ""),
+        date: data.tripDate.toISOString(),
+        guests: String(data.guests),
+      }).toString();
+      setLocation(`/user/checkout?${q}`);
     }
   };
 
   const handleMessage = async () => {
     if (!charter || !me) return;
+    const receiverId = charter.captain?.userId ? String(charter.captain.userId) : "";
     try {
+      // 1) Intento crear/obtener hilo específico (ajusta a tu backend)
+      const threadRes = await fetch("/api/messages/threads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          participantId: receiverId,
+          charterId: charter.id,
+        }),
+      });
+
+      if (threadRes.ok) {
+        const data = await threadRes.json(); // se espera { threadId }
+        if (data?.threadId) {
+          setLocation(`/user/messages?threadId=${encodeURIComponent(String(data.threadId))}`);
+          return;
+        }
+      }
+
+      // 2) Fallback: crea un primer mensaje y navega con query
       await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           senderId: me.id,
-          receiverId: charter.captain?.userId,
+          receiverId: receiverId,
           charterId: charter.id,
           content: `Hi! I'm interested in your charter: ${charter.title}`,
         }),
       });
-      setLocation("/messages");
+
+      // Usa query params para que /user/messages abra esa conversación
+      setLocation(`/user/messages?to=${encodeURIComponent(receiverId)}&charterId=${encodeURIComponent(String(charter.id))}`);
     } catch (err) {
       console.error(err);
-      setLocation("/messages");
+      // Último fallback: abre mensajes con los hints
+      setLocation(`/user/messages?to=${encodeURIComponent(receiverId)}&charterId=${encodeURIComponent(String(charter.id))}`);
     }
   };
 
@@ -191,7 +237,7 @@ export default function CharterDetailUser() {
   if (loadingMe || isLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <Header />
+        <HeaderUser />
         <div className="max-w-4xl mx-auto px-4 py-8 animate-pulse">
           <div className="h-60 bg-gray-200 rounded-lg mb-6" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -229,7 +275,7 @@ export default function CharterDetailUser() {
   =========================== */
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      <HeaderUser />
 
       {/* HERO de imágenes */}
       <div className="mb-6 relative">
@@ -256,6 +302,10 @@ export default function CharterDetailUser() {
         <div
           ref={scrollerRef}
           className="md:hidden flex overflow-x-auto snap-x snap-mandatory no-scrollbar w-full h-56 rounded-xl"
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            setActive(Math.round(el.scrollLeft / el.clientWidth));
+          }}
         >
           {images.map((src, i) => (
             <div key={i} className="snap-center shrink-0 w-full h-full">
@@ -414,84 +464,86 @@ export default function CharterDetailUser() {
         </div>
       </div>
 
-      {/* Modal de reserva */}
+      {/* Modal de reserva — responsive y con scroll interno */}
       <Dialog open={isBookingOpen} onOpenChange={setIsBookingOpen}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="w-[96vw] sm:max-w-lg max-w-2xl max-h-[85vh] overflow-y-auto p-0">
+          <DialogHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
             <DialogTitle>Book Your Charter</DialogTitle>
           </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleBooking)} className="space-y-3">
-              <FormField
-                control={form.control}
-                name="tripDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Date</FormLabel>
-                    <FormControl>
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        disabled={(d) => d < new Date()}
-                        className="rounded-md border"
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="guests"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Guests</FormLabel>
-                    <Select
-                      value={field.value?.toString()}
-                      onValueChange={(v) => field.onChange(Number(v))}
-                    >
+          <div className="px-4 pb-4 sm:px-6 sm:pb-6">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleBooking)} className="space-y-3">
+                <FormField
+                  control={form.control}
+                  name="tripDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          disabled={(d) => d < new Date()}
+                          className="rounded-md border max-w-full"
+                        />
                       </FormControl>
-                      <SelectContent>
-                        {Array.from(
-                          { length: charter.maxGuests },
-                          (_, i) => i + 1
-                        ).map((n) => (
-                          <SelectItem key={n} value={n.toString()}>
-                            {n}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormItem>
-                )}
-              />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name="message"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Message (optional)</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name="guests"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Guests</FormLabel>
+                      <Select
+                        value={field.value?.toString()}
+                        onValueChange={(v) => field.onChange(Number(v))}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {Array.from(
+                            { length: charter.maxGuests },
+                            (_, i) => i + 1
+                          ).map((n) => (
+                            <SelectItem key={n} value={n.toString()}>
+                              {n}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormItem>
+                  )}
+                />
 
-              <Button
-                type="submit"
-                className="w-full bg-ocean-blue hover:bg-blue-800 text-sm"
-              >
-                Confirm Booking - ${charter.price}
-              </Button>
-            </form>
-          </Form>
+                <FormField
+                  control={form.control}
+                  name="message"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Message (optional)</FormLabel>
+                      <FormControl>
+                        <Textarea {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <Button
+                  type="submit"
+                  className="w-full bg-ocean-blue hover:bg-blue-800 text-sm"
+                >
+                  Confirm Booking - ${charter.price}
+                </Button>
+              </form>
+            </Form>
+          </div>
         </DialogContent>
       </Dialog>
 

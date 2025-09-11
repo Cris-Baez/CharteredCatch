@@ -1,3 +1,4 @@
+// src/components/MapPopupCard.tsx
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,68 +16,100 @@ export default function MapPopupCard({
   onClose,
   onViewDetails,
 }: MapPopupCardProps) {
+  const imgSrc =
+    charter.images?.[0] ||
+    "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800&q=60&auto=format&fit=crop";
+
+  const rating =
+    charter.captain?.rating != null
+      ? Number(charter.captain.rating).toFixed(1)
+      : "0.0";
+
+  const reviews = charter.captain?.reviewCount ?? 0;
+
   return (
-    <Card className="w-72 bg-white rounded-xl shadow-lg overflow-hidden">
-      <img
-        src={
-          charter.images?.[0] ||
-          "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=200&fit=crop"
-        }
-        alt={charter.title}
-        className="w-full h-32 object-cover"
-      />
-      <CardContent className="p-3">
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="text-sm font-semibold text-gray-900 line-clamp-1">
+    <Card className="w-[200px] md:w-[220px] bg-white rounded-lg shadow-md overflow-hidden">
+      {/* Imagen compacta con tag de precio */}
+      <div className="relative">
+        <img
+          src={imgSrc}
+          alt={charter.title}
+          className="w-full h-20 md:h-24 object-cover"
+          loading="lazy"
+        />
+        <div className="absolute bottom-1 left-1.5 rounded bg-black/60 text-white text-[10px] px-1 py-0.5 font-semibold">
+          ${charter.price}
+        </div>
+      </div>
+
+      <CardContent className="p-2 space-y-1.5">
+        {/* Título + badge specs */}
+        <div className="flex items-start justify-between gap-1">
+          <h3 className="text-xs font-semibold text-gray-900 line-clamp-1">
             {charter.title}
           </h3>
-          <Badge className="bg-ocean-blue/10 text-ocean-blue text-[10px]">
-            {charter.boatSpecs}
-          </Badge>
+          {charter.boatSpecs && (
+            <Badge className="bg-ocean-blue/10 text-ocean-blue text-[9px] max-w-[90px] truncate">
+              {charter.boatSpecs}
+            </Badge>
+          )}
         </div>
 
-        <p className="text-xs text-gray-600 line-clamp-2 mb-2">
-          {charter.description}
-        </p>
+        {/* Descripción mini */}
+        {charter.description && (
+          <p className="text-[11px] text-gray-600 line-clamp-2 leading-snug">
+            {charter.description}
+          </p>
+        )}
 
-        <div className="flex items-center text-xs text-gray-500 mb-2 gap-2">
-          <MapPin className="w-3 h-3" />
-          {charter.location}
-        </div>
-        <div className="flex justify-between text-xs text-gray-600 mb-3">
-          <span className="flex items-center">
-            <Clock className="w-3 h-3 mr-1" /> {charter.duration}
-          </span>
-          <span className="flex items-center">
-            <Users className="w-3 h-3 mr-1" /> {charter.maxGuests} guests
-          </span>
-        </div>
-
-        <div className="flex justify-between items-center">
-          <div className="flex items-center text-yellow-500">
-            <Star className="w-4 h-4 fill-current" />
-            <span className="ml-1 text-sm font-medium">
-              {charter.captain.rating}
+        {/* Meta compacta */}
+        <div className="flex items-center justify-between text-[10px] text-gray-600">
+          <div className="flex items-center gap-1 min-w-0">
+            <MapPin className="w-3 h-3 shrink-0" />
+            <span className="truncate">{charter.location}</span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="inline-flex items-center">
+              <Clock className="w-3 h-3 mr-0.5" />
+              {charter.duration}
             </span>
+            <span className="inline-flex items-center">
+              <Users className="w-3 h-3 mr-0.5" />
+              {charter.maxGuests}
+            </span>
+          </div>
+        </div>
+
+        {/* Rating + Precio */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center text-yellow-500">
+            <Star className="w-3 h-3 fill-current" />
+            <span className="ml-1 text-[11px] font-medium text-gray-900">
+              {rating}
+            </span>
+            {reviews ? (
+              <span className="ml-1 text-[10px] text-gray-500">({reviews})</span>
+            ) : null}
           </div>
           <div className="text-sm font-bold text-gray-900">
             ${charter.price}
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 mt-3">
+        {/* Acciones mini */}
+        <div className="flex justify-end gap-1 pt-1">
           <Button
             size="sm"
-            variant="outline"
+            variant="ghost"
             onClick={onClose}
-            className="text-gray-500"
+            className="h-6 px-2 text-[11px] text-gray-600"
           >
             Close
           </Button>
           <Button
             size="sm"
-            className="bg-ocean-blue text-white hover:bg-blue-800"
             onClick={onViewDetails}
+            className="h-6 px-2 text-[11px] bg-ocean-blue text-white hover:bg-blue-800"
           >
             Details
           </Button>
@@ -85,3 +118,4 @@ export default function MapPopupCard({
     </Card>
   );
 }
+

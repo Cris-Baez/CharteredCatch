@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,6 @@ import type { CharterWithCaptain } from "@shared/schema";
 interface CharterCardProps {
   charter: CharterWithCaptain;
   onViewOnMap?: (charter: CharterWithCaptain) => void;
-  /** Si es true, navega a /user/charters/:id */
   userMode?: boolean;
 }
 
@@ -51,33 +50,42 @@ export default function CharterCard({
     setActive(Math.round(el.scrollLeft / el.clientWidth));
   };
 
-  // URL dinámico según modo
   const detailUrl = userMode
     ? `/user/charters/${charter.id}`
     : `/charters/${charter.id}`;
+
+  useEffect(() => {
+    if (typeof document !== "undefined" && !document.getElementById("no-scrollbar-style")) {
+      const style = document.createElement("style");
+      style.id = "no-scrollbar-style";
+      style.innerHTML = `
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
 
   return (
     <Card className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300">
       {/* Carrusel */}
       <div className="relative group">
-        <Link href={detailUrl}>
-          <a aria-label={`Open charter ${charter.title}`} className="block">
-            <div
-              ref={scrollerRef}
-              onScroll={onScroll}
-              className="w-full h-44 md:h-48 flex snap-x snap-mandatory scroll-smooth overflow-x-auto overflow-y-hidden no-scrollbar"
-            >
-              {images.map((src, i) => (
-                <div key={i} className="snap-center shrink-0 w-full h-full">
-                  <img
-                    src={src}
-                    alt={`${charter.title} - ${i + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              ))}
-            </div>
-          </a>
+        <Link href={detailUrl} className="block">
+          <div
+            ref={scrollerRef}
+            onScroll={onScroll}
+            className="w-full h-44 md:h-48 flex snap-x snap-mandatory scroll-smooth overflow-x-auto overflow-y-hidden no-scrollbar"
+          >
+            {images.map((src, i) => (
+              <div key={i} className="snap-center shrink-0 w-full h-full">
+                <img
+                  src={src}
+                  alt={`${charter.title} - ${i + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ))}
+          </div>
         </Link>
 
         {/* Flechas (solo desktop) */}
@@ -104,10 +112,17 @@ export default function CharterCard({
           </>
         )}
 
-        {/* Contador */}
+        {/* Indicadores (dots) en vez de 1/2 */}
         {total > 1 && (
-          <div className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full backdrop-blur-sm">
-            {active + 1}/{total}
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+            {images.map((_, i) => (
+              <span
+                key={i}
+                className={`h-1.5 w-1.5 rounded-full transition ${
+                  i === active ? "bg-white" : "bg-white/60"
+                }`}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -119,7 +134,9 @@ export default function CharterCard({
           <div className="flex items-center gap-2">
             <Avatar className="w-9 h-9 md:w-10 md:h-10">
               <AvatarImage src={charter.captain?.avatar || ""} />
-              <AvatarFallback>{charter.captain?.name?.[0] || "C"}</AvatarFallback>
+              <AvatarFallback>
+                {charter.captain?.name?.[0]?.toUpperCase() || "C"}
+              </AvatarFallback>
             </Avatar>
             <div>
               <h3 className="font-semibold text-gray-900 text-xs md:text-sm">
@@ -196,11 +213,3 @@ export default function CharterCard({
     </Card>
   );
 }
-
-/* 🚫 Ocultar scrollbar sin quitar scroll */
-const style = document.createElement("style");
-style.innerHTML = `
-  .no-scrollbar::-webkit-scrollbar { display: none; }
-  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-`;
-document.head.appendChild(style);

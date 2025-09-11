@@ -1,84 +1,82 @@
-import { useEffect, useState } from "react";
+// src/pages/signup.tsx
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { motion } from "framer-motion";
-import { Link } from "wouter";
-import Header from "@/components/header";
-import Footer from "@/components/footer";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Loader2, Fish, Ship } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Loader2, Eye, EyeOff, Fish, Ship } from "lucide-react";
+import Header from "@/components/header";
+import Footer from "@/components/footer";
 
 export default function Signup() {
-  const { isAuthenticated, isLoading } = useAuth();
-  const [role, setRole] = useState<"angler" | "captain" | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showPwd, setShowPwd] = useState(false);
 
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-    // Extra para capitanes
-    bio: "",
-    license_number: "",
-    location: "",
-  });
+  const [role, setRole] = useState<"user" | "captain">("user");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const queryClient = useQueryClient();
+
+  const redirectTo = useMemo(() => {
+    if (role === "captain") return "/captain/dashboard";
+    return "/user/home";
+  }, [role]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      window.location.href = "/";
-    }
-  }, [isAuthenticated]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const handleRegister = async () => {
-    try {
-      const payload: any = {
-        name: form.name,
-        email: form.email,
-        password: form.password,
-        role: role === "angler" ? "user" : "captain",
-      };
-
-      // Si es capitán, añadir los campos extendidos
-      if (role === "captain") {
-        payload.bio = form.bio;
-        payload.license_number = form.license_number;
-        payload.location = form.location;
+    if (isAuthenticated && user) {
+      if (user.role === "captain") {
+        window.location.replace("/captain/dashboard");
+      } else if (user.role === "user") {
+        window.location.replace("/user/home");
       }
+    }
+  }, [isAuthenticated, user]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      setBusy(true);
+      setError(null);
 
       const res = await fetch("/api/auth/local/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          email,
+          password,
+          role,
+        }),
       });
 
-      if (!res.ok) throw new Error("Error creating account");
-
-      // Redirigir según el rol
-      if (role === "captain") {
-        window.location.href = "/captain/dashboard";
-      } else {
-        window.location.href = "/user/home";
+      if (!res.ok) {
+        const msg =
+          (await res.json().catch(() => null))?.message ||
+          "Failed to create account";
+        throw new Error(msg);
       }
+
+      // refresca el hook useAuth
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      window.location.replace(redirectTo);
     } catch (err: any) {
-      alert(err.message || "Registration failed");
+      setBusy(false);
+      setError(err?.message ?? "Something went wrong");
     }
-  };
+  }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
+      <div className="min-h-screen flex flex-col bg-background">
         <Header />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-ocean-blue" />
@@ -89,128 +87,135 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="relative min-h-screen flex flex-col overflow-hidden bg-gradient-to-b from-sky-50 to-sky-100 dark:from-slate-900 dark:to-slate-950">
       <Header />
 
-      {/* Hero */}
-      <section className="relative overflow-hidden">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-6 text-center">
-          <motion.h1
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-3xl md:text-5xl font-extrabold tracking-tight text-gray-900"
-          >
-            Create your <span className="text-ocean-blue">Charterly</span> account
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.12 }}
-            className="mt-3 md:mt-4 text-storm-gray text-base md:text-xl"
-          >
-            Choose your role and start your fishing journey today.
-          </motion.p>
-        </div>
-      </section>
+      <main className="flex-1 flex items-center justify-center p-6">
+        <Card className="w-full max-w-md shadow-2xl border border-gray-100 dark:border-slate-800 rounded-2xl bg-white/90 dark:bg-slate-900/90">
+          <CardHeader className="text-center space-y-1">
+            <CardTitle className="text-3xl font-bold text-black dark:text-white">
+              Create your <span className="text-ocean-blue">Charterly</span> account
+            </CardTitle>
+            <p className="text-slate-700 dark:text-slate-400 text-sm">
+              Join as an Angler or a Captain
+            </p>
+          </CardHeader>
 
-      {/* Options */}
-      <section className="px-4 sm:px-6 lg:px-8 pb-10">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Angler */}
-          <Card className="overflow-hidden border border-gray-100 shadow-sm hover:shadow-lg">
-            <CardHeader className="pb-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-ocean-blue/10 flex items-center justify-center">
-                  <Fish className="text-ocean-blue" size={20} />
-                </div>
-                <CardTitle className="text-xl">I’m an Angler</CardTitle>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="flex justify-around mb-4">
+                <Button
+                  type="button"
+                  variant={role === "user" ? "default" : "outline"}
+                  onClick={() => setRole("user")}
+                  className="flex items-center gap-2"
+                >
+                  <Fish className="w-4 h-4" /> Angler
+                </Button>
+                <Button
+                  type="button"
+                  variant={role === "captain" ? "default" : "outline"}
+                  onClick={() => setRole("captain")}
+                  className="flex items-center gap-2"
+                >
+                  <Ship className="w-4 h-4" /> Captain
+                </Button>
               </div>
-              <p className="mt-3 text-sm text-storm-gray">
-                Book fishing trips with verified captains worldwide.
-              </p>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button
-                    onClick={() => setRole("angler")}
-                    className="w-full bg-ocean-blue hover:bg-blue-800 text-white"
-                  >
-                    Sign up as Angler
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="text-xl font-bold">Sign up as Angler</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <Input name="name" value={form.name} onChange={handleChange} placeholder="Full Name" />
-                    <Input type="email" name="email" value={form.email} onChange={handleChange} placeholder="Email" />
-                    <Input type="password" name="password" value={form.password} onChange={handleChange} placeholder="Password" />
-                    <Button onClick={handleRegister} className="w-full bg-ocean-blue hover:bg-blue-800 text-white">
-                      Create Account
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </CardContent>
-          </Card>
 
-          {/* Captain */}
-          <Card className="overflow-hidden border border-gray-100 shadow-sm hover:shadow-lg">
-            <CardHeader className="pb-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-ocean-blue/10 flex items-center justify-center">
-                  <Ship className="text-ocean-blue" size={20} />
-                </div>
-                <CardTitle className="text-xl">I’m a Captain</CardTitle>
+              <div className="grid gap-2 text-black dark:text-white">
+                <Label htmlFor="firstName">First Name</Label>
+                <Input
+                  id="firstName"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  required
+                  disabled={busy}
+                />
               </div>
-              <p className="mt-3 text-sm text-storm-gray">
-                List your boat, manage bookings, and keep 100% of your earnings.
-              </p>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button
-                    onClick={() => setRole("captain")}
-                    className="w-full bg-ocean-blue hover:bg-blue-800 text-white"
-                  >
-                    Sign up as Captain
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="text-xl font-bold">Sign up as Captain</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <Input name="name" value={form.name} onChange={handleChange} placeholder="Full Name" />
-                    <Input type="email" name="email" value={form.email} onChange={handleChange} placeholder="Email" />
-                    <Input type="password" name="password" value={form.password} onChange={handleChange} placeholder="Password" />
-                    <Input name="bio" value={form.bio} onChange={handleChange} placeholder="Short Bio" />
-                    <Input name="license_number" value={form.license_number} onChange={handleChange} placeholder="License Number" />
-                    <Input name="location" value={form.location} onChange={handleChange} placeholder="Location" />
-                    <Button onClick={handleRegister} className="w-full bg-ocean-blue hover:bg-blue-800 text-white">
-                      Create Account
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </CardContent>
-          </Card>
-        </div>
 
-        {/* Already have account */}
-        <div className="max-w-5xl mx-auto text-center mt-8">
-          <p className="text-sm text-storm-gray">
-            Already have an account?{" "}
-            <Link href="/login" className="text-ocean-blue hover:underline">
-              Sign in
-            </Link>
-          </p>
-        </div>
-      </section>
+              <div className="grid gap-2 text-black dark:text-white">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                  disabled={busy}
+                />
+              </div>
+
+              <div className="grid gap-2 text-black dark:text-white">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={busy}
+                />
+              </div>
+
+              <div className="grid gap-2 text-black dark:text-white">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPwd ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    disabled={busy}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPwd((v) => !v)}
+                    className="absolute inset-y-0 right-2 grid place-items-center text-slate-500 hover:text-slate-700"
+                    aria-label={showPwd ? "Hide password" : "Show password"}
+                  >
+                    {showPwd ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {error && (
+                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={busy}
+                className="w-full h-11 bg-gradient-to-r from-ocean-blue to-cyan-500 text-black font-semibold rounded-lg"
+              >
+                {busy ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating account…
+                  </>
+                ) : (
+                  "Create Account"
+                )}
+              </Button>
+            </form>
+
+            <div className="flex items-center justify-center text-xs text-black mt-6">
+              Already have an account?{" "}
+              <a href="/login" className="ml-1 underline hover:text-ocean-blue">
+                Sign in
+              </a>
+            </div>
+          </CardContent>
+        </Card>
+      </main>
 
       <Footer />
     </div>

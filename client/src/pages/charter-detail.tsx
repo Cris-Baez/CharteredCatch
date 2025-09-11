@@ -46,6 +46,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import type { CharterWithCaptain } from "@shared/schema";
+import { useAuth } from "@/hooks/useAuth";
 
 const bookingSchema = z.object({
   tripDate: z.date(),
@@ -57,6 +58,8 @@ type BookingForm = z.infer<typeof bookingSchema>;
 export default function CharterDetail() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [active, setActive] = useState(0);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -64,7 +67,7 @@ export default function CharterDetail() {
   const { data: charter, isLoading } = useQuery<CharterWithCaptain>({
     queryKey: ["charter", id],
     queryFn: async () => {
-      const res = await fetch(`/api/charters/${id}`);
+      const res = await fetch(`/api/charters/${id}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch charter");
       return res.json();
     },
@@ -76,6 +79,7 @@ export default function CharterDetail() {
     defaultValues: { guests: 1, message: "" },
   });
 
+  // ======== Helpers de UI ========
   const scrollToIndex = (idx: number) => {
     const el = scrollerRef.current;
     if (!el) return;
@@ -83,40 +87,74 @@ export default function CharterDetail() {
     setActive(idx);
   };
 
+  // ======== Gatekeeper de autenticación ========
+  const requireAuth = (cb: () => void) => {
+    // Si está cargando el estado auth, no hagas nada; el usuario volverá a pulsar
+    if (authLoading) return;
+    if (!isAuthenticated) {
+      const next = `/charters/${id ?? ""}`;
+      setLocation(`/login?next=${encodeURIComponent(next)}`);
+      return;
+    }
+    cb();
+  };
+
+  // ======== Acciones ========
   const handleBooking = async (data: BookingForm) => {
     if (!charter) return;
+
+    // Seguridad extra: si no está logueado, redirige
+    if (!isAuthenticated) {
+      const next = `/charters/${id ?? ""}`;
+      setLocation(`/login?next=${encodeURIComponent(next)}`);
+      return;
+    }
+
     await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({
-        userId: 1,
+        // userId lo debe inferir el backend desde la sesión
         charterId: charter.id,
-        tripDate: data.tripDate,
+        tripDate: data.tripDate, // Date; tu backend debe parsearlo (ISO)
         guests: data.guests,
-        totalPrice: charter.price,
+        totalPrice: charter.price, // si tu backend lo calcula, puedes omitirlo
         status: "pending",
         message: data.message || "",
       }),
     });
+
     setIsBookingOpen(false);
-    setLocation("/messages");
+    setLocation("/messages"); // como tenías
   };
 
   const handleMessage = async () => {
     if (!charter) return;
+
+    // Gateo por login
+    if (!isAuthenticated) {
+      const next = `/charters/${id ?? ""}`;
+      setLocation(`/login?next=${encodeURIComponent(next)}`);
+      return;
+    }
+
     await fetch("/api/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({
-        senderId: 1,
+        // senderId lo toma el backend de la sesión
         receiverId: charter.captain?.userId,
         charterId: charter.id,
         content: `Hi! I'm interested in your charter: ${charter.title}`,
       }),
     });
+
     setLocation("/messages");
   };
 
+  // ======== Loading / fallback ========
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
@@ -258,10 +296,17 @@ export default function CharterDetail() {
                   <span className="text-xl font-bold text-black">${charter.price}</span>
                   <span className="text-xs text-gray-500">/trip</span>
                 </div>
-                <Button className="w-full bg-ocean-blue hover:bg-blue-800 text-sm" onClick={() => setIsBookingOpen(true)}>
+                <Button
+                  className="w-full bg-ocean-blue hover:bg-blue-800 text-sm"
+                  onClick={() => requireAuth(() => setIsBookingOpen(true))}
+                >
                   <CalendarIcon className="w-4 h-4 mr-1" /> Book Now
                 </Button>
-                <Button variant="outline" className="w-full text-sm" onClick={handleMessage}>
+                <Button
+                  variant="outline"
+                  className="w-full text-sm"
+                  onClick={() => requireAuth(handleMessage)}
+                >
                   <MessageCircle className="w-4 h-4 mr-1" /> Message Captain
                 </Button>
               </CardContent>
@@ -270,8 +315,17 @@ export default function CharterDetail() {
         </div>
       </div>
 
-      {/* Booking modal */}
-      <Dialog open={isBookingOpen} onOpenChange={setIsBookingOpen}>
+      {/* Booking modal (con gating en onOpenChange también) */}
+      <Dialog
+        open={isBookingOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            requireAuth(() => setIsBookingOpen(true));
+          } else {
+            setIsBookingOpen(false);
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader><DialogTitle>Book Your Charter</DialogTitle></DialogHeader>
           <Form {...form}>
@@ -283,7 +337,12 @@ export default function CharterDetail() {
                   <FormItem>
                     <FormLabel>Date</FormLabel>
                     <FormControl>
-                      <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(d) => d < new Date()} />
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(d) => d < new Date()}
+                      />
                     </FormControl>
                   </FormItem>
                 )}
@@ -294,8 +353,15 @@ export default function CharterDetail() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Guests</FormLabel>
-                    <Select value={field.value?.toString()} onValueChange={(v) => field.onChange(Number(v))}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
+                    <Select
+                      value={field.value?.toString()}
+                      onValueChange={(v) => field.onChange(Number(v))}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                      </FormControl>
                       <SelectContent>
                         {Array.from({ length: charter.maxGuests }, (_, i) => i + 1).map((n) => (
                           <SelectItem key={n} value={n.toString()}>{n}</SelectItem>
@@ -332,4 +398,3 @@ export default function CharterDetail() {
 const style = document.createElement("style");
 style.innerHTML = `.no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}`;
 document.head.appendChild(style);
-

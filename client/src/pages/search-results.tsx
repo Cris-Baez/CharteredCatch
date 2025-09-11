@@ -17,21 +17,17 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Filter, Ship, MapPin } from "lucide-react";
 import type { CharterWithCaptain } from "@shared/schema";
 
-const MAPBOX_TOKEN = (import.meta as any).env?.VITE_MAPBOX_TOKEN || "pk.eyJ1Ijoic2hha2EzMzMiLCJhIjoiY21ldGZ2NjkwMGNwNjJrcG93ZHEzdTZkOCJ9.Ymjjhd5zG5nwwdRAx5TZMw";
+const MAPBOX_TOKEN =
+  (import.meta as any).env?.VITE_MAPBOX_TOKEN ||
+  "pk.eyJ1Ijoic2hha2EzMzMiLCJhIjoiY21ldGZ2NjkwMGNwNjJrcG93ZHEzdTZkOCJ9.Ymjjhd5zG5nwwdRAx5TZMw";
 
-/** Util: parse float seguro desde string/number/undefined */
 function toFloat(x: unknown): number | null {
   if (x === null || x === undefined) return null;
   const n = typeof x === "number" ? x : parseFloat(String(x));
   return Number.isFinite(n) ? n : null;
 }
 
-/** Util: centra el mapa en un charter */
-function centerOnCharter(
-  mapRef: React.RefObject<MapRef>,
-  charter: CharterWithCaptain,
-  zoom = 11
-) {
+function centerOnCharter(mapRef: React.RefObject<MapRef>, charter: CharterWithCaptain, zoom = 11) {
   const lat = toFloat(charter.lat);
   const lng = toFloat(charter.lng);
   if (!mapRef.current || lat === null || lng === null) return;
@@ -39,49 +35,49 @@ function centerOnCharter(
 }
 
 export default function SearchResults() {
-  const [locationStr] = useLocation();
+  const [locationStr, setLocation] = useLocation();
   const [sortBy, setSortBy] = useState<string>("rating");
   const [filters, setFilters] = useState({
     location: "",
-    targetSpecies: "",
+    species: "",
     duration: "",
+    date: "",
   });
 
-  // Popup seleccionado (desktop y mobile)
   const [selectedCharterId, setSelectedCharterId] = useState<number | null>(null);
-
-  // Mobile map sheet
   const [mobileMapOpen, setMobileMapOpen] = useState(false);
 
-  // Map refs (desktop y móvil)
   const desktopMapRef = useRef<MapRef | null>(null);
   const mobileMapRef = useRef<MapRef | null>(null);
 
-  // Parse URL params
   useEffect(() => {
     const params = new URLSearchParams(locationStr.split("?")[1] || "");
     setFilters({
       location: params.get("location") || "",
-      targetSpecies: params.get("targetSpecies") || "",
+      species: params.get("species") || "",
       duration: params.get("duration") || "",
+      date: params.get("date") || "",
     });
   }, [locationStr]);
 
-  // Query de charters
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [locationStr, filters]);
+
   const { data: charters, isLoading } = useQuery<CharterWithCaptain[]>({
     queryKey: ["/api/charters", filters],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (filters.location) params.set("location", filters.location);
-      if (filters.targetSpecies) params.set("targetSpecies", filters.targetSpecies);
+      if (filters.species) params.set("species", filters.species);
       if (filters.duration) params.set("duration", filters.duration);
+      if (filters.date) params.set("date", filters.date);
       const res = await fetch(`/api/charters?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch charters");
       return res.json();
     },
   });
 
-  // Ordenar resultados
   const sortedCharters = useMemo(() => {
     if (!charters) return [];
     const list = [...charters];
@@ -102,52 +98,57 @@ export default function SearchResults() {
     return list;
   }, [charters, sortBy]);
 
-  // Geolocalización: centrado inicial si el user lo permite
   useEffect(() => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
-        desktopMapRef.current?.easeTo({ center: [longitude, latitude], zoom: 9, duration: 600 });
+        desktopMapRef.current?.easeTo({
+          center: [longitude, latitude],
+          zoom: 9,
+          duration: 600,
+        });
       },
-      () => {
-        // si falla, no hacemos nada. El mapa queda en su default
-      },
+      () => {},
       { enableHighAccuracy: true, timeout: 5000 }
     );
   }, []);
 
-  // SearchBar ⇒ filtros + URL
-  const handleSearch = (newFilters: { location: string; targetSpecies: string; duration: string }) => {
+  const handleSearch = (newFilters: {
+    location: string;
+    species: string;
+    duration: string;
+    date: string;
+  }) => {
     setFilters(newFilters);
     const params = new URLSearchParams();
     if (newFilters.location) params.set("location", newFilters.location);
-    if (newFilters.targetSpecies) params.set("targetSpecies", newFilters.targetSpecies);
+    if (newFilters.species) params.set("species", newFilters.species);
     if (newFilters.duration) params.set("duration", newFilters.duration);
+    if (newFilters.date) params.set("date", newFilters.date);
     const queryString = params.toString();
-    window.history.replaceState({}, "", queryString ? `/search?${queryString}` : "/search");
+    setLocation(queryString ? `/search?${queryString}` : "/search");
   };
 
   const clearFilters = () => {
-    const empty = { location: "", targetSpecies: "", duration: "" };
+    const empty = { location: "", species: "", duration: "", date: "" };
     setFilters(empty);
-    window.history.replaceState({}, "", "/search");
+    setLocation("/search");
   };
 
-  // Cuando presionas "View on Map" en el card:
   const handleViewOnMap = useCallback((charter: CharterWithCaptain) => {
     setSelectedCharterId(charter.id);
-
-    // Desktop: mueve el mapa de la derecha y abre popup
-    centerOnCharter(desktopMapRef, charter);
-
-    // Móvil: abrir sheet con mapa y centrar
-    setMobileMapOpen(true);
-    setTimeout(() => {
-      // resize por si el map se inicializa oculto
-      mobileMapRef.current?.resize();
-      centerOnCharter(mobileMapRef, charter);
-    }, 350);
+    const isDesktop = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
+    if (isDesktop) {
+      centerOnCharter(desktopMapRef, charter);
+      setMobileMapOpen(false);
+    } else {
+      setMobileMapOpen(true);
+      setTimeout(() => {
+        mobileMapRef.current?.resize();
+        centerOnCharter(mobileMapRef, charter);
+      }, 350);
+    }
   }, []);
 
   const selectedCharter = useMemo(
@@ -155,34 +156,23 @@ export default function SearchResults() {
     [selectedCharterId, sortedCharters]
   );
 
-  // Centrar mapa (desktop) si cambia selectedCharter desde otro lado (ej, pinch en marker)
   useEffect(() => {
     if (selectedCharter) centerOnCharter(desktopMapRef, selectedCharter);
   }, [selectedCharter]);
 
-  // Helper: marker click
   const onMarkerClick = (e: any, charter: CharterWithCaptain, target: "desktop" | "mobile") => {
     e?.originalEvent?.stopPropagation?.();
     setSelectedCharterId(charter.id);
-    if (target === "desktop") {
-      centerOnCharter(desktopMapRef, charter);
-    } else {
-      centerOnCharter(mobileMapRef, charter);
-    }
+    if (target === "desktop") centerOnCharter(desktopMapRef, charter);
+    else centerOnCharter(mobileMapRef, charter);
   };
 
-  // Vista inicial del mapa (fallback)
   const initialCenter = useMemo(() => {
-    // si hay resultados con lat/lng, centra en el primero
-    const firstWithCoords = sortedCharters.find((c) => toFloat(c.lat) !== null && toFloat(c.lng) !== null);
-    if (firstWithCoords) {
-      return { lng: toFloat(firstWithCoords.lng)!, lat: toFloat(firstWithCoords.lat)!, zoom: 6 };
-    }
-    // default Caribe/Florida
+    const first = sortedCharters.find((c) => toFloat(c.lat) && toFloat(c.lng));
+    if (first) return { lng: toFloat(first.lng)!, lat: toFloat(first.lat)!, zoom: 6 };
     return { lng: -80, lat: 25, zoom: 4 };
   }, [sortedCharters]);
 
-  // Fallback si no hay token
   if (!MAPBOX_TOKEN) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
@@ -192,7 +182,7 @@ export default function SearchResults() {
             <CardContent className="p-8">
               <h2 className="text-xl font-semibold mb-2">Mapbox token missing</h2>
               <p className="text-storm-gray">
-                Define <code className="font-mono">VITE_MAPBOX_TOKEN</code> en tu entorno para habilitar el mapa.
+                Define <code className="font-mono">VITE_MAPBOX_TOKEN</code> en tu entorno.
               </p>
             </CardContent>
           </Card>
@@ -205,16 +195,11 @@ export default function SearchResults() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
-
-      {/* SearchBar */}
       <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
         <SearchBar onSearch={handleSearch} initialValues={filters} />
       </div>
-
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pb-8">
-        {/* LISTA */}
         <div className="lg:col-span-2">
-          {/* Header de resultados */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
             <div>
               <h1 className="text-2xl font-bold mb-1">Search Results</h1>
@@ -222,7 +207,7 @@ export default function SearchResults() {
                 <p className="text-storm-gray">
                   {sortedCharters.length} charters found
                   {filters.location && ` in ${filters.location}`}
-                  {filters.targetSpecies && ` for ${filters.targetSpecies}`}
+                  {filters.species && ` for ${filters.species}`}
                 </p>
               )}
             </div>
@@ -241,8 +226,6 @@ export default function SearchResults() {
               </Select>
             </div>
           </div>
-
-          {/* Cards */}
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -254,24 +237,18 @@ export default function SearchResults() {
               <CardContent className="p-12 text-center">
                 <Filter className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No charters found</h3>
-                <p className="text-storm-gray mb-6">Try adjusting your filters or browse all.</p>
+                <p className="text-storm-gray mb-6">Try adjusting your filters.</p>
                 <Button onClick={clearFilters}>Clear Filters</Button>
               </CardContent>
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {sortedCharters.map((charter) => (
-                <CharterCard
-                  key={charter.id}
-                  charter={charter}
-                  onViewOnMap={() => handleViewOnMap(charter)}
-                />
+                <CharterCard key={charter.id} charter={charter} onViewOnMap={() => handleViewOnMap(charter)} />
               ))}
             </div>
           )}
         </div>
-
-        {/* MAPA DESKTOP (sticky, bordeado) */}
         <div className="hidden lg:block lg:col-span-1">
           <div className="sticky top-24">
             <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-md">
@@ -283,8 +260,6 @@ export default function SearchResults() {
                     longitude: initialCenter.lng,
                     latitude: initialCenter.lat,
                     zoom: initialCenter.zoom,
-                    bearing: 0,
-                    pitch: 0,
                   }}
                   style={{ width: "100%", height: "100%" }}
                   mapStyle="mapbox://styles/mapbox/outdoors-v12"
@@ -294,13 +269,7 @@ export default function SearchResults() {
                     const lng = toFloat(c.lng);
                     if (lat === null || lng === null) return null;
                     return (
-                      <Marker
-                        key={c.id}
-                        longitude={lng}
-                        latitude={lat}
-                        anchor="bottom"
-                        onClick={(e: any) => onMarkerClick(e, c, "desktop")}
-                      >
+                      <Marker key={c.id} longitude={lng} latitude={lat} anchor="bottom" onClick={(e: any) => onMarkerClick(e, c, "desktop")}>
                         <div className="relative">
                           <Ship className="w-8 h-8 text-ocean-blue drop-shadow-lg" />
                           <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-ocean-blue rounded-full" />
@@ -308,7 +277,6 @@ export default function SearchResults() {
                       </Marker>
                     );
                   })}
-
                   {selectedCharter && toFloat(selectedCharter.lat) !== null && toFloat(selectedCharter.lng) !== null && (
                     <Popup
                       longitude={toFloat(selectedCharter.lng)!}
@@ -317,8 +285,13 @@ export default function SearchResults() {
                       closeOnClick={false}
                       anchor="top"
                       maxWidth="320px"
+                      offset={12}
                     >
-                      <MapPopupCard charter={selectedCharter} />
+                      <MapPopupCard
+                        charter={selectedCharter}
+                        onClose={() => setSelectedCharterId(null)}
+                        onViewDetails={() => (window.location.href = `/charters/${selectedCharter.id}`)}
+                      />
                     </Popup>
                   )}
                 </Map>
@@ -327,8 +300,6 @@ export default function SearchResults() {
           </div>
         </div>
       </div>
-
-      {/* BOTÓN FLOTANTE PARA ABRIR MAPA EN MÓVIL */}
       <div className="lg:hidden fixed bottom-5 left-0 right-0 flex justify-center z-40">
         <Sheet open={mobileMapOpen} onOpenChange={setMobileMapOpen}>
           <SheetTrigger asChild>
@@ -337,7 +308,6 @@ export default function SearchResults() {
               Open Map
             </Button>
           </SheetTrigger>
-
           <SheetContent side="bottom" className="p-0 h-[85vh] rounded-t-2xl overflow-hidden">
             <div className="h-full w-full">
               <div className="flex items-center justify-between px-4 py-3 border-b">
@@ -346,7 +316,6 @@ export default function SearchResults() {
                   Close
                 </Button>
               </div>
-
               <div className="h-[calc(85vh-56px)] w-full">
                 <Map
                   ref={mobileMapRef}
@@ -355,28 +324,17 @@ export default function SearchResults() {
                     longitude: initialCenter.lng,
                     latitude: initialCenter.lat,
                     zoom: initialCenter.zoom,
-                    bearing: 0,
-                    pitch: 0,
                   }}
                   style={{ width: "100%", height: "100%" }}
                   mapStyle="mapbox://styles/mapbox/outdoors-v12"
-                  onLoad={() => {
-                    // asegura tamaño tras abrir el sheet
-                    setTimeout(() => mobileMapRef.current?.resize(), 200);
-                  }}
+                  onLoad={() => setTimeout(() => mobileMapRef.current?.resize(), 200)}
                 >
                   {sortedCharters.map((c) => {
                     const lat = toFloat(c.lat);
                     const lng = toFloat(c.lng);
                     if (lat === null || lng === null) return null;
                     return (
-                      <Marker
-                        key={`m-${c.id}`}
-                        longitude={lng}
-                        latitude={lat}
-                        anchor="bottom"
-                        onClick={(e: any) => onMarkerClick(e, c, "mobile")}
-                      >
+                      <Marker key={`m-${c.id}`} longitude={lng} latitude={lat} anchor="bottom" onClick={(e: any) => onMarkerClick(e, c, "mobile")}>
                         <div className="relative">
                           <Ship className="w-9 h-9 text-ocean-blue drop-shadow-xl" />
                           <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-ocean-blue rounded-full" />
@@ -384,7 +342,6 @@ export default function SearchResults() {
                       </Marker>
                     );
                   })}
-
                   {selectedCharter && toFloat(selectedCharter.lat) !== null && toFloat(selectedCharter.lng) !== null && (
                     <Popup
                       longitude={toFloat(selectedCharter.lng)!}
@@ -394,7 +351,11 @@ export default function SearchResults() {
                       anchor="top"
                       maxWidth="320px"
                     >
-                      <MapPopupCard charter={selectedCharter} />
+                      <MapPopupCard
+                        charter={selectedCharter}
+                        onClose={() => setSelectedCharterId(null)}
+                        onViewDetails={() => (window.location.href = `/charters/${selectedCharter.id}`)}
+                      />
                     </Popup>
                   )}
                 </Map>
@@ -403,7 +364,6 @@ export default function SearchResults() {
           </SheetContent>
         </Sheet>
       </div>
-
       <Footer />
     </div>
   );

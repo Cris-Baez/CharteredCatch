@@ -1,269 +1,449 @@
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link, useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
+
+import HeaderCaptain from "@/components/headercaptain";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, TrendingDown, DollarSign, Users, Calendar, Star, ArrowLeft } from "lucide-react";
-import { Link } from "wouter";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Users,
+  Calendar as CalendarIcon,
+  Star,
+  ArrowLeft,
+  Loader2,
+  RefreshCw,
+} from "lucide-react";
+
+/* ========= Tipos basados en tu endpoint de earnings ========= */
+type Tx = {
+  id: number | string;
+  charterTitle?: string;
+  guests?: number;
+  status?: "pending" | "confirmed" | "completed" | "cancelled";
+  amount?: number;
+  dateISO?: string; // ISO
+};
+
+type EarningsResponse = {
+  period: "7days" | "30days" | "90days" | "year";
+  nowISO?: string;
+  fromISO?: string;
+  totals?: {
+    totalEarnings?: number;     // confirmed + completed
+    completedEarnings?: number; // completed
+    avgPerTrip?: number;
+    tripsCount?: number;        // all in period
+    completedTrips?: number;
+    pendingAmount?: number;
+    pendingTrips?: number;
+    changePct?: number;         // vs periodo anterior
+  };
+  recentTransactions?: Tx[];
+};
+
+type CaptainRow = {
+  id: number;
+  userId: string;
+  rating?: number | null;
+  reviewCount?: number | null;
+};
+
+/* ========= Utils ========= */
+const fmtMoney = (v?: number, currency = "USD") => {
+  if (typeof v !== "number") return "—";
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(v);
+  } catch {
+    return `$${v.toFixed(0)}`;
+  }
+};
+
+const growthPct = (curr?: number, prev?: number): number | null => {
+  if (typeof curr !== "number" || typeof prev !== "number") return null;
+  if (prev === 0) return curr > 0 ? 100 : 0;
+  return ((curr - prev) / prev) * 100;
+};
+
+const monthKey = (iso?: string) => {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`; // YYYY-MM
+};
+
+const monthLabel = (key: string) => {
+  // key: "YYYY-MM"
+  const [y, m] = key.split("-");
+  const date = new Date(Number(y), Number(m) - 1, 1);
+  return date.toLocaleString("en-US", { month: "short" });
+};
+
+/* ========= Página ========= */
 export default function CaptainAnalytics() {
-  const { data: stats } = useQuery({
-    queryKey: ["/api/captain/stats"],
+  const { user, isAuthenticated, isLoading: loadingAuth } = useAuth();
+  const [, setLocation] = useLocation();
+  const [period, setPeriod] = useState<"7days" | "30days" | "90days" | "year">("30days");
+
+  useEffect(() => {
+    if (!loadingAuth && !isAuthenticated) setLocation("/login");
+  }, [loadingAuth, isAuthenticated, setLocation]);
+
+  // Earnings (reales)
+  const {
+    data: earnings,
+    isLoading,
+    isError,
+    refetch,
+    error,
+  } = useQuery<EarningsResponse>({
+    queryKey: ["/api/captain/earnings", period],
+    queryFn: async () => {
+      const r = await fetch(`/api/captain/earnings?period=${period}`, { credentials: "include" });
+      if (!r.ok) {
+        const msg = await r.text().catch(() => "");
+        const e = new Error(msg || "Failed to load earnings");
+        (e as any).status = r.status;
+        throw e;
+      }
+      return r.json();
+    },
+    enabled: isAuthenticated,
+    staleTime: 30_000,
   });
 
-  // Mock analytics data - in real app this would come from API
-  const analyticsData = {
-    revenue: {
-      thisMonth: 8500,
-      lastMonth: 7200,
-      growth: 18.1
-    },
-    bookings: {
-      thisMonth: 12,
-      lastMonth: 10,
-      growth: 20.0
-    },
-    averageRating: 4.8,
-    repeatCustomers: 65,
-    topCharters: [
-      { name: "Deep Sea Adventure", bookings: 8, revenue: 3200 },
-      { name: "Sunset Fishing", bookings: 6, revenue: 2400 },
-      { name: "Half Day Trip", bookings: 4, revenue: 1600 }
-    ],
-    monthlyData: [
-      { month: "Jan", revenue: 6500, bookings: 9 },
-      { month: "Feb", revenue: 7200, bookings: 10 },
-      { month: "Mar", revenue: 6800, bookings: 8 },
-      { month: "Apr", revenue: 7800, bookings: 11 },
-      { month: "May", revenue: 8200, bookings: 13 },
-      { month: "Jun", revenue: 8500, bookings: 12 }
-    ]
-  };
+  useEffect(() => {
+    if ((error as any)?.status === 401) setLocation("/login");
+  }, [error, setLocation]);
 
+  // Mi ficha de capitán (para rating real)
+  const { data: myCaptain } = useQuery({
+    enabled: !!user?.id,
+    queryKey: ["captain", user?.id],
+    queryFn: async (): Promise<CaptainRow | null> => {
+      const r = await fetch("/api/captains", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to load captain");
+      const list: CaptainRow[] = await r.json();
+      return list.find((c) => c.userId === user!.id) ?? null;
+    },
+    staleTime: 60_000,
+  });
+
+  /* ===== Derivados desde datos reales ===== */
+  const currency = "USD"; // en MVP tus endpoints no devuelven currency; fija USD
+
+  const totalEarnings = earnings?.totals?.totalEarnings;
+  const completedEarnings = earnings?.totals?.completedEarnings;
+  const tripsCount = earnings?.totals?.tripsCount;
+  const completedTrips = earnings?.totals?.completedTrips;
+  const pendingAmount = earnings?.totals?.pendingAmount;
+  const pendingTrips = earnings?.totals?.pendingTrips;
+  const changePctTotal = earnings?.totals?.changePct;
+
+  // "This month vs last month": aproximamos con changePct si el backend lo entrega.
+  // Para Bookings usamos tripsCount como "this period".
+  const bookingsNow = typeof tripsCount === "number" ? tripsCount : undefined;
+  const bookingsPrev = typeof changePctTotal === "number" && typeof tripsCount === "number"
+    ? Math.round(tripsCount / (1 + changePctTotal / 100))
+    : undefined;
+  const bookingsGrowth = growthPct(bookingsNow, bookingsPrev);
+
+  const ratingAvg = typeof myCaptain?.rating === "number" ? myCaptain.rating : undefined;
+  const reviewCount = typeof myCaptain?.reviewCount === "number" ? myCaptain.reviewCount : undefined;
+
+  // Construimos tendencia mensual y top charters a partir de recentTransactions reales
+  const grouped = useMemo(() => {
+    const txs = earnings?.recentTransactions || [];
+    const byMonth = new Map<string, { revenue: number; bookings: number }>();
+    const byCharter = new Map<string, { revenue: number; bookings: number }>();
+
+    for (const tx of txs) {
+      const okForRevenue = tx.status === "completed" || tx.status === "confirmed";
+      const k = monthKey(tx.dateISO);
+      const monthRec = byMonth.get(k) || { revenue: 0, bookings: 0 };
+      if (okForRevenue && typeof tx.amount === "number") monthRec.revenue += tx.amount;
+      monthRec.bookings += 1; // contamos toda transacción como intento/booking del periodo
+      byMonth.set(k, monthRec);
+
+      const cn = tx.charterTitle || "Charter";
+      const chRec = byCharter.get(cn) || { revenue: 0, bookings: 0 };
+      if (okForRevenue && typeof tx.amount === "number") chRec.revenue += tx.amount;
+      chRec.bookings += 1;
+      byCharter.set(cn, chRec);
+    }
+
+    // Orden cronológico por clave YYYY-MM
+    const months = Array.from(byMonth.entries()).sort((a, b) => (a[0] < b[0] ? -1 : 1));
+    const topCharters = Array.from(byCharter.entries())
+      .sort((a, b) => (b[1].revenue - a[1].revenue))
+      .slice(0, 6);
+
+    const maxRevenue = months.reduce((m, [, v]) => Math.max(m, v.revenue), 0);
+
+    return {
+      months,          // [ [ '2025-01', { revenue, bookings } ], ... ]
+      topCharters,     // [ [ 'Deep Sea', { revenue, bookings } ], ... ]
+      maxRevenue,
+    };
+  }, [earnings?.recentTransactions]);
+
+  /* ===== UI ===== */
   return (
-    <div className="min-h-screen bg-gradient-to-br from-ocean-50 to-seafoam-50 p-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
+    <div className="min-h-screen bg-gradient-to-br from-ocean-50 to-seafoam-50">
+      <HeaderCaptain />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Header */}
+        <div className="mb-6 lg:mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Analytics & Insights</h1>
+            <p className="text-storm-gray">.</p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Select
+              value={period}
+              onValueChange={(v) => setPeriod(v as "7days" | "30days" | "90days" | "year")}
+            >
+              <SelectTrigger className="w-[170px]">
+                <SelectValue placeholder="Select period" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7days">Last 7 days</SelectItem>
+                <SelectItem value="30days">Last 30 days</SelectItem>
+                <SelectItem value="90days">Last 90 days</SelectItem>
+                <SelectItem value="year">This year</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+              Refresh
+            </Button>
+
             <Button variant="outline" asChild>
-              <Link href="/captain">
+              <Link href="/captain/overview">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Dashboard
+                Back
               </Link>
             </Button>
-            <h1 className="text-3xl font-bold text-deep-sea">Analytics & Insights</h1>
           </div>
         </div>
 
-        {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-storm-gray">Monthly Revenue</p>
-                  <p className="text-3xl font-bold">${analyticsData.revenue.thisMonth.toLocaleString()}</p>
-                  <div className="flex items-center mt-2">
-                    <TrendingUp className="text-green-500 mr-1" size={16} />
-                    <span className="text-green-500 text-sm font-medium">
-                      +{analyticsData.revenue.growth}%
-                    </span>
-                  </div>
-                </div>
-                <DollarSign className="text-green-500" size={32} />
-              </div>
-            </CardContent>
-          </Card>
+        {/* Loading / error */}
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-gray-600">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Loading…
+          </div>
+        ) : isError ? (
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 text-red-600">
+            Failed to load analytics.
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              Try again
+            </Button>
+          </div>
+        ) : (
+          <>
+            {/* KPIs */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <KpiCard
+                label="Total Earnings"
+                value={fmtMoney(totalEarnings, currency)}
+                growth={typeof changePctTotal === "number" ? changePctTotal : null}
+                icon={<DollarSign className="text-green-600" size={28} />}
+              />
+              <KpiCard
+                label="Completed Earnings"
+                value={fmtMoney(completedEarnings, currency)}
+                sub={`${typeof completedTrips === "number" ? completedTrips : "—"} completed trips`}
+                icon={<CalendarIcon className="text-ocean-blue" size={28} />}
+              />
+              <KpiCard
+                label="Total Bookings"
+                value={typeof bookingsNow === "number" ? String(bookingsNow) : "—"}
+                growth={bookingsGrowth}
+                icon={<CalendarIcon className="text-purple-600" size={28} />}
+              />
+              <KpiCard
+                label="Average Rating"
+                value={typeof ratingAvg === "number" ? ratingAvg.toFixed(1) : "—"}
+                sub={typeof reviewCount === "number" ? `${reviewCount} reviews` : undefined}
+                icon={<Star className="text-yellow-500" size={28} />}
+              />
+            </div>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-storm-gray">Monthly Bookings</p>
-                  <p className="text-3xl font-bold">{analyticsData.bookings.thisMonth}</p>
-                  <div className="flex items-center mt-2">
-                    <TrendingUp className="text-green-500 mr-1" size={16} />
-                    <span className="text-green-500 text-sm font-medium">
-                      +{analyticsData.bookings.growth}%
-                    </span>
-                  </div>
-                </div>
-                <Calendar className="text-blue-500" size={32} />
-              </div>
-            </CardContent>
-          </Card>
+            {/* Trend + Top Charters */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Revenue Trend (agrupado por mes real) */}
+              <Card className="rounded-2xl shadow-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle>Revenue Trend</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {grouped.months.length ? (
+                    <div className="space-y-4">
+                      {grouped.months.map(([key, val]) => {
+                        const width = grouped.maxRevenue > 0
+                          ? Math.round((val.revenue / grouped.maxRevenue) * 100)
+                          : 0;
+                        return (
+                          <div key={key} className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-4 min-w-0 flex-1">
+                              <span className="text-sm font-medium w-12 shrink-0">{monthLabel(key)}</span>
+                              <div className="flex-1">
+                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                  <div className="bg-ocean-blue h-2 rounded-full" style={{ width: `${width}%` }} />
+                                </div>
+                              </div>
+                            </div>
+                            <span className="text-sm font-medium shrink-0">{fmtMoney(val.revenue, currency)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-storm-gray">No transactions in this period.</p>
+                  )}
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-storm-gray">Average Rating</p>
-                  <p className="text-3xl font-bold">{analyticsData.averageRating}</p>
-                  <div className="flex items-center mt-2">
-                    <Star className="text-yellow-500 mr-1" size={16} />
-                    <span className="text-storm-gray text-sm">Excellent</span>
-                  </div>
-                </div>
-                <Star className="text-yellow-500" size={32} />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-storm-gray">Repeat Customers</p>
-                  <p className="text-3xl font-bold">{analyticsData.repeatCustomers}%</p>
-                  <div className="flex items-center mt-2">
-                    <Users className="text-blue-500 mr-1" size={16} />
-                    <span className="text-storm-gray text-sm">Strong loyalty</span>
-                  </div>
-                </div>
-                <Users className="text-blue-500" size={32} />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Revenue Trend */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Revenue Trend</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {analyticsData.monthlyData.map((month, index) => (
-                  <div key={month.month} className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <span className="text-sm font-medium w-8">{month.month}</span>
-                      <div className="flex-1">
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-ocean-blue h-2 rounded-full" 
-                            style={{ 
-                              width: `${(month.revenue / Math.max(...analyticsData.monthlyData.map(m => m.revenue))) * 100}%` 
-                            }}
-                          ></div>
+              {/* Top Performing Charters */}
+              <Card className="rounded-2xl shadow-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle>Top Performing Charters</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {grouped.topCharters.length ? (
+                    <div className="space-y-3">
+                      {grouped.topCharters.map(([name, val], i) => (
+                        <div
+                          key={`${name}-${i}`}
+                          className="flex items-center justify-between p-4 border rounded-lg bg-white hover:shadow-sm transition"
+                        >
+                          <div className="min-w-0">
+                            <p className="font-semibold truncate">{name}</p>
+                            <p className="text-sm text-storm-gray">
+                              {val.bookings} bookings
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold">{fmtMoney(val.revenue, currency)}</p>
+                            <p className="text-xs text-green-600">Revenue</p>
+                          </div>
                         </div>
-                      </div>
+                      ))}
                     </div>
-                    <span className="text-sm font-medium">${month.revenue.toLocaleString()}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  ) : (
+                    <p className="text-sm text-storm-gray">No charter performance data.</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
 
-          {/* Top Performing Charters */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Top Performing Charters</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {analyticsData.topCharters.map((charter, index) => (
-                  <div key={charter.name} className="flex items-center justify-between p-4 border rounded-lg">
+            {/* Pending box si aplica */}
+            {typeof pendingAmount === "number" && pendingAmount > 0 && (
+              <Card className="mt-8 rounded-2xl shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardTitle>Pending Payments</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between p-4 border rounded-lg bg-white">
                     <div>
-                      <p className="font-semibold">{charter.name}</p>
-                      <p className="text-sm text-storm-gray">{charter.bookings} bookings</p>
+                      <p className="font-semibold">{fmtMoney(pendingAmount, currency)}</p>
+                      <p className="text-sm text-storm-gray">
+                        {typeof pendingTrips === "number" ? `${pendingTrips} trips waiting confirmation` : "Awaiting confirmation"}
+                      </p>
                     </div>
-                    <div className="text-right">
-                      <p className="font-semibold">${charter.revenue.toLocaleString()}</p>
-                      <p className="text-sm text-green-600">Revenue</p>
-                    </div>
+                    <Button variant="outline" asChild>
+                      <Link href="/captain/bookings">Review bookings</Link>
+                    </Button>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Tips (copy sin números inventados) */}
+            <Card className="mt-8 rounded-2xl shadow-sm">
+              <CardHeader>
+                <CardTitle>Performance Tips</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <TipItem title="Keep availability updated" desc="Calendarios al día evitan rechazos y aumentan conversiones." />
+                  <TipItem title="Photos & details matter" desc="Imágenes nítidas y descripciones claras elevan el interés." />
+                  <TipItem title="Encourage reviews" desc="Un follow-up corto tras cada viaje mejora tu rating sostenido." />
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
+      </main>
+    </div>
+  );
+}
+
+/* ========= Subcomponentes ========= */
+function KpiCard({
+  label,
+  value,
+  growth,
+  sub,
+  icon,
+}: {
+  label: string;
+  value: string;
+  growth?: number | null;
+  sub?: string;
+  icon: React.ReactNode;
+}) {
+  const positive = typeof growth === "number" && growth >= 0;
+  const negative = typeof growth === "number" && growth < 0;
+
+  return (
+    <Card className="rounded-2xl shadow-sm">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-storm-gray">{label}</p>
+            <p className="text-3xl font-bold truncate">{value}</p>
+            {typeof growth === "number" ? (
+              <p className={["text-sm mt-1", positive ? "text-green-600" : "", negative ? "text-red-600" : ""].join(" ")}>
+                {positive && <TrendingUp className="w-4 h-4 inline mr-1" />}
+                {negative && <TrendingDown className="w-4 h-4 inline mr-1" />}
+                {growth >= 0 ? "+" : ""}
+                {Math.round(growth * 10) / 10}% vs prev.
+              </p>
+            ) : sub ? (
+              <p className="text-sm text-storm-gray mt-1">{sub}</p>
+            ) : (
+              <p className="text-sm text-storm-gray mt-1">—</p>
+            )}
+          </div>
+          <div className="shrink-0">{icon}</div>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
 
-        {/* Performance Insights */}
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle>Performance Insights</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                <div className="flex items-center mb-2">
-                  <TrendingUp className="text-green-600 mr-2" size={20} />
-                  <h3 className="font-semibold text-green-800">Strong Growth</h3>
-                </div>
-                <p className="text-sm text-green-700">
-                  Your bookings are up 20% this month compared to last month. Keep up the great work!
-                </p>
-              </div>
-
-              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="flex items-center mb-2">
-                  <Star className="text-blue-600 mr-2" size={20} />
-                  <h3 className="font-semibold text-blue-800">Excellent Reviews</h3>
-                </div>
-                <p className="text-sm text-blue-700">
-                  Your 4.8-star rating puts you in the top 10% of captains on the platform.
-                </p>
-              </div>
-
-              <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                <div className="flex items-center mb-2">
-                  <Users className="text-yellow-600 mr-2" size={20} />
-                  <h3 className="font-semibold text-yellow-800">Customer Loyalty</h3>
-                </div>
-                <p className="text-sm text-yellow-700">
-                  65% of your customers are repeat bookings - a sign of exceptional service.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Quick Actions */}
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle>Recommended Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h3 className="font-semibold">Optimize Your Most Popular Charter</h3>
-                  <p className="text-sm text-storm-gray">
-                    "Deep Sea Adventure" is your top performer. Consider creating similar offerings.
-                  </p>
-                </div>
-                <Button variant="outline" asChild>
-                  <Link href="/captain/charters/new">Create Charter</Link>
-                </Button>
-              </div>
-
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h3 className="font-semibold">Update Your Availability</h3>
-                  <p className="text-sm text-storm-gray">
-                    Keep your calendar current to maximize booking opportunities.
-                  </p>
-                </div>
-                <Button variant="outline" asChild>
-                  <Link href="/captain/calendar">Manage Calendar</Link>
-                </Button>
-              </div>
-
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h3 className="font-semibold">Follow Up with Recent Customers</h3>
-                  <p className="text-sm text-storm-gray">
-                    Send thank you messages to encourage reviews and repeat bookings.
-                  </p>
-                </div>
-                <Button variant="outline" asChild>
-                  <Link href="/captain/messages">View Messages</Link>
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+function TipItem({ title, desc }: { title: string; desc: string }) {
+  return (
+    <div className="p-4 bg-white rounded-lg border">
+      <h3 className="font-semibold mb-1">{title}</h3>
+      <p className="text-sm text-storm-gray">{desc}</p>
     </div>
   );
 }

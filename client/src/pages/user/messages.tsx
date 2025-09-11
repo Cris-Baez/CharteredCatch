@@ -1,57 +1,73 @@
-// client/src/pages/captain/messages.tsx
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import HeaderCaptain from "@/components/headercaptain";
+import HeaderUser from "@/components/headeruser";
 import MessageThread from "@/components/message-thread";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { MessageCircle, Search } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import type { CharterWithCaptain } from "@shared/schema";
 
-/* ===== tipos que matchean tu backend ===== */
 type SnakeMessage = {
   id: number;
   sender_id: string;
   receiver_id: string;
   content: string;
-  created_at: string;       // ISO
+  created_at: string;
   charter_id?: number | null;
   read?: boolean | null;
-  _optimistic?: boolean;    // local
+  _optimistic?: boolean; // local client only
 };
 
-type Thread = {
+interface Thread {
   participant: {
     id: string;
-    firstName?: string | null;
-    lastName?: string | null;
-    avatar?: string | null;         // por si luego lo agregas
+    firstName?: string;
+    lastName?: string;
+    profileImageUrl?: string;
   };
-  // en tu backend actual no llega bookingId/charterId aquí, así que los omitimos
+  bookingId?: number;
+  charterId?: number;
   lastMessage?: {
     content: string;
     created_at: string;
   };
   unreadCount?: number;
-};
+}
 
-export default function MessagesCaptain() {
+interface Booking {
+  id: number;
+  charterId: number;
+  status: "pending" | "confirmed" | "cancelled" | "completed";
+  charter?: CharterWithCaptain;
+}
+
+export default function MessagesUser() {
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
   const [optimistic, setOptimistic] = useState<SnakeMessage[]>([]);
-  const [q, setQ] = useState("");
   const queryClient = useQueryClient();
   const { user, isAuthenticated } = useAuth();
 
   const me = String(user?.id || "");
 
-  /* ====== THREADS (lista de conversaciones) ====== */
+  // BOOKINGS DEL USUARIO
+  const { data: bookings } = useQuery<Booking[]>({
+    queryKey: ["bookings", "me"],
+    queryFn: async () => {
+      const res = await fetch("/api/bookings/me", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch bookings");
+      return res.json();
+    },
+    enabled: isAuthenticated,
+  });
+
+  // THREADS DEL BACKEND
   const { data: threads, isLoading: loadingThreads } = useQuery<Thread[]>({
     queryKey: [`/api/messages/threads/${me}`],
     enabled: isAuthenticated && !!me,
     queryFn: async () => {
-      const res = await fetch(`/api/messages/threads/${encodeURIComponent(me)}`, {
+      const res = await fetch(`/api/messages/threads/${me}`, {
         credentials: "include",
       });
       if (!res.ok) {
@@ -61,10 +77,36 @@ export default function MessagesCaptain() {
       }
       return res.json();
     },
-    staleTime: 30_000,
   });
 
-  /* ====== MENSAJES DE UN THREAD ====== */
+  // COMBINAR BOOKINGS + THREADS
+  const combinedThreads: Thread[] = useMemo(() => {
+    const bookingThreads: Thread[] =
+      bookings?.map((b) => ({
+        participant: {
+          id: String(b.charter?.captain?.userId || `captain-${b.charterId}`),
+          firstName: b.charter?.captain?.name?.split(" ")[0],
+          lastName: b.charter?.captain?.name?.split(" ").slice(1).join(" "),
+          profileImageUrl: b.charter?.captain?.avatar || undefined,
+        },
+        bookingId: b.id,
+        charterId: b.charterId,
+        lastMessage: undefined,
+        unreadCount: 0,
+      })) || [];
+
+    const all = [...(threads || []), ...bookingThreads];
+
+    // evitar duplicados por participant.id
+    const map = new Map<string, Thread>();
+    for (const t of all) {
+      const key = String(t.participant.id);
+      if (!map.has(key)) map.set(key, { ...t, participant: { ...t.participant, id: key } });
+    }
+    return Array.from(map.values());
+  }, [threads, bookings]);
+
+  // MENSAJES DE UN THREAD
   const { data: serverMessages } = useQuery<SnakeMessage[]>({
     queryKey: ["/api/messages/thread", me, selectedThread?.participant.id],
     queryFn: async () => {
@@ -84,34 +126,9 @@ export default function MessagesCaptain() {
       return res.json();
     },
     enabled: !!selectedThread && isAuthenticated && !!me,
-    staleTime: 10_000,
   });
 
-  /* ====== MARCAR COMO LEÍDO AL ABRIR ====== */
-  const markRead = useMutation({
-    mutationFn: async (payload: { userId: string; participantId: string }) => {
-      const res = await fetch("/api/messages/read", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/messages/threads/${me}`] });
-    },
-  });
-
-  useEffect(() => {
-    if (selectedThread && me) {
-      markRead.mutate({ userId: me, participantId: String(selectedThread.participant.id) });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedThread?.participant.id]);
-
-  /* ====== MERGE server + optimistas ====== */
+  // Mensajes que se muestran = server + optimistas
   const mergedMessages: SnakeMessage[] = useMemo(() => {
     if (!selectedThread) return [];
     const partner = String(selectedThread.participant.id);
@@ -126,11 +143,12 @@ export default function MessagesCaptain() {
         (m.sender_id === partner && m.receiver_id === me)
     );
     return [...fromServer, ...local].sort(
-      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      (a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     );
   }, [serverMessages, optimistic, selectedThread, me]);
 
-  /* ====== ENVIAR MENSAJE (optimista) ====== */
+  // ENVIAR MENSAJE
   const sendMessageMutation = useMutation({
     mutationFn: async (data: { receiverId: string; content: string; charterId?: number }) => {
       const payload: any = {
@@ -142,9 +160,10 @@ export default function MessagesCaptain() {
       const res = await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        credentials: "include", // NECESARIO para req.session.userId
         body: JSON.stringify(payload),
       });
+
       if (!res.ok) {
         const txt = await res.text();
         console.error("Send failed:", res.status, txt);
@@ -153,7 +172,7 @@ export default function MessagesCaptain() {
       return res.json() as Promise<SnakeMessage>;
     },
     onSuccess: (saved, variables) => {
-      // quitar optimista que coincide
+      // quitamos el optimista correspondiente al contenido si existía
       setOptimistic((prev) =>
         prev.filter(
           (m) =>
@@ -165,7 +184,8 @@ export default function MessagesCaptain() {
             )
         )
       );
-      // refrescar thread y lista
+
+      // refrescamos
       queryClient.invalidateQueries({
         queryKey: ["/api/messages/thread", me, variables.receiverId],
       });
@@ -173,7 +193,9 @@ export default function MessagesCaptain() {
         queryKey: [`/api/messages/threads/${me}`],
       });
     },
-    onError: (err) => console.error("Send error:", err),
+    onError: (err) => {
+      console.error("Send error:", err);
+    },
   });
 
   const handleSendMessage = (content: string, onError: () => void) => {
@@ -182,7 +204,6 @@ export default function MessagesCaptain() {
 
     // 1) optimista
     const optimisticMsg: SnakeMessage = {
-      id: Math.floor(Math.random() * 1_000_000) * -1, // id temporal negativo
       sender_id: me,
       receiver_id: receiver,
       content,
@@ -191,12 +212,16 @@ export default function MessagesCaptain() {
     };
     setOptimistic((prev) => [...prev, optimisticMsg]);
 
-    // 2) enviar
+    // 2) enviar real
     sendMessageMutation.mutate(
-      { receiverId: receiver, content },
+      {
+        receiverId: receiver,
+        charterId: selectedThread.charterId,
+        content,
+      },
       {
         onError: () => {
-          // quitar optimista y devolver texto al input
+          // quitamos el optimista y devolvemos el contenido al input
           setOptimistic((prev) =>
             prev.filter(
               (m) =>
@@ -214,46 +239,19 @@ export default function MessagesCaptain() {
     );
   };
 
-  /* ====== auto-seleccionar primer thread ====== */
+  // AUTO-SELECCIONAR
   useEffect(() => {
-    if ((threads?.length ?? 0) > 0 && !selectedThread) {
-      setSelectedThread(threads![0]);
+    if (combinedThreads.length > 0 && !selectedThread) {
+      setSelectedThread(combinedThreads[0]);
     }
-  }, [threads, selectedThread]);
-
-  /* ====== filtros y helpers UI ====== */
-  const initials = (fn?: string | null, ln?: string | null) => {
-    const a = (fn?.[0] || "").toUpperCase();
-    const b = (ln?.[0] || "").toUpperCase();
-    return (a + b || "G").slice(0, 2);
-  };
-
-  const filteredThreads = useMemo(() => {
-    const text = q.trim().toLowerCase();
-    if (!text) return threads || [];
-    return (threads || []).filter((t) => {
-      const name = [t.participant.firstName, t.participant.lastName].filter(Boolean).join(" ");
-      const last = t.lastMessage?.content || "";
-      return [name, last].join(" ").toLowerCase().includes(text);
-    });
-  }, [threads, q]);
+  }, [combinedThreads, selectedThread]);
 
   return (
     <div className="min-h-screen bg-background">
-      <HeaderCaptain />
+      <HeaderUser />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <h1 className="text-2xl md:text-3xl font-bold mb-6">Messages</h1>
-
-        <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-storm-gray" size={18} />
-          <Input
-            placeholder="Search conversations…"
-            className="pl-10"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:h-[600px]">
           {/* LISTA DE THREADS */}
@@ -277,65 +275,68 @@ export default function MessagesCaptain() {
                     </div>
                   ))}
                 </div>
-              ) : (filteredThreads.length === 0) ? (
+              ) : combinedThreads.length === 0 ? (
                 <div className="p-8 text-center text-storm-gray">
                   <MessageCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p>No conversations yet.</p>
-                  <p className="text-sm">Messages from guests will appear here.</p>
+                  <p className="text-sm">Book a trip to start chatting with captains!</p>
                 </div>
               ) : (
                 <div className="divide-y">
-                  {filteredThreads.map((thread) => {
-                    const name =
-                      [thread.participant.firstName, thread.participant.lastName]
-                        .filter(Boolean)
-                        .join(" ") || `Guest #${thread.participant.id}`;
-                    return (
-                      <button
-                        key={thread.participant.id}
-                        onClick={() => setSelectedThread(thread)}
-                        className={`w-full p-4 text-left hover:bg-gray-50 transition-colors ${
-                          selectedThread?.participant.id === thread.participant.id ? "bg-blue-50" : ""
-                        }`}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <Avatar className="h-10 w-10">
-                            {thread.participant.avatar ? (
-                              <AvatarImage src={thread.participant.avatar} />
-                            ) : (
-                              <AvatarFallback>
-                                {initials(thread.participant.firstName, thread.participant.lastName)}
-                              </AvatarFallback>
-                            )}
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <h3 className="font-semibold truncate">{name}</h3>
-                              {(thread.unreadCount ?? 0) > 0 && (
-                                <Badge variant="secondary" className="bg-ocean-blue text-white">
-                                  {thread.unreadCount}
-                                </Badge>
-                              )}
-                            </div>
-                            {thread.lastMessage ? (
-                              <>
-                                <p className="text-sm text-storm-gray truncate">
-                                  {thread.lastMessage.content}
-                                </p>
-                                <p className="text-xs text-gray-400">
-                                  {new Date(thread.lastMessage.created_at).toLocaleString()}
-                                </p>
-                              </>
-                            ) : (
-                              <p className="text-sm text-storm-gray italic truncate">
-                                No messages yet
-                              </p>
+                  {combinedThreads.map((thread) => (
+                    <button
+                      key={thread.participant.id}
+                      onClick={() => setSelectedThread(thread)}
+                      className={`w-full p-4 text-left hover:bg-gray-50 transition-colors ${
+                        selectedThread?.participant.id === thread.participant.id
+                          ? "bg-blue-50"
+                          : ""
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <Avatar className="h-10 w-10">
+                          {thread.participant.profileImageUrl ? (
+                            <AvatarImage src={thread.participant.profileImageUrl} />
+                          ) : (
+                            <AvatarFallback>
+                              {thread.participant.firstName?.[0] ||
+                                thread.participant.lastName?.[0] ||
+                                "C"}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-semibold truncate">
+                              {thread.participant.firstName ||
+                                thread.participant.lastName ||
+                                `Captain #${thread.participant.id}`}
+                            </h3>
+                            {thread.unreadCount && thread.unreadCount > 0 && (
+                              <Badge variant="secondary" className="bg-ocean-blue text-white">
+                                {thread.unreadCount}
+                              </Badge>
                             )}
                           </div>
+                          {thread.lastMessage ? (
+                            <>
+                              <p className="text-sm text-storm-gray truncate">
+                                {thread.lastMessage.content}
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                {new Date(thread.lastMessage.created_at).toLocaleString()}
+                              </p>
+                            </>
+                          ) : (
+                            <p className="text-sm text-storm-gray italic truncate">
+                              {bookings?.find((b) => b.charterId === thread.charterId)?.status ||
+                                "No messages yet"}
+                            </p>
+                          )}
                         </div>
-                      </button>
-                    );
-                  })}
+                      </div>
+                    </button>
+                  ))}
                 </div>
               )}
             </CardContent>

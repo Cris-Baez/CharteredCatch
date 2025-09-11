@@ -13,6 +13,7 @@ export default function Header() {
     { name: "Home", href: "/" },
     { name: "Charters", href: "/search" },
     { name: "Captains", href: "/captains" },
+    { name: "Assistant", href: "/assistant" }, // 👈 agregado
     { name: "Help", href: "/help" },
   ];
 
@@ -32,6 +33,7 @@ export default function Header() {
     if (filters.targetSpecies) params.set("species", filters.targetSpecies);
     if (filters.duration) params.set("duration", filters.duration);
     if (filters.date) params.set("date", filters.date);
+
     setLocation(`/search?${params.toString()}`);
   };
 
@@ -39,20 +41,20 @@ export default function Header() {
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-gray-100">
       {/* Top row */}
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-20 md:h-24">
           {/* Logo */}
           <Link href="/">
-            <div className="flex items-center cursor-pointer">
+            <div className="flex items-center cursor-pointer transition-transform hover:scale-105">
               <img
                 src="/attached_assets/IMG_2128-Photoroom_1749772590031.png"
                 alt="Charterly Logo"
-                className="h-12 md:h-14 lg:h-20 w-auto object-contain"
+                className="h-14 md:h-20 lg:h-24 w-auto object-contain"
               />
             </div>
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-10">
             {navigation.map((item) => (
               <Link
                 key={item.name}
@@ -96,7 +98,7 @@ export default function Header() {
               <Button variant="ghost" size="sm" className="md:hidden">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
+                  className="h-6 w-6"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -152,7 +154,7 @@ export default function Header() {
       {location === "/" && (
         <div className="border-t border-gray-100">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-            {/* Mobile: placeholder pill */}
+            {/* Mobile: pill search */}
             <div className="md:hidden">
               <button
                 onClick={() => setLocation("/search")}

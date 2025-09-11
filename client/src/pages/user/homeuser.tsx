@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -7,10 +7,17 @@ import { useLocation } from "wouter";
 // UI
 import HeaderUser from "@/components/headeruser";
 import Footer from "@/components/footer";
-import SearchBar from "@/components/search-bar";
+import SearchBarInline from "@/components/search-bar-inline";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Icons
 import {
@@ -20,6 +27,7 @@ import {
   X,
   Map as MapIcon,
   Filter,
+  Ship,
 } from "lucide-react";
 
 // Mapa
@@ -30,6 +38,7 @@ import Map, {
   GeolocateControl,
   type MapRef,
 } from "react-map-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 
 // Tipos
 import type { CharterWithCaptain } from "@shared/schema";
@@ -40,16 +49,32 @@ import CharterCard from "@/components/charter-card";
 import MapPopupCard from "@/components/MapPopupCard";
 
 const MAPBOX_TOKEN =
+  (import.meta as any).env?.VITE_MAPBOX_TOKEN ||
   "pk.eyJ1Ijoic2hha2EzMzMiLCJhIjoiY21ldGZ2NjkwMGNwNjJrcG93ZHEzdTZkOCJ9.Ymjjhd5zG5nwwdRAx5TZMw";
 
 type Filters = {
   location: string;
-  targetSpecies: string;
+  /** Importante: la API espera `species` (no `targetSpecies`) */
+  species: string;
   duration: string;
   date?: string;
 };
 
 type Mode = "home" | "search";
+
+/** Utils para mapa / datos */
+function toFloat(x: unknown): number | null {
+  if (x === null || x === undefined) return null;
+  const n = typeof x === "number" ? x : parseFloat(String(x));
+  return Number.isFinite(n) ? n : null;
+}
+
+function centerOnCharter(mapRef: React.RefObject<MapRef>, charter: CharterWithCaptain, zoom = 11) {
+  const lat = toFloat(charter.lat);
+  const lng = toFloat(charter.lng);
+  if (!mapRef.current || lat === null || lng === null) return;
+  mapRef.current.easeTo({ center: [lng, lat], zoom, duration: 600 });
+}
 
 export default function HomeUser() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -58,13 +83,38 @@ export default function HomeUser() {
   // =========================
   // ESTADO DE LA PÁGINA
   // =========================
-  const [mode, setMode] = useState<Mode>("home"); // "home" (recomendaciones) | "search" (resultados con mapa)
-  const [filters, setFilters] = useState<Filters>({
-    location: "",
-    targetSpecies: "",
-    duration: "",
-    date: "",
+  const [mode, setMode] = useState<Mode>(() => {
+    const saved = localStorage.getItem("homeuser:mode");
+    return saved === "search" || saved === "home" ? (saved as Mode) : "home";
   });
+
+  const [filters, setFilters] = useState<Filters>(() => {
+    const saved = localStorage.getItem("homeuser:filters");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return {
+          location: parsed.location || "",
+          species: parsed.species || "",
+          duration: parsed.duration || "",
+          date: parsed.date || "",
+        };
+      } catch {}
+    }
+    return { location: "", species: "", duration: "", date: "" };
+  });
+
+  // Sorting (idéntico a Search Results)
+  const [sortBy, setSortBy] = useState<string>("rating");
+
+  // Persistencia de modo y filtros
+  useEffect(() => {
+    localStorage.setItem("homeuser:mode", mode);
+  }, [mode]);
+
+  useEffect(() => {
+    localStorage.setItem("homeuser:filters", JSON.stringify(filters));
+  }, [filters]);
 
   // =========================
   // RECOMENDADOS (MODO HOME)
@@ -91,9 +141,8 @@ export default function HomeUser() {
   const queryString = useMemo(() => {
     const p = new URLSearchParams();
     if (filters.location) p.set("location", filters.location);
-    if (filters.targetSpecies) p.set("targetSpecies", filters.targetSpecies);
+    if (filters.species) p.set("species", filters.species); // 👈 clave correcta
     if (filters.duration) p.set("duration", filters.duration);
-    // la API actual no filtra por date, pero preservamos el valor
     if (filters.date) p.set("date", filters.date);
     return p.toString();
   }, [filters]);
@@ -111,8 +160,28 @@ export default function HomeUser() {
       return res.json();
     },
     enabled: mode === "search",
-    // en v5 ya no existe keepPreviousData. Con staleTime y mismo key evitamos parpadeos.
   });
+
+  // Ordenamiento idéntico a Search Results
+  const sortedCharters = useMemo(() => {
+    if (!searchCharters) return [];
+    const list = [...searchCharters];
+    list.sort((a, b) => {
+      switch (sortBy) {
+        case "price-low":
+          return parseFloat(String(a.price)) - parseFloat(String(b.price));
+        case "price-high":
+          return parseFloat(String(b.price)) - parseFloat(String(a.price));
+        case "rating":
+          return parseFloat(String(b.captain?.rating || "0")) - parseFloat(String(a.captain?.rating || "0"));
+        case "reviews":
+          return (b.captain?.reviewCount || 0) - (a.captain?.reviewCount || 0);
+        default:
+          return 0;
+      }
+    });
+    return list;
+  }, [searchCharters, sortBy]);
 
   // =========================
   // GEOLOCALIZACIÓN
@@ -142,38 +211,62 @@ export default function HomeUser() {
   // =========================
   // MAPA (MODO SEARCH)
   // =========================
-  const mapRef = useRef<MapRef | null>(null);
+  const desktopMapRef = useRef<MapRef | null>(null);
+  const mobileMapRef = useRef<MapRef | null>(null);
   const [selected, setSelected] = useState<CharterWithCaptain | null>(null);
   const [mobileMapOpen, setMobileMapOpen] = useState(false);
 
-  const handleViewOnMap = (c: CharterWithCaptain) => {
-    setSelected(c);
-    const targetLng = c.lng ?? userCoords.lng;
-    const targetLat = c.lat ?? userCoords.lat;
-    if (mapRef.current) {
-      mapRef.current.flyTo({
-        center: [targetLng, targetLat],
-        zoom: Math.max((mapRef.current.getZoom?.() as number) ?? 6, 11),
-        duration: 900,
-        essential: true,
-      });
-    }
-    // en móvil, abrimos el overlay del mapa si está cerrado
-    if (mobileMapOpen === false) {
-      setMobileMapOpen(true);
-    }
-  };
+  const isDesktop = () =>
+    typeof window !== "undefined" &&
+    window.matchMedia("(min-width: 1024px)").matches;
 
-  const onSearch = (newFilters: Filters) => {
-    setFilters(newFilters);
-    setMode("search");
-    // scroll a la sección de resultados
-    requestAnimationFrame(() => {
-      const el = document.getElementById("results-anchor");
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  };
+  const handleViewOnMap = useCallback(
+    (c: CharterWithCaptain) => {
+      setSelected(c);
+      if (isDesktop()) {
+        // Desktop: solo centra el mapa, NO abrir modal
+        centerOnCharter(desktopMapRef, c);
+        setMobileMapOpen(false);
+      } else {
+        // Mobile: abrir modal y centrar cuando esté listo
+        setMobileMapOpen(true);
+        setTimeout(() => {
+          mobileMapRef.current?.resize();
+          centerOnCharter(mobileMapRef, c);
+        }, 350);
+      }
+    },
+    []
+  );
 
+  const onMarkerClick = useCallback(
+    (e: any, charter: CharterWithCaptain, target: "desktop" | "mobile") => {
+      e?.originalEvent?.stopPropagation?.();
+      setSelected(charter);
+      if (target === "desktop") centerOnCharter(desktopMapRef, charter);
+      else centerOnCharter(mobileMapRef, charter);
+    },
+    []
+  );
+
+  // Centro inicial (igual a Search Results)
+  const initialCenter = useMemo(() => {
+    const first = (sortedCharters || []).find(
+      (c) => toFloat(c.lat) && toFloat(c.lng)
+    );
+    if (first) {
+      return {
+        lng: toFloat(first.lng)!,
+        lat: toFloat(first.lat)!,
+        zoom: 6,
+      };
+    }
+    return { lng: userCoords.lng, lat: userCoords.lat, zoom: 7 };
+  }, [sortedCharters, userCoords]);
+
+  // =========================
+  // AUTENTICACIÓN
+  // =========================
   useEffect(() => {
     if (!isLoading && !isAuthenticated && !user) {
       setLocation("/login");
@@ -181,6 +274,32 @@ export default function HomeUser() {
   }, [isLoading, isAuthenticated, user, setLocation]);
 
   const homeCharters: CharterWithCaptain[] = recommendedCharters ?? [];
+
+  // =========================
+  // CALLBACK DE BÚSQUEDA (inline)
+  // =========================
+  const onSearch = (newFilters: {
+    location: string;
+    targetSpecies: string;
+    duration: string;
+    date?: string;
+  }) => {
+    // Mapear targetSpecies -> species para la API y estado
+    const mapped: Filters = {
+      location: newFilters.location || "",
+      species: newFilters.targetSpecies || "",
+      duration: newFilters.duration || "",
+      date: newFilters.date || "",
+    };
+    setFilters(mapped);
+    setMode("search");
+
+    // Scroll a resultados
+    requestAnimationFrame(() => {
+      const el = document.getElementById("results-anchor");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -197,7 +316,9 @@ export default function HomeUser() {
           <h1 className="text-3xl font-bold text-gray-900">
             Welcome back, {user?.firstName || "Angler"} 🎣
           </h1>
-          <p className="text-gray-600">Ready for your next fishing adventure?</p>
+          <p className="text-gray-600">
+            Ready for your next fishing adventure?
+          </p>
         </motion.div>
 
         <motion.div
@@ -206,15 +327,24 @@ export default function HomeUser() {
           transition={{ duration: 0.5, delay: 0.1 }}
           className="mb-10"
         >
-          <SearchBar onSearch={onSearch} />
+          <SearchBarInline
+            onSearch={onSearch}
+            initialValues={{
+              location: filters.location,
+              targetSpecies: filters.species, // 👈 mapeo inverso para el componente
+              duration: filters.duration,
+              date: filters.date,
+            }}
+          />
+
           {mode === "search" && (
             <div className="flex items-center gap-2 mt-3">
               <Badge variant="secondary" className="text-gray-700">
                 {filters.location || "Anywhere"}
               </Badge>
-              {filters.targetSpecies && (
+              {filters.species && (
                 <Badge variant="secondary" className="text-gray-700">
-                  {filters.targetSpecies}
+                  {filters.species}
                 </Badge>
               )}
               {filters.duration && (
@@ -222,14 +352,29 @@ export default function HomeUser() {
                   {filters.duration}
                 </Badge>
               )}
-              <Button
-                size="sm"
-                variant="ghost"
-                className="ml-auto"
-                onClick={() => setMode("home")}
-              >
-                Back to Home
-              </Button>
+
+              {/* Sorting (idéntico a Search Results) */}
+              <div className="ml-auto flex items-center gap-2">
+                <span className="text-sm text-storm-gray">Sort by:</span>
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="h-8 w-44">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="rating">Highest Rated</SelectItem>
+                    <SelectItem value="reviews">Most Reviews</SelectItem>
+                    <SelectItem value="price-low">Price: Low to High</SelectItem>
+                    <SelectItem value="price-high">Price: High to Low</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setMode("home")}
+                >
+                  Back to Home
+                </Button>
+              </div>
             </div>
           )}
         </motion.div>
@@ -271,7 +416,10 @@ export default function HomeUser() {
                     <p className="text-red-500 mb-4">
                       Failed to load recommendations
                     </p>
-                    <Button onClick={() => window.location.reload()} variant="outline">
+                    <Button
+                      onClick={() => window.location.reload()}
+                      variant="outline"
+                    >
                       Try Again
                     </Button>
                   </div>
@@ -289,16 +437,67 @@ export default function HomeUser() {
                     {/* Mobile Carousel */}
                     <div className="md:hidden">
                       <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-                        {homeCharters.map((c: CharterWithCaptain, idx: number) => (
+                        {homeCharters.map(
+                          (c: CharterWithCaptain, idx: number) => (
+                            <motion.div
+                              key={c.id}
+                              initial={{ opacity: 0, x: 20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ duration: 0.5, delay: idx * 0.06 }}
+                              className="flex-shrink-0 w-72"
+                              onClick={() =>
+                                (window.location.href = `/user/charters/${c.id}`)
+                              }
+                            >
+                              <Card className="overflow-hidden shadow hover:shadow-lg transition rounded-2xl">
+                                <img
+                                  src={c.images?.[0] || "/placeholder.jpg"}
+                                  alt={c.title}
+                                  className="h-40 w-full object-cover"
+                                />
+                                <CardContent className="p-4 space-y-2">
+                                  <h3 className="text-lg font-bold text-gray-900">
+                                    {c.title}
+                                  </h3>
+                                  <p className="flex items-center text-gray-600 text-sm">
+                                    <MapPin className="w-4 h-4 mr-1" />
+                                    {c.location}
+                                  </p>
+                                  <p className="flex items-center text-gray-600 text-sm">
+                                    <UserIcon className="w-4 h-4 mr-1" />
+                                    Capt. {c.captain?.name}
+                                  </p>
+                                  <div className="flex justify-between items-center mt-3">
+                                    <span className="flex items-center text-yellow-500">
+                                      <Star className="w-4 h-4 mr-1 fill-yellow-400" />
+                                      {c.captain?.rating}
+                                    </span>
+                                    <span className="font-semibold text-ocean-blue">
+                                      ${c.price}
+                                    </span>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            </motion.div>
+                          )
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Desktop Grid */}
+                    <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-6">
+                      {homeCharters.map(
+                        (c: CharterWithCaptain, idx: number) => (
                           <motion.div
                             key={c.id}
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
+                            initial={{ opacity: 0, y: 18 }}
+                            animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5, delay: idx * 0.06 }}
-                            className="flex-shrink-0 w-72"
-                            onClick={() => (window.location.href = `/user/charters/${c.id}`)}
+                            onClick={() =>
+                              (window.location.href = `/user/charters/${c.id}`)
+                            }
                           >
-                            <Card className="overflow-hidden shadow hover:shadow-lg transition rounded-2xl">
+                            <Card className="overflow-hidden shadow hover:shadow-lg transition rounded-2xl cursor-pointer">
                               <img
                                 src={c.images?.[0] || "/placeholder.jpg"}
                                 alt={c.title}
@@ -328,49 +527,8 @@ export default function HomeUser() {
                               </CardContent>
                             </Card>
                           </motion.div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Desktop Grid */}
-                    <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-6">
-                      {homeCharters.map((c: CharterWithCaptain, idx: number) => (
-                        <motion.div
-                          key={c.id}
-                          initial={{ opacity: 0, y: 18 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.5, delay: idx * 0.06 }}
-                          onClick={() => (window.location.href = `/user/charters/${c.id}`)}
-                        >
-                          <Card className="overflow-hidden shadow hover:shadow-lg transition rounded-2xl cursor-pointer">
-                            <img
-                              src={c.images?.[0] || "/placeholder.jpg"}
-                              alt={c.title}
-                              className="h-40 w-full object-cover"
-                            />
-                            <CardContent className="p-4 space-y-2">
-                              <h3 className="text-lg font-bold text-gray-900">{c.title}</h3>
-                              <p className="flex items-center text-gray-600 text-sm">
-                                <MapPin className="w-4 h-4 mr-1" />
-                                {c.location}
-                              </p>
-                              <p className="flex items-center text-gray-600 text-sm">
-                                <UserIcon className="w-4 h-4 mr-1" />
-                                Capt. {c.captain?.name}
-                              </p>
-                              <div className="flex justify-between items-center mt-3">
-                                <span className="flex items-center text-yellow-500">
-                                  <Star className="w-4 h-4 mr-1 fill-yellow-400" />
-                                  {c.captain?.rating}
-                                </span>
-                                <span className="font-semibold text-ocean-blue">
-                                  ${c.price}
-                                </span>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </motion.div>
-                      ))}
+                        )
+                      )}
                     </div>
                   </>
                 )}
@@ -395,7 +553,9 @@ export default function HomeUser() {
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ duration: 0.5, delay: idx * 0.06 }}
                           className="flex-shrink-0 w-72"
-                          onClick={() => (window.location.href = `/user/charters/${c.id}`)}
+                          onClick={() =>
+                            (window.location.href = `/user/charters/${c.id}`)
+                          }
                         >
                           <Card className="overflow-hidden shadow hover:shadow-lg transition rounded-2xl">
                             <img
@@ -404,7 +564,9 @@ export default function HomeUser() {
                               className="h-40 w-full object-cover"
                             />
                             <CardContent className="p-4 space-y-2">
-                              <h3 className="text-lg font-bold text-gray-900">{c.title}</h3>
+                              <h3 className="text-lg font-bold text-gray-900">
+                                {c.title}
+                              </h3>
                               <p className="flex items-center text-gray-600 text-sm">
                                 <MapPin className="w-4 h-4 mr-1" />
                                 {c.location}
@@ -440,7 +602,9 @@ export default function HomeUser() {
                         initial={{ opacity: 0, y: 18 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.5, delay: idx * 0.06 }}
-                        onClick={() => (window.location.href = `/user/charters/${c.id}`)}
+                        onClick={() =>
+                          (window.location.href = `/user/charters/${c.id}`)
+                        }
                       >
                         <Card className="overflow-hidden shadow hover:shadow-lg transition rounded-2xl cursor-pointer">
                           <img
@@ -449,7 +613,9 @@ export default function HomeUser() {
                             className="h-40 w-full object-cover"
                           />
                           <CardContent className="p-4 space-y-2">
-                            <h3 className="text-lg font-bold text-gray-900">{c.title}</h3>
+                            <h3 className="text-lg font-bold text-gray-900">
+                              {c.title}
+                            </h3>
                             <p className="flex items-center text-gray-600 text-sm">
                               <MapPin className="w-4 h-4 mr-1" />
                               {c.location}
@@ -482,16 +648,66 @@ export default function HomeUser() {
                 {/* Mobile */}
                 <div className="md:hidden">
                   <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-                    {homeCharters.slice(0, 3).map((c: CharterWithCaptain, idx: number) => (
+                    {homeCharters.slice(0, 3).map(
+                      (c: CharterWithCaptain, idx: number) => (
+                        <motion.div
+                          key={`top-${c.id}`}
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.5, delay: idx * 0.06 }}
+                          className="flex-shrink-0 w-72"
+                          onClick={() =>
+                            (window.location.href = `/user/charters/${c.id}`)
+                          }
+                        >
+                          <Card className="overflow-hidden shadow hover:shadow-lg transition rounded-2xl">
+                            <img
+                              src={c.images?.[0] || "/placeholder.jpg"}
+                              alt={c.title}
+                              className="h-40 w-full object-cover"
+                            />
+                            <CardContent className="p-4 space-y-2">
+                              <h3 className="text-lg font-bold text-gray-900">
+                                {c.title}
+                              </h3>
+                              <p className="flex items-center text-gray-600 text-sm">
+                                <MapPin className="w-4 h-4 mr-1" />
+                                {c.location}
+                              </p>
+                              <p className="flex items-center text-gray-600 text-sm">
+                                <UserIcon className="w-4 h-4 mr-1" />
+                                Capt. {c.captain?.name}
+                              </p>
+                              <div className="flex justify-between items-center mt-3">
+                                <span className="flex items-center text-yellow-500">
+                                  <Star className="w-4 h-4 mr-1 fill-yellow-400" />
+                                  {c.captain?.rating}
+                                </span>
+                                <span className="font-semibold text-ocean-blue">
+                                  ${c.price}
+                                </span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      )
+                    )}
+                  </div>
+                </div>
+                {/* Desktop */}
+                <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-6">
+                  {homeCharters.slice(0, 3).map(
+                    (c: CharterWithCaptain, idx: number) => (
                       <motion.div
                         key={`top-${c.id}`}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
+                        initial={{ opacity: 0, y: 18 }}
+                        animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.5, delay: idx * 0.06 }}
-                        className="flex-shrink-0 w-72"
-                        onClick={() => (window.location.href = `/user/charters/${c.id}`)}
+                        onClick={() =>
+                          (window.location.href = `/user/charters/${c.id}`)
+                        }
                       >
-                        <Card className="overflow-hidden shadow hover:shadow-lg transition rounded-2xl">
+                        <Card className="overflow-hidden shadow hover:shadow-lg transition rounded-2xl cursor-pointer">
                           <img
                             src={c.images?.[0] || "/placeholder.jpg"}
                             alt={c.title}
@@ -521,50 +737,8 @@ export default function HomeUser() {
                           </CardContent>
                         </Card>
                       </motion.div>
-                    ))}
-                  </div>
-                </div>
-                {/* Desktop */}
-                <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-6">
-                  {homeCharters.slice(0, 3).map((c: CharterWithCaptain, idx: number) => (
-                    <motion.div
-                      key={`top-${c.id}`}
-                      initial={{ opacity: 0, y: 18 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5, delay: idx * 0.06 }}
-                      onClick={() => (window.location.href = `/user/charters/${c.id}`)}
-                    >
-                      <Card className="overflow-hidden shadow hover:shadow-lg transition rounded-2xl cursor-pointer">
-                        <img
-                          src={c.images?.[0] || "/placeholder.jpg"}
-                          alt={c.title}
-                          className="h-40 w-full object-cover"
-                        />
-                        <CardContent className="p-4 space-y-2">
-                          <h3 className="text-lg font-bold text-gray-900">
-                            {c.title}
-                          </h3>
-                          <p className="flex items-center text-gray-600 text-sm">
-                            <MapPin className="w-4 h-4 mr-1" />
-                            {c.location}
-                          </p>
-                          <p className="flex items-center text-gray-600 text-sm">
-                            <UserIcon className="w-4 h-4 mr-1" />
-                            Capt. {c.captain?.name}
-                          </p>
-                          <div className="flex justify-between items-center mt-3">
-                            <span className="flex items-center text-yellow-500">
-                              <Star className="w-4 h-4 mr-1 fill-yellow-400" />
-                              {c.captain?.rating}
-                            </span>
-                            <span className="font-semibold text-ocean-blue">
-                              ${c.price}
-                            </span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
+                    )
+                  )}
                 </div>
               </section>
             </motion.div>
@@ -587,12 +761,12 @@ export default function HomeUser() {
               transition={{ duration: 0.4 }}
               className="mt-6"
             >
-              {/* Barra de herramientas (móvil) */}
+              {/* Toolbar móvil */}
               <div className="flex items-center justify-between lg:hidden mb-3">
                 <span className="text-sm text-gray-600">
                   {loadingSearch
                     ? "Loading…"
-                    : `${(searchCharters?.length ?? 0)} results`}
+                    : `${(sortedCharters?.length ?? 0)} results`}
                 </span>
                 <div className="flex items-center gap-2">
                   <Button
@@ -629,23 +803,27 @@ export default function HomeUser() {
                   ) : errorSearch ? (
                     <div className="text-center py-8">
                       <p className="text-red-500 mb-4">Failed to load results</p>
-                      <Button onClick={() => window.location.reload()} variant="outline">
+                      <Button
+                        onClick={() => window.location.reload()}
+                        variant="outline"
+                      >
                         Try Again
                       </Button>
                     </div>
-                  ) : (searchCharters?.length ?? 0) === 0 ? (
-                    <div className="text-gray-600">No charters match your filters.</div>
+                  ) : (sortedCharters?.length ?? 0) === 0 ? (
+                    <div className="text-gray-600">
+                      No charters match your filters.
+                    </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {(searchCharters as CharterWithCaptain[]).map(
-                        (c: CharterWithCaptain) => (
-                          <CharterCard
-                            key={c.id}
-                            charter={c}
-                            onViewOnMap={handleViewOnMap}
-                          />
-                        )
-                      )}
+                      {(sortedCharters as CharterWithCaptain[]).map((c) => (
+                        <CharterCard
+                          key={c.id}
+                          charter={c}
+                          onViewOnMap={() => handleViewOnMap(c)}
+                          userMode
+                        />
+                      ))}
                     </div>
                   )}
                 </div>
@@ -655,12 +833,12 @@ export default function HomeUser() {
                   <div className="sticky top-24">
                     <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-md">
                       <Map
-                        ref={mapRef}
+                        ref={desktopMapRef}
                         mapboxAccessToken={MAPBOX_TOKEN}
                         initialViewState={{
-                          longitude: userCoords.lng,
-                          latitude: userCoords.lat,
-                          zoom: 7,
+                          longitude: initialCenter.lng,
+                          latitude: initialCenter.lat,
+                          zoom: initialCenter.zoom,
                           bearing: 0,
                           pitch: 0,
                         }}
@@ -669,35 +847,39 @@ export default function HomeUser() {
                       >
                         <NavigationControl position="top-left" />
                         <GeolocateControl position="top-left" />
-                        {(searchCharters ?? []).map((c: CharterWithCaptain) =>
-                          typeof c.lng === "number" && typeof c.lat === "number" ? (
+                        {(sortedCharters ?? []).map((c: CharterWithCaptain) => {
+                          const lat = toFloat(c.lat);
+                          const lng = toFloat(c.lng);
+                          if (lat === null || lng === null) return null;
+                          return (
                             <Marker
                               key={c.id}
-                              longitude={c.lng}
-                              latitude={c.lat}
-                              onClick={() => handleViewOnMap(c)}
+                              longitude={lng}
+                              latitude={lat}
+                              anchor="bottom"
+                              onClick={(e: any) =>
+                                onMarkerClick(e, c, "desktop")
+                              }
                             >
-                              <div
-                                className="w-9 h-9 rounded-full bg-white shadow ring-2 ring-ocean-blue grid place-items-center cursor-pointer hover:scale-105 transition"
-                                title={c.title}
-                              >
-                                <span className="text-lg" role="img" aria-label="boat">
-                                  🚤
-                                </span>
+                              <div className="relative cursor-pointer">
+                                <Ship className="w-8 h-8 text-ocean-blue drop-shadow-lg" />
+                                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-ocean-blue rounded-full" />
                               </div>
                             </Marker>
-                          ) : null
-                        )}
+                          );
+                        })}
 
                         {selected &&
-                          typeof selected.lng === "number" &&
-                          typeof selected.lat === "number" && (
+                          toFloat(selected.lng) !== null &&
+                          toFloat(selected.lat) !== null && (
                             <Popup
-                              longitude={selected.lng}
-                              latitude={selected.lat}
-                              anchor="bottom"
+                              longitude={toFloat(selected.lng)!}
+                              latitude={toFloat(selected.lat)!}
+                              anchor="top"
                               closeOnClick={false}
                               onClose={() => setSelected(null)}
+                              maxWidth="320px"
+                              offset={12}
                             >
                               <MapPopupCard
                                 charter={selected}
@@ -726,7 +908,7 @@ export default function HomeUser() {
                   >
                     <div className="absolute top-0 left-0 right-0 p-3 flex items-center justify-between bg-white/90 backdrop-blur border-b">
                       <div className="text-sm text-gray-700">
-                        {searchCharters?.length ?? 0} results
+                        {(sortedCharters?.length ?? 0)} results
                       </div>
                       <div className="flex gap-2">
                         <Button
@@ -742,49 +924,51 @@ export default function HomeUser() {
 
                     <div className="w-full h-full pt-12">
                       <Map
-                        ref={mapRef}
+                        ref={mobileMapRef}
                         mapboxAccessToken={MAPBOX_TOKEN}
                         initialViewState={{
-                          longitude: userCoords.lng,
-                          latitude: userCoords.lat,
-                          zoom: 7,
+                          longitude: initialCenter.lng,
+                          latitude: initialCenter.lat,
+                          zoom: initialCenter.zoom,
                           bearing: 0,
                           pitch: 0,
                         }}
                         style={{ width: "100%", height: "100%" }}
                         mapStyle="mapbox://styles/mapbox/outdoors-v12"
+                        onLoad={() => setTimeout(() => mobileMapRef.current?.resize(), 200)}
                       >
                         <NavigationControl position="top-left" />
                         <GeolocateControl position="top-left" />
-                        {(searchCharters ?? []).map((c: CharterWithCaptain) =>
-                          typeof c.lng === "number" && typeof c.lat === "number" ? (
+                        {(sortedCharters ?? []).map((c: CharterWithCaptain) => {
+                          const lat = toFloat(c.lat);
+                          const lng = toFloat(c.lng);
+                          if (lat === null || lng === null) return null;
+                          return (
                             <Marker
                               key={`m-${c.id}`}
-                              longitude={c.lng}
-                              latitude={c.lat}
-                              onClick={() => handleViewOnMap(c)}
+                              longitude={lng}
+                              latitude={lat}
+                              anchor="bottom"
+                              onClick={(e: any) => onMarkerClick(e, c, "mobile")}
                             >
-                              <div
-                                className="w-10 h-10 rounded-full bg-white shadow ring-2 ring-ocean-blue grid place-items-center cursor-pointer hover:scale-105 transition"
-                                title={c.title}
-                              >
-                                <span className="text-xl" role="img" aria-label="boat">
-                                  🚤
-                                </span>
+                              <div className="relative cursor-pointer">
+                                <Ship className="w-9 h-9 text-ocean-blue drop-shadow-xl" />
+                                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-ocean-blue rounded-full" />
                               </div>
                             </Marker>
-                          ) : null
-                        )}
+                          );
+                        })}
 
                         {selected &&
-                          typeof selected.lng === "number" &&
-                          typeof selected.lat === "number" && (
+                          toFloat(selected.lng) !== null &&
+                          toFloat(selected.lat) !== null && (
                             <Popup
-                              longitude={selected.lng}
-                              latitude={selected.lat}
-                              anchor="bottom"
+                              longitude={toFloat(selected.lng)!}
+                              latitude={toFloat(selected.lat)!}
+                              anchor="top"
                               closeOnClick={false}
                               onClose={() => setSelected(null)}
+                              maxWidth="320px"
                             >
                               <MapPopupCard
                                 charter={selected}

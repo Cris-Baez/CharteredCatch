@@ -7,7 +7,6 @@ import { Toaster } from "@/components/ui/toaster";
 import Home from "./pages/home";
 import SearchResults from "./pages/search-results";
 import CharterDetail from "./pages/charter-detail";
-import Messages from "./pages/messages";
 import Assistant from "./pages/assistant";
 import Help from "./pages/help";
 import Login from "./pages/login";
@@ -26,8 +25,12 @@ import CaptainDetail from "./pages/captain-detail"
 // Usuario
 import HomeUser from "./pages/user/homeuser";
 import SearchResultsUser from "./pages/user/search-results-user";
-import UserDashboard from "./pages/user/userDashboard";
+import MyTrips from "./pages/user/my-trips";
 import CharterDetailUser from "./pages/user/charter-detail-user";
+import UserProfile from "./pages/user/profileuser"
+import HelpUser from "./pages/user/helpuser"
+import Messages from "./pages/user/messages";
+import UserCheckout from "./pages/user/checkout"
 
 // Capitán
 import CaptainDashboard from "./pages/captain/captain-dashboard";
@@ -70,9 +73,12 @@ function App() {
         {/* Usuario normal */}
         <Route path="/user/home" component={HomeUser} />
         <Route path="/user/search" component={SearchResultsUser} />
-        <Route path="/user/dashboard" component={UserDashboard} />
+        <Route path="/user/my-trips" component={MyTrips} />
+        <Route path="/user/profileuser" component={UserProfile} />
         <Route path="/user/charters/:id" component={CharterDetailUser} />
-
+        <Route path="/user/helpuser" component={HelpUser} />
+        <Route path="/user/messages" component={Messages} />
+        <Route path="/user/checkout" component={UserCheckout} />
         {/* Capitán */}
         <Route path="/captain/dashboard" component={CaptainDashboard} />
         <Route path="/captain" component={CaptainOverview} />
