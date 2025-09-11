@@ -188,10 +188,32 @@ export class DatabaseStorage implements IStorage {
   async getCharterWithCaptain(id: number): Promise<CharterWithCaptain | undefined> {
     const [row] = await db
       .select({
-        ...charters,
+        id: charters.id,
+        captainId: charters.captainId,
+        title: charters.title,
+        description: charters.description,
+        location: charters.location,
+        lat: charters.lat,
+        lng: charters.lng,
+        targetSpecies: charters.targetSpecies,
+        duration: charters.duration,
+        maxGuests: charters.maxGuests,
+        price: charters.price,
+        boatSpecs: charters.boatSpecs,
+        included: charters.included,
+        images: charters.images,
+        available: charters.available,
+        isListed: charters.isListed,
         captain: {
           id: captains.id,
+          userId: captains.userId,
           name: captains.name,
+          bio: captains.bio,
+          experience: captains.experience,
+          licenseNumber: captains.licenseNumber,
+          location: captains.location,
+          avatar: captains.avatar,
+          verified: captains.verified,
           rating: captains.rating,
           reviewCount: captains.reviewCount,
         },
@@ -203,7 +225,19 @@ export class DatabaseStorage implements IStorage {
     return row
       ? {
           ...row,
-          captain: row.captain || { id: 0, name: "Unknown", rating: "0.0", reviewCount: 0 },
+          captain: row.captain || { 
+            id: 0, 
+            userId: "",
+            name: "Unknown", 
+            bio: "",
+            experience: "",
+            licenseNumber: "",
+            location: "",
+            avatar: null,
+            verified: false,
+            rating: "0.0", 
+            reviewCount: 0 
+          },
         }
       : undefined;
   }
@@ -217,12 +251,34 @@ export class DatabaseStorage implements IStorage {
     targetSpecies?: string;
     duration?: string;
   }): Promise<CharterWithCaptain[]> {
-    let query = db
+    const baseQuery = db
       .select({
-        ...charters,
+        id: charters.id,
+        captainId: charters.captainId,
+        title: charters.title,
+        description: charters.description,
+        location: charters.location,
+        lat: charters.lat,
+        lng: charters.lng,
+        targetSpecies: charters.targetSpecies,
+        duration: charters.duration,
+        maxGuests: charters.maxGuests,
+        price: charters.price,
+        boatSpecs: charters.boatSpecs,
+        included: charters.included,
+        images: charters.images,
+        available: charters.available,
+        isListed: charters.isListed,
         captain: {
           id: captains.id,
+          userId: captains.userId,
           name: captains.name,
+          bio: captains.bio,
+          experience: captains.experience,
+          licenseNumber: captains.licenseNumber,
+          location: captains.location,
+          avatar: captains.avatar,
+          verified: captains.verified,
           rating: captains.rating,
           reviewCount: captains.reviewCount,
         },
@@ -230,27 +286,58 @@ export class DatabaseStorage implements IStorage {
       .from(charters)
       .leftJoin(captains, eq(charters.captainId, captains.id));
 
+    const conditions = [];
     if (filters.location) {
-      query = query.where(ilike(charters.location, `%${filters.location}%`));
+      conditions.push(ilike(charters.location, `%${filters.location}%`));
     }
     if (filters.targetSpecies) {
-      query = query.where(ilike(charters.targetSpecies, `%${filters.targetSpecies}%`));
+      conditions.push(ilike(charters.targetSpecies, `%${filters.targetSpecies}%`));
     }
     if (filters.duration) {
-      query = query.where(eq(charters.duration, filters.duration));
+      conditions.push(eq(charters.duration, filters.duration));
     }
 
-    const results = await query;
+    const results = conditions.length > 0 
+      ? await baseQuery.where(and(...conditions))
+      : await baseQuery;
+
     return results.map((row: any) => ({
       ...row,
-      captain: row.captain || { id: 0, name: "Unknown", rating: "0.0", reviewCount: 0 },
+      captain: row.captain || { 
+        id: 0, 
+        userId: "",
+        name: "Unknown", 
+        bio: "",
+        experience: "",
+        licenseNumber: "",
+        location: "",
+        avatar: null,
+        verified: false,
+        rating: "0.0", 
+        reviewCount: 0 
+      },
     }));
   }
 
   async getAllCharters(): Promise<CharterWithCaptain[]> {
     const results = await db
       .select({
-        ...charters,
+        id: charters.id,
+        captainId: charters.captainId,
+        title: charters.title,
+        description: charters.description,
+        location: charters.location,
+        lat: charters.lat,
+        lng: charters.lng,
+        targetSpecies: charters.targetSpecies,
+        duration: charters.duration,
+        maxGuests: charters.maxGuests,
+        price: charters.price,
+        boatSpecs: charters.boatSpecs,
+        included: charters.included,
+        images: charters.images,
+        available: charters.available,
+        isListed: charters.isListed,
         captain: {
           id: captains.id,
           name: captains.name,

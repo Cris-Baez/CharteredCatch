@@ -469,7 +469,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         captainId ? eq(charters.captainId, Number(captainId)) : undefined,
       ]);
 
-      let query = db
+      const baseQuery = db
         .select({
           // Charter
           id: charters.id,
@@ -507,11 +507,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .leftJoin(captains, eq(charters.captainId, captains.id))
         .leftJoin(users, eq(captains.userId, users.id));
 
-      if (whereCond) {
-        query = query.where(whereCond);
-      }
-
-      const rows = await query;
+      const rows = whereCond 
+        ? await baseQuery.where(whereCond)
+        : await baseQuery;
 
       const result = rows.map((r) => ({
         id: r.id,
