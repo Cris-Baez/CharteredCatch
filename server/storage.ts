@@ -378,7 +378,23 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getBookingsByCaptain(captainId: number): Promise<Booking[]> {
-    return await db.select().from(bookings).where(eq(bookings.captainId, captainId));
+    const results = await db
+      .select({
+        id: bookings.id,
+        userId: bookings.userId,
+        charterId: bookings.charterId,
+        tripDate: bookings.tripDate,
+        guests: bookings.guests,
+        totalPrice: bookings.totalPrice,
+        status: bookings.status,
+        message: bookings.message,
+        createdAt: bookings.createdAt,
+      })
+      .from(bookings)
+      .leftJoin(charters, eq(bookings.charterId, charters.id))
+      .where(eq(charters.captainId, captainId));
+    
+    return results;
   }
 
   async updateBookingStatus(id: number, status: string): Promise<Booking | undefined> {
@@ -443,7 +459,16 @@ export class DatabaseStorage implements IStorage {
   async getAllCaptainsWithUsers(): Promise<(Captain & { user: User })[]> {
     const rows = await db
       .select({
-        ...captains,
+        id: captains.id,
+        userId: captains.userId,
+        bio: captains.bio,
+        experience: captains.experience,
+        licenseNumber: captains.licenseNumber,
+        location: captains.location,
+        avatar: captains.avatar,
+        verified: captains.verified,
+        rating: captains.rating,
+        reviewCount: captains.reviewCount,
         user: {
           id: users.id,
           email: users.email,

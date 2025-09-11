@@ -10,11 +10,12 @@ import cors from "cors";
 
 import { db } from "./db";
 import {
-  users,
-  captains,
-  charters,
-  bookings,
-  availability,
+  users as usersTable,
+  captains as captainsTable,
+  charters as chartersTable,
+  bookings as bookingsTable,
+  availability as availabilityTable,
+  messages,
 } from "@shared/schema";
 import { and, eq, ilike, inArray, gte, lt } from "drizzle-orm";
 
@@ -106,8 +107,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const [existing] = await db
         .select()
-        .from(users)
-        .where(eq(users.email, email));
+        .from(usersTable)
+        .where(eq(usersTable.email, email));
       if (existing) {
         return res.status(409).json({ message: "User already exists" });
       }
@@ -117,7 +118,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "local_" + Date.now() + "_" + Math.random().toString(36).slice(2, 9);
 
       const [created] = await db
-        .insert(users)
+        .insert(usersTable)
         .values({
           id: userId,
           email,
@@ -147,8 +148,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const [userRow] = await db
         .select()
-        .from(users)
-        .where(eq(users.email, email));
+        .from(usersTable)
+        .where(eq(usersTable.email, email));
       if (!userRow) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
@@ -179,8 +180,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const [userRow] = await db
         .select()
-        .from(users)
-        .where(eq(users.id, req.session.userId));
+        .from(usersTable)
+        .where(eq(usersTable.id, req.session.userId));
       if (!userRow) {
         req.session.destroy(() => {});
         return res.status(401).json({ message: "Unauthorized" });
@@ -213,12 +214,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { firstName, lastName } = req.body ?? {};
 
       const [updated] = await db
-        .update(users)
+        .update(usersTable)
         .set({
           firstName: typeof firstName === "string" ? firstName : null,
           lastName: typeof lastName === "string" ? lastName : null,
         })
-        .where(eq(users.id, req.session.userId))
+        .where(eq(usersTable.id, req.session.userId))
         .returning();
 
       return res.json(updated);
@@ -245,8 +246,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const [userRow] = await db
         .select()
-        .from(users)
-        .where(eq(users.id, req.session.userId));
+        .from(usersTable)
+        .where(eq(usersTable.id, req.session.userId));
       if (!userRow) return res.status(404).json({ error: "User not found" });
 
       const hashed = (userRow as any).password as string | undefined;
@@ -258,9 +259,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const newHashed = await bcrypt.hash(newPassword, 10);
       const [updated] = await db
-        .update(users)
+        .update(usersTable)
         .set({ password: newHashed as any })
-        .where(eq(users.id, req.session.userId))
+        .where(eq(usersTable.id, req.session.userId))
         .returning();
 
       return res.json({ success: true, id: updated.id });
@@ -289,18 +290,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const rows = await db
         .select({
-          id: availability.id,
-          charterId: availability.charterId,
-          date: availability.date,
-          slots: availability.slots,
-          bookedSlots: availability.bookedSlots,
+          id: availabilityTable.id,
+          charterId: availabilityTable.charterId,
+          date: availabilityTable.date,
+          slots: availabilityTable.slots,
+          bookedSlots: availabilityTable.bookedSlots,
         })
-        .from(availability)
+        .from(availabilityTable)
         .where(
           and(
-            eq(availability.charterId, charterId),
-            gte(availability.date as any, from as any),
-            lt(availability.date as any, to as any),
+            eq(availabilityTable.charterId, charterId),
+            gte(availabilityTable.date as any, from as any),
+            lt(availabilityTable.date as any, to as any),
           )
         );
 
@@ -331,20 +332,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verificamos que el charter pertenezca al capitán logueado
-      const [cap] = await db.select({ id: captains.id }).from(captains).where(eq(captains.userId, req.session.userId));
+      const [cap] = await db.select({ id: captainsTable.id }).from(captainsTable).where(eq(captainsTable.userId, req.session.userId));
       if (!cap) return res.status(403).json({ error: "Captain profile required" });
 
       const [ownCharter] = await db
-        .select({ id: charters.id, captainId: charters.captainId })
-        .from(charters)
-        .where(eq(charters.id, cid));
+        .select({ id: chartersTable.id, captainId: chartersTable.captainId })
+        .from(chartersTable)
+        .where(eq(chartersTable.id, cid));
 
       if (!ownCharter || ownCharter.captainId !== cap.id) {
         return res.status(403).json({ error: "Forbidden" });
       }
 
       const [created] = await db
-        .insert(availability)
+        .insert(availabilityTable)
         .values({
           charterId: cid,
           date: d as any,
@@ -376,34 +377,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validar ownership del charter vinculado
       const [row] = await db
         .select({
-          id: availability.id,
-          charterId: availability.charterId,
-          bookedSlots: availability.bookedSlots,
+          id: availabilityTable.id,
+          charterId: availabilityTable.charterId,
+          bookedSlots: availabilityTable.bookedSlots,
         })
-        .from(availability)
-        .where(eq(availability.id, id));
+        .from(availabilityTable)
+        .where(eq(availabilityTable.id, id));
 
       if (!row) return res.status(404).json({ error: "Availability not found" });
       if (s < row.bookedSlots) {
         return res.status(400).json({ error: "slots cannot be less than bookedSlots" });
       }
 
-      const [cap] = await db.select({ id: captains.id }).from(captains).where(eq(captains.userId, req.session.userId));
+      const [cap] = await db.select({ id: captainsTable.id }).from(captainsTable).where(eq(captainsTable.userId, req.session.userId));
       if (!cap) return res.status(403).json({ error: "Captain profile required" });
 
       const [ownCharter] = await db
-        .select({ id: charters.id, captainId: charters.captainId })
-        .from(charters)
-        .where(eq(charters.id, row.charterId));
+        .select({ id: chartersTable.id, captainId: chartersTable.captainId })
+        .from(chartersTable)
+        .where(eq(chartersTable.id, row.charterId));
 
       if (!ownCharter || ownCharter.captainId !== cap.id) {
         return res.status(403).json({ error: "Forbidden" });
       }
 
       const [updated] = await db
-        .update(availability)
+        .update(availabilityTable)
         .set({ slots: s })
-        .where(eq(availability.id, id))
+        .where(eq(availabilityTable.id, id))
         .returning();
 
       return res.json(updated);
@@ -423,25 +424,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Validar ownership
       const [row] = await db
-        .select({ id: availability.id, charterId: availability.charterId })
-        .from(availability)
-        .where(eq(availability.id, id));
+        .select({ id: availabilityTable.id, charterId: availabilityTable.charterId })
+        .from(availabilityTable)
+        .where(eq(availabilityTable.id, id));
 
       if (!row) return res.status(404).json({ error: "Availability not found" });
 
-      const [cap] = await db.select({ id: captains.id }).from(captains).where(eq(captains.userId, req.session.userId));
+      const [cap] = await db.select({ id: captainsTable.id }).from(captainsTable).where(eq(captainsTable.userId, req.session.userId));
       if (!cap) return res.status(403).json({ error: "Captain profile required" });
 
       const [ownCharter] = await db
-        .select({ id: charters.id, captainId: charters.captainId })
-        .from(charters)
-        .where(eq(charters.id, row.charterId));
+        .select({ id: chartersTable.id, captainId: chartersTable.captainId })
+        .from(chartersTable)
+        .where(eq(chartersTable.id, row.charterId));
 
       if (!ownCharter || ownCharter.captainId !== cap.id) {
         return res.status(403).json({ error: "Forbidden" });
       }
 
-      await db.delete(availability).where(eq(availability.id, id));
+      await db.delete(availabilityTable).where(eq(availabilityTable.id, id));
       return res.json({ success: true });
     } catch (err) {
       console.error("Availability delete error:", err);
@@ -458,54 +459,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { location, targetSpecies, duration, captainId } = req.query;
 
       const whereCond = andAll([
-        eq(charters.isListed, true),
+        eq(chartersTable.isListed, true),
         location
-          ? ilike(charters.location, `%${String(location)}%`)
+          ? ilike(chartersTable.location, `%${String(location)}%`)
           : undefined,
         targetSpecies
-          ? ilike(charters.targetSpecies, `%${String(targetSpecies)}%`)
+          ? ilike(chartersTable.targetSpecies, `%${String(targetSpecies)}%`)
           : undefined,
-        duration ? eq(charters.duration, String(duration)) : undefined,
-        captainId ? eq(charters.captainId, Number(captainId)) : undefined,
+        duration ? eq(chartersTable.duration, String(duration)) : undefined,
+        captainId ? eq(chartersTable.captainId, Number(captainId)) : undefined,
       ]);
 
       const baseQuery = db
         .select({
           // Charter
-          id: charters.id,
-          captainId: charters.captainId,
-          title: charters.title,
-          description: charters.description,
-          location: charters.location,
-          lat: charters.lat,
-          lng: charters.lng,
-          targetSpecies: charters.targetSpecies,
-          duration: charters.duration,
-          maxGuests: charters.maxGuests,
-          price: charters.price,
-          boatSpecs: charters.boatSpecs,
-          included: charters.included,
-          images: charters.images,
-          available: charters.available,
-          isListed: charters.isListed,
+          id: chartersTable.id,
+          captainId: chartersTable.captainId,
+          title: chartersTable.title,
+          description: chartersTable.description,
+          location: chartersTable.location,
+          lat: chartersTable.lat,
+          lng: chartersTable.lng,
+          targetSpecies: chartersTable.targetSpecies,
+          duration: chartersTable.duration,
+          maxGuests: chartersTable.maxGuests,
+          price: chartersTable.price,
+          boatSpecs: chartersTable.boatSpecs,
+          included: chartersTable.included,
+          images: chartersTable.images,
+          available: chartersTable.available,
+          isListed: chartersTable.isListed,
           // Captain
-          c_id: captains.id,
-          c_userId: captains.userId,
-          c_bio: captains.bio,
-          c_experience: captains.experience,
-          c_licenseNumber: captains.licenseNumber,
-          c_location: captains.location,
-          c_avatar: captains.avatar,
-          c_verified: captains.verified,
-          c_rating: captains.rating,
-          c_reviewCount: captains.reviewCount,
+          c_id: captainsTable.id,
+          c_userId: captainsTable.userId,
+          c_bio: captainsTable.bio,
+          c_experience: captainsTable.experience,
+          c_licenseNumber: captainsTable.licenseNumber,
+          c_location: captainsTable.location,
+          c_avatar: captainsTable.avatar,
+          c_verified: captainsTable.verified,
+          c_rating: captainsTable.rating,
+          c_reviewCount: captainsTable.reviewCount,
           // User (capitán)
-          u_firstName: users.firstName,
-          u_lastName: users.lastName,
+          u_firstName: usersTable.firstName,
+          u_lastName: usersTable.lastName,
         })
-        .from(charters)
-        .leftJoin(captains, eq(charters.captainId, captains.id))
-        .leftJoin(users, eq(captains.userId, users.id));
+        .from(chartersTable)
+        .leftJoin(captainsTable, eq(chartersTable.captainId, captainsTable.id))
+        .leftJoin(usersTable, eq(captainsTable.userId, usersTable.id));
 
       const rows = whereCond 
         ? await baseQuery.where(whereCond)
@@ -559,39 +560,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const rows = await db
         .select({
-          id: charters.id,
-          captainId: charters.captainId,
-          title: charters.title,
-          description: charters.description,
-          location: charters.location,
-          lat: charters.lat,
-          lng: charters.lng,
-          targetSpecies: charters.targetSpecies,
-          duration: charters.duration,
-          maxGuests: charters.maxGuests,
-          price: charters.price,
-          boatSpecs: charters.boatSpecs,
-          included: charters.included,
-          images: charters.images,
-          available: charters.available,
-          isListed: charters.isListed,
-          c_id: captains.id,
-          c_userId: captains.userId,
-          c_bio: captains.bio,
-          c_experience: captains.experience,
-          c_licenseNumber: captains.licenseNumber,
-          c_location: captains.location,
-          c_avatar: captains.avatar,
-          c_verified: captains.verified,
-          c_rating: captains.rating,
-          c_reviewCount: captains.reviewCount,
-          u_firstName: users.firstName,
-          u_lastName: users.lastName,
+          id: chartersTable.id,
+          captainId: chartersTable.captainId,
+          title: chartersTable.title,
+          description: chartersTable.description,
+          location: chartersTable.location,
+          lat: chartersTable.lat,
+          lng: chartersTable.lng,
+          targetSpecies: chartersTable.targetSpecies,
+          duration: chartersTable.duration,
+          maxGuests: chartersTable.maxGuests,
+          price: chartersTable.price,
+          boatSpecs: chartersTable.boatSpecs,
+          included: chartersTable.included,
+          images: chartersTable.images,
+          available: chartersTable.available,
+          isListed: chartersTable.isListed,
+          c_id: captainsTable.id,
+          c_userId: captainsTable.userId,
+          c_bio: captainsTable.bio,
+          c_experience: captainsTable.experience,
+          c_licenseNumber: captainsTable.licenseNumber,
+          c_location: captainsTable.location,
+          c_avatar: captainsTable.avatar,
+          c_verified: captainsTable.verified,
+          c_rating: captainsTable.rating,
+          c_reviewCount: captainsTable.reviewCount,
+          u_firstName: usersTable.firstName,
+          u_lastName: usersTable.lastName,
         })
-        .from(charters)
-        .leftJoin(captains, eq(charters.captainId, captains.id))
-        .leftJoin(users, eq(captains.userId, users.id))
-        .where(eq(charters.isListed, true))
+        .from(chartersTable)
+        .leftJoin(captainsTable, eq(chartersTable.captainId, captainsTable.id))
+        .leftJoin(usersTable, eq(captainsTable.userId, usersTable.id))
+        .where(eq(chartersTable.isListed, true))
         .limit(6);
 
       const result = rows.map((r) => ({
@@ -647,39 +648,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const [r] = await db
         .select({
-          id: charters.id,
-          captainId: charters.captainId,
-          title: charters.title,
-          description: charters.description,
-          location: charters.location,
-          lat: charters.lat,
-          lng: charters.lng,
-          targetSpecies: charters.targetSpecies,
-          duration: charters.duration,
-          maxGuests: charters.maxGuests,
-          price: charters.price,
-          boatSpecs: charters.boatSpecs,
-          included: charters.included,
-          images: charters.images,
-          available: charters.available,
-          isListed: charters.isListed,
-          c_id: captains.id,
-          c_userId: captains.userId,
-          c_bio: captains.bio,
-          c_experience: captains.experience,
-          c_licenseNumber: captains.licenseNumber,
-          c_location: captains.location,
-          c_avatar: captains.avatar,
-          c_verified: captains.verified,
-          c_rating: captains.rating,
-          c_reviewCount: captains.reviewCount,
-          u_firstName: users.firstName,
-          u_lastName: users.lastName,
+          id: chartersTable.id,
+          captainId: chartersTable.captainId,
+          title: chartersTable.title,
+          description: chartersTable.description,
+          location: chartersTable.location,
+          lat: chartersTable.lat,
+          lng: chartersTable.lng,
+          targetSpecies: chartersTable.targetSpecies,
+          duration: chartersTable.duration,
+          maxGuests: chartersTable.maxGuests,
+          price: chartersTable.price,
+          boatSpecs: chartersTable.boatSpecs,
+          included: chartersTable.included,
+          images: chartersTable.images,
+          available: chartersTable.available,
+          isListed: chartersTable.isListed,
+          c_id: captainsTable.id,
+          c_userId: captainsTable.userId,
+          c_bio: captainsTable.bio,
+          c_experience: captainsTable.experience,
+          c_licenseNumber: captainsTable.licenseNumber,
+          c_location: captainsTable.location,
+          c_avatar: captainsTable.avatar,
+          c_verified: captainsTable.verified,
+          c_rating: captainsTable.rating,
+          c_reviewCount: captainsTable.reviewCount,
+          u_firstName: usersTable.firstName,
+          u_lastName: usersTable.lastName,
         })
-        .from(charters)
-        .leftJoin(captains, eq(charters.captainId, captains.id))
-        .leftJoin(users, eq(captains.userId, users.id))
-        .where(eq(charters.id, id));
+        .from(chartersTable)
+        .leftJoin(captainsTable, eq(chartersTable.captainId, captainsTable.id))
+        .leftJoin(usersTable, eq(captainsTable.userId, usersTable.id))
+        .where(eq(chartersTable.id, id));
 
       if (!r) return res.status(404).json({ message: "Charter not found" });
 
@@ -752,9 +753,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // localizar el captain del usuario actual
       const [cap] = await db
-        .select({ id: captains.id })
-        .from(captains)
-        .where(eq(captains.userId, req.session.userId));
+        .select({ id: captainsTable.id })
+        .from(captainsTable)
+        .where(eq(captainsTable.userId, req.session.userId));
 
       if (!cap) {
         return res.status(400).json({ message: "Captain profile required before creating charters" });
@@ -769,7 +770,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const [created] = await db
-        .insert(charters)
+        .insert(chartersTable)
         .values({
           captainId: cap.id,
           title: String(title),
@@ -803,16 +804,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
       const [cap] = await db
-        .select({ id: captains.id })
-        .from(captains)
-        .where(eq(captains.userId, req.session.userId));
+        .select({ id: captainsTable.id })
+        .from(captainsTable)
+        .where(eq(captainsTable.userId, req.session.userId));
 
       if (!cap) return res.json([]);
 
       const rows = await db
         .select()
-        .from(charters)
-        .where(eq(charters.captainId, cap.id));
+        .from(chartersTable)
+        .where(eq(chartersTable.captainId, cap.id));
 
       return res.json(rows);
     } catch (err) {
@@ -830,35 +831,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { search, rating, verified } = req.query;
 
       const whereCond = andAll([
-        search ? ilike(users.firstName, `%${String(search)}%`) : undefined,
-        search ? ilike(captains.location, `%${String(search)}%`) : undefined,
-        rating ? eq(captains.rating, String(rating)) : undefined, // rating es numeric(string)
-        verified === "true" ? eq(captains.verified, true) : undefined,
+        search ? ilike(usersTable.firstName, `%${String(search)}%`) : undefined,
+        search ? ilike(captainsTable.location, `%${String(search)}%`) : undefined,
+        rating ? eq(captainsTable.rating, String(rating)) : undefined, // rating es numeric(string)
+        verified === "true" ? eq(captainsTable.verified, true) : undefined,
       ]);
 
-      let query = db
+      const baseQuery = db
         .select({
-          id: captains.id,
-          userId: captains.userId,
-          bio: captains.bio,
-          experience: captains.experience,
-          licenseNumber: captains.licenseNumber,
-          location: captains.location,
-          avatar: captains.avatar,
-          verified: captains.verified,
-          rating: captains.rating,
-          reviewCount: captains.reviewCount,
-          u_firstName: users.firstName,
-          u_lastName: users.lastName,
+          id: captainsTable.id,
+          userId: captainsTable.userId,
+          bio: captainsTable.bio,
+          experience: captainsTable.experience,
+          licenseNumber: captainsTable.licenseNumber,
+          location: captainsTable.location,
+          avatar: captainsTable.avatar,
+          verified: captainsTable.verified,
+          rating: captainsTable.rating,
+          reviewCount: captainsTable.reviewCount,
+          u_firstName: usersTable.firstName,
+          u_lastName: usersTable.lastName,
         })
-        .from(captains)
-        .leftJoin(users, eq(captains.userId, users.id));
+        .from(captainsTable)
+        .leftJoin(usersTable, eq(captainsTable.userId, usersTable.id));
 
-      if (whereCond) {
-        query = query.where(whereCond);
-      }
-
-      const rows = await query;
+      const rows = whereCond 
+        ? await baseQuery.where(whereCond)
+        : await baseQuery;
 
       const result = rows.map((r) => ({
         id: r.id,
@@ -894,22 +893,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const [row] = await db
         .select({
-          id: captains.id,
-          userId: captains.userId,
-          bio: captains.bio,
-          experience: captains.experience,
-          licenseNumber: captains.licenseNumber,
-          location: captains.location,
-          avatar: captains.avatar,
-          verified: captains.verified,
-          rating: captains.rating,
-          reviewCount: captains.reviewCount,
-          u_firstName: users.firstName,
-          u_lastName: users.lastName,
+          id: captainsTable.id,
+          userId: captainsTable.userId,
+          bio: captainsTable.bio,
+          experience: captainsTable.experience,
+          licenseNumber: captainsTable.licenseNumber,
+          location: captainsTable.location,
+          avatar: captainsTable.avatar,
+          verified: captainsTable.verified,
+          rating: captainsTable.rating,
+          reviewCount: captainsTable.reviewCount,
+          u_firstName: usersTable.firstName,
+          u_lastName: usersTable.lastName,
         })
-        .from(captains)
-        .leftJoin(users, eq(captains.userId, users.id))
-        .where(eq(captains.id, id));
+        .from(captainsTable)
+        .leftJoin(usersTable, eq(captainsTable.userId, usersTable.id))
+        .where(eq(captainsTable.id, id));
 
       if (!row) {
         return res.status(404).json({ message: "Captain not found" });
@@ -951,7 +950,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Traer el capitán y validar titularidad
-      const [cap] = await db.select().from(captains).where(eq(captains.id, id));
+      const [cap] = await db.select().from(captainsTable).where(eq(captainsTable.id, id));
       if (!cap) return res.status(404).json({ error: "Captain not found" });
       if (cap.userId !== req.session.userId) {
         return res.status(403).json({ error: "Forbidden" });
@@ -960,14 +959,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { bio, licenseNumber, location, experience } = req.body ?? {};
 
       const [updated] = await db
-        .update(captains)
+        .update(captainsTable)
         .set({
           bio: typeof bio === "string" ? bio : cap.bio,
           licenseNumber: typeof licenseNumber === "string" ? licenseNumber : cap.licenseNumber,
           location: typeof location === "string" ? location : cap.location,
           experience: typeof experience === "string" ? experience : cap.experience,
         })
-        .where(eq(captains.id, id))
+        .where(eq(captainsTable.id, id))
         .returning();
 
       return res.json(updated);
@@ -992,9 +991,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // 1) hallar captain.id del usuario en sesión
         const [cap] = await db
-          .select({ id: captains.id })
-          .from(captains)
-          .where(eq(captains.userId, req.session.userId));
+          .select({ id: captainsTable.id })
+          .from(captainsTable)
+          .where(eq(captainsTable.userId, req.session.userId));
         if (!cap) return res.json({
           period: rawPeriod,
           nowISO: new Date().toISOString(),
@@ -1016,18 +1015,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const rows = await db
           .select({
             // booking
-            b_id: bookings.id,
-            b_tripDate: bookings.tripDate,
-            b_totalPrice: bookings.totalPrice,
-            b_status: bookings.status,
-            b_guests: bookings.guests,
+            b_id: bookingsTable.id,
+            b_tripDate: bookingsTable.tripDate,
+            b_totalPrice: bookingsTable.totalPrice,
+            b_status: bookingsTable.status,
+            b_guests: bookingsTable.guests,
             // charter
-            c_title: charters.title,
-            c_captainId: charters.captainId,
+            c_title: chartersTable.title,
+            c_captainId: chartersTable.captainId,
           })
-          .from(bookings)
-          .leftJoin(charters, eq(bookings.charterId, charters.id))
-          .where(eq(charters.captainId, cap.id));
+          .from(bookingsTable)
+          .leftJoin(chartersTable, eq(bookingsTable.charterId, chartersTable.id))
+          .where(eq(chartersTable.captainId, cap.id));
 
         // 3) rango temporal actual y anterior para % cambio
         const now = new Date();
@@ -1136,24 +1135,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           | "7days" | "30days" | "90days" | "year";
 
         const [cap] = await db
-          .select({ id: captains.id })
-          .from(captains)
-          .where(eq(captains.userId, req.session.userId));
+          .select({ id: captainsTable.id })
+          .from(captainsTable)
+          .where(eq(captainsTable.userId, req.session.userId));
         if (!cap) return res.status(200).type("text/csv").send("id,charterTitle,guests,status,amount,date\n");
 
         const rows = await db
           .select({
-            b_id: bookings.id,
-            b_tripDate: bookings.tripDate,
-            b_totalPrice: bookings.totalPrice,
-            b_status: bookings.status,
-            b_guests: bookings.guests,
-            c_title: charters.title,
-            c_captainId: charters.captainId,
+            b_id: bookingsTable.id,
+            b_tripDate: bookingsTable.tripDate,
+            b_totalPrice: bookingsTable.totalPrice,
+            b_status: bookingsTable.status,
+            b_guests: bookingsTable.guests,
+            c_title: chartersTable.title,
+            c_captainId: chartersTable.captainId,
           })
-          .from(bookings)
-          .leftJoin(charters, eq(bookings.charterId, charters.id))
-          .where(eq(charters.captainId, cap.id));
+          .from(bookingsTable)
+          .leftJoin(chartersTable, eq(bookingsTable.charterId, chartersTable.id))
+          .where(eq(chartersTable.captainId, cap.id));
 
         const now = new Date();
         const { from } = (() => {
@@ -1207,13 +1206,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const { bio, licenseNumber, location, experience } = req.body ?? {};
 
         const [created] = await db
-          .insert(captains)
+          .insert(captainsTable)
           .values({
             userId: req.session.userId,
-            bio,
-            licenseNumber,
-            location,
-            experience,
+            name: `${req.body.firstName || 'Captain'} ${req.body.lastName || ''}`.trim(),
+            bio: bio || '',
+            licenseNumber: licenseNumber || '',
+            location: location || '',
+            experience: experience || '',
             verified: false,
           })
           .returning();
@@ -1259,12 +1259,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Traer charter para precio/validaciones
         const [c] = await db
           .select({
-            id: charters.id,
-            price: charters.price,
-            isListed: charters.isListed,
+            id: chartersTable.id,
+            price: chartersTable.price,
+            isListed: chartersTable.isListed,
           })
-          .from(charters)
-          .where(eq(charters.id, charterNumeric));
+          .from(chartersTable)
+          .where(eq(chartersTable.id, charterNumeric));
 
         if (!c || !c.isListed) {
           return res.status(400).json({ message: "Charter not available" });
@@ -1273,13 +1273,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const totalPrice = c.price;
 
         const [created] = await db
-          .insert(bookings)
+          .insert(bookingsTable)
           .values({
-            userId: req.session.userId as string,
+            userId: req.session.userId,
             charterId: charterNumeric,
-            tripDate: new Date(tripDate) as any,
+            tripDate: new Date(tripDate),
             guests: Number(guests),
-            totalPrice: Number(totalPrice),
+            totalPrice: totalPrice.toString(),
             status: "pending",
             message: message ?? null,
           })
@@ -1302,52 +1302,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const rows = await db
           .select({
             // Booking
-            b_id: bookings.id,
-            b_userId: bookings.userId,
-            b_charterId: bookings.charterId,
-            b_tripDate: bookings.tripDate,
-            b_guests: bookings.guests,
-            b_totalPrice: bookings.totalPrice,
-            b_status: bookings.status,
-            b_message: bookings.message,
-            b_createdAt: bookings.createdAt,
+            b_id: bookingsTable.id,
+            b_userId: bookingsTable.userId,
+            b_charterId: bookingsTable.charterId,
+            b_tripDate: bookingsTable.tripDate,
+            b_guests: bookingsTable.guests,
+            b_totalPrice: bookingsTable.totalPrice,
+            b_status: bookingsTable.status,
+            b_message: bookingsTable.message,
+            b_createdAt: bookingsTable.createdAt,
             // Charter
-            c_id: charters.id,
-            c_captainId: charters.captainId,
-            c_title: charters.title,
-            c_description: charters.description,
-            c_location: charters.location,
-            c_lat: charters.lat,
-            c_lng: charters.lng,
-            c_targetSpecies: charters.targetSpecies,
-            c_duration: charters.duration,
-            c_maxGuests: charters.maxGuests,
-            c_price: charters.price,
-            c_boatSpecs: charters.boatSpecs,
-            c_included: charters.included,
-            c_images: charters.images,
-            c_available: charters.available,
-            c_isListed: charters.isListed,
+            c_id: chartersTable.id,
+            c_captainId: chartersTable.captainId,
+            c_title: chartersTable.title,
+            c_description: chartersTable.description,
+            c_location: chartersTable.location,
+            c_lat: chartersTable.lat,
+            c_lng: chartersTable.lng,
+            c_targetSpecies: chartersTable.targetSpecies,
+            c_duration: chartersTable.duration,
+            c_maxGuests: chartersTable.maxGuests,
+            c_price: chartersTable.price,
+            c_boatSpecs: chartersTable.boatSpecs,
+            c_included: chartersTable.included,
+            c_images: chartersTable.images,
+            c_available: chartersTable.available,
+            c_isListed: chartersTable.isListed,
             // Captain
-            cap_id: captains.id,
-            cap_userId: captains.userId,
-            cap_bio: captains.bio,
-            cap_experience: captains.experience,
-            cap_licenseNumber: captains.licenseNumber,
-            cap_location: captains.location,
-            cap_avatar: captains.avatar,
-            cap_verified: captains.verified,
-            cap_rating: captains.rating,
-            cap_reviewCount: captains.reviewCount,
+            cap_id: captainsTable.id,
+            cap_userId: captainsTable.userId,
+            cap_bio: captainsTable.bio,
+            cap_experience: captainsTable.experience,
+            cap_licenseNumber: captainsTable.licenseNumber,
+            cap_location: captainsTable.location,
+            cap_avatar: captainsTable.avatar,
+            cap_verified: captainsTable.verified,
+            cap_rating: captainsTable.rating,
+            cap_reviewCount: captainsTable.reviewCount,
             // Captain User
-            u_firstName: users.firstName,
-            u_lastName: users.lastName,
+            u_firstName: usersTable.firstName,
+            u_lastName: usersTable.lastName,
           })
-          .from(bookings)
-          .leftJoin(charters, eq(bookings.charterId, charters.id))
-          .leftJoin(captains, eq(charters.captainId, captains.id))
-          .leftJoin(users, eq(captains.userId, users.id))
-          .where(eq(bookings.userId, req.session.userId));
+          .from(bookingsTable)
+          .leftJoin(chartersTable, eq(bookingsTable.charterId, chartersTable.id))
+          .leftJoin(captainsTable, eq(chartersTable.captainId, captainsTable.id))
+          .leftJoin(usersTable, eq(captainsTable.userId, usersTable.id))
+          .where(eq(bookingsTable.userId, req.session.userId));
 
         const result = rows.map((r) => ({
           id: r.b_id,
@@ -1427,12 +1427,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Verificar titularidad
         const [b] = await db
           .select({
-            id: bookings.id,
-            userId: bookings.userId,
-            status: bookings.status,
+            id: bookingsTable.id,
+            userId: bookingsTable.userId,
+            status: bookingsTable.status,
           })
-          .from(bookings)
-          .where(eq(bookings.id, id));
+          .from(bookingsTable)
+          .where(eq(bookingsTable.id, id));
 
         if (!b) return res.status(404).json({ message: "Booking not found" });
         if (b.userId !== req.session.userId) {
@@ -1440,9 +1440,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const [updated] = await db
-          .update(bookings)
+          .update(bookingsTable)
           .set({ status: "cancelled" })
-          .where(eq(bookings.id, id))
+          .where(eq(bookingsTable.id, id))
           .returning();
 
         return res.json(updated);
@@ -1467,16 +1467,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: "Missing fields" });
         }
 
-        const inserted = await db.execute(
-          `
-          INSERT INTO messages (sender_id, receiver_id, charter_id, content)
-          VALUES ($1, $2, $3, $4)
-          RETURNING id, sender_id, receiver_id, charter_id, content, read, created_at
-          `,
-          [req.session.userId, String(receiverId), charterId ?? null, String(content)]
-        );
+        const [inserted] = await db
+          .insert(messages)
+          .values({
+            senderId: req.session.userId,
+            receiverId: String(receiverId),
+            charterId: charterId ?? null,
+            content: String(content),
+          })
+          .returning();
 
-        return res.status(201).json(inserted.rows[0]);
+        return res.status(201).json(inserted);
       } catch (err) {
         console.error("Error sending message:", err);
         return res.status(500).json({ error: "Failed to send message" });
@@ -1494,10 +1495,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           SELECT DISTINCT ON (LEAST(sender_id, receiver_id), GREATEST(sender_id, receiver_id))
             id, sender_id, receiver_id, content, created_at
           FROM messages
-          WHERE sender_id = $1 OR receiver_id = $1
+          WHERE sender_id = '${userId}' OR receiver_id = '${userId}'
           ORDER BY LEAST(sender_id, receiver_id), GREATEST(sender_id, receiver_id), created_at DESC
-          `,
-          [userId]
+          `
         );
 
         const rows = result.rows as any[];
@@ -1515,8 +1515,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           (
             await db
               .select()
-              .from(users)
-              .where(inArray(users.id, participantIds))
+              .from(usersTable)
+              .where(inArray(usersTable.id, participantIds))
           ) || [];
 
         const threads = rows.map((row) => {
@@ -1555,11 +1555,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           `
           SELECT id, sender_id, receiver_id, charter_id, content, read, created_at
           FROM messages
-          WHERE (sender_id = $1 AND receiver_id = $2)
-             OR (sender_id = $2 AND receiver_id = $1)
+          WHERE (sender_id = '${userId1}' AND receiver_id = '${userId2}')
+             OR (sender_id = '${userId2}' AND receiver_id = '${userId1}')
           ORDER BY created_at ASC
-          `,
-          [userId1, userId2]
+          `
         );
 
         return res.json(result.rows);
@@ -1581,9 +1580,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           `
           UPDATE messages
           SET read = TRUE
-          WHERE receiver_id = $1 AND sender_id = $2 AND read = FALSE
-          `,
-          [String(userId), String(participantId)]
+          WHERE receiver_id = '${String(userId)}' AND sender_id = '${String(participantId)}' AND read = FALSE
+          `
         );
 
         return res.json({ success: true });

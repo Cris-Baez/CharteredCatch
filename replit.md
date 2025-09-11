@@ -126,6 +126,14 @@ Charterly is a full-stack web application for booking fishing charters in the Fl
 ```
 Changelog:
 - June 13, 2025. Initial setup
+- September 11, 2025. Enhanced mobile logo responsiveness and resolved all backend TypeScript/LSP errors
+  • Fixed mobile logo sizing across all header components using responsive Tailwind classes
+  • Eliminated 18 LSP errors through systematic backend cleanup:
+    - Resolved identifier shadowing with aliased table imports (usersTable, captainsTable, etc.)
+    - Fixed query reassignment patterns using baseQuery approach
+    - Corrected schema type mismatches and column references
+    - Implemented proper select maps with explicit column mappings
+  • Backend now fully error-free with verified real data connectivity (9 users, 4 captains, 8 charters, 5 bookings)
 ```
 
 ## User Preferences
