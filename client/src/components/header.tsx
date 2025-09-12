@@ -48,8 +48,7 @@ export default function Header() {
               <img
                 src="/attached_assets/IMG_2128-Photoroom_1749772590031.png"
                 alt="Charterly Logo"
-                className="h-20 md:h-24 lg:h-28 w-auto object-contain max-w-none"
-                style={{ width: 'auto', minWidth: '120px' }}
+                className="h-20 md:h-24 lg:h-28 w-auto object-contain"
               />
             </div>
           </Link>
