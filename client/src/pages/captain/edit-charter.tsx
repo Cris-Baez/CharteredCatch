@@ -112,7 +112,6 @@ export default function EditCharter() {
       });
       queryClient.invalidateQueries({ queryKey: ["charter", charterId] });
       queryClient.invalidateQueries({ queryKey: ["charters"] });
-      setLocation("/captain/charters");
     },
     onError: (error: any) => {
       toast({
