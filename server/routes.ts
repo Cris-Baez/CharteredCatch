@@ -42,6 +42,35 @@ function andAll<T>(conds: (T | undefined)[]) {
   return and(...filtered);
 }
 
+// Helper para convertir campos numéricos manejando nulos
+function toNumberOrNull(value: any): number | null {
+  return value != null ? Number(value) : null;
+}
+
+// Serializador para charters
+function serializeCharter(row: any) {
+  return {
+    ...row,
+    price: Number(row.price),
+    lat: toNumberOrNull(row.lat),
+    lng: toNumberOrNull(row.lng),
+    captain: row.captain ? {
+      ...row.captain,
+      rating: toNumberOrNull(row.captain.rating),
+      reviewCount: toNumberOrNull(row.captain.reviewCount)
+    } : row.captain
+  };
+}
+
+// Serializador para bookings
+function serializeBooking(row: any) {
+  return {
+    ...row,
+    totalPrice: Number(row.totalPrice),
+    charter: row.charter ? serializeCharter(row.charter) : row.charter
+  };
+}
+
 // ==============================
 // registerRoutes
 // ==============================
@@ -551,8 +580,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         title: r.title,
         description: r.description,
         location: r.location,
-        lat: r.lat,
-        lng: r.lng,
+        lat: r.lat != null ? Number(r.lat) : null,
+        lng: r.lng != null ? Number(r.lng) : null,
         targetSpecies: r.targetSpecies,
         duration: r.duration,
         maxGuests: r.maxGuests,
@@ -572,8 +601,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               location: r.c_location,
               avatar: r.c_avatar,
               verified: r.c_verified,
-              rating: r.c_rating,
-              reviewCount: r.c_reviewCount,
+              rating: toNumberOrNull(r.c_rating),
+              reviewCount: toNumberOrNull(r.c_reviewCount),
               name:
                 [r.u_firstName, r.u_lastName].filter(Boolean).join(" ") ||
                 "Captain",
@@ -634,8 +663,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         title: r.title,
         description: r.description,
         location: r.location,
-        lat: r.lat,
-        lng: r.lng,
+        lat: r.lat != null ? Number(r.lat) : null,
+        lng: r.lng != null ? Number(r.lng) : null,
         targetSpecies: r.targetSpecies,
         duration: r.duration,
         maxGuests: r.maxGuests,
@@ -655,8 +684,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               location: r.c_location,
               avatar: r.c_avatar,
               verified: r.c_verified,
-              rating: r.c_rating,
-              reviewCount: r.c_reviewCount,
+              rating: toNumberOrNull(r.c_rating),
+              reviewCount: toNumberOrNull(r.c_reviewCount),
               name:
                 [r.u_firstName, r.u_lastName].filter(Boolean).join(" ") ||
                 "Captain",
@@ -723,8 +752,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         title: r.title,
         description: r.description,
         location: r.location,
-        lat: r.lat,
-        lng: r.lng,
+        lat: r.lat != null ? Number(r.lat) : null,
+        lng: r.lng != null ? Number(r.lng) : null,
         targetSpecies: r.targetSpecies,
         duration: r.duration,
         maxGuests: r.maxGuests,
@@ -744,8 +773,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               location: r.c_location,
               avatar: r.c_avatar,
               verified: r.c_verified,
-              rating: r.c_rating,
-              reviewCount: r.c_reviewCount,
+              rating: toNumberOrNull(r.c_rating),
+              reviewCount: toNumberOrNull(r.c_reviewCount),
               name:
                 [r.u_firstName, r.u_lastName].filter(Boolean).join(" ") ||
                 "Captain",
@@ -825,7 +854,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .values(payload)
         .returning();
 
-      return res.status(201).json(created);
+      return res.status(201).json(serializeCharter(created));
     } catch (err) {
       console.error("Create captain charter error:", err);
       return res.status(500).json({ message: "Failed to create charter" });
@@ -850,7 +879,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(chartersTable)
         .where(eq(chartersTable.captainId, cap.id));
 
-      return res.json(rows);
+      return res.json(rows.map(serializeCharter));
     } catch (err) {
       console.error("List captain charters error:", err);
       return res.status(500).json({ message: "Failed to fetch captain charters" });
@@ -945,7 +974,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(chartersTable.id, charterId))
         .returning();
 
-      return res.json(updated);
+      return res.json(serializeCharter(updated));
     } catch (error) {
       console.error("Update charter error:", error);
       return res.status(500).json({ message: "Failed to update charter" });
@@ -998,8 +1027,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         location: r.location,
         avatar: r.avatar,
         verified: r.verified,
-        rating: r.rating,
-        reviewCount: r.reviewCount,
+        rating: toNumberOrNull(r.rating),
+        reviewCount: toNumberOrNull(r.reviewCount),
         user: {
           firstName: r.u_firstName,
           lastName: r.u_lastName,
@@ -1609,7 +1638,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               ? r.b_tripDate.toISOString()
               : new Date(r.b_tripDate as any).toISOString(),
           guests: r.b_guests,
-          totalPrice: r.b_totalPrice,
+          totalPrice: Number(r.b_totalPrice),
           status: r.b_status,
           message: r.b_message,
           createdAt: r.b_createdAt
@@ -1624,12 +1653,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 title: r.c_title,
                 description: r.c_description,
                 location: r.c_location,
-                lat: r.c_lat,
-                lng: r.c_lng,
+                lat: r.c_lat != null ? Number(r.c_lat) : null,
+                lng: r.c_lng != null ? Number(r.c_lng) : null,
                 targetSpecies: r.c_targetSpecies,
                 duration: r.c_duration,
                 maxGuests: r.c_maxGuests,
-                price: r.c_price,
+                price: Number(r.c_price),
                 boatSpecs: r.c_boatSpecs,
                 included: r.c_included,
                 images: r.c_images ?? [],
@@ -1645,8 +1674,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       location: r.cap_location,
                       avatar: r.cap_avatar,
                       verified: r.cap_verified,
-                      rating: r.cap_rating,
-                      reviewCount: r.cap_reviewCount,
+                      rating: toNumberOrNull(r.cap_rating),
+                      reviewCount: toNumberOrNull(r.cap_reviewCount),
                       name:
                         [r.u_firstName, r.u_lastName]
                           .filter(Boolean)
