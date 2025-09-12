@@ -106,6 +106,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Email and password required" });
       }
 
+      // Validar y sanitizar el rol - solo permitir "user" y "captain"
+      const allowedRoles = ["user", "captain"];
+      const sanitizedRole = allowedRoles.includes(role) ? role : "user";
+
       const [existing] = await db
         .select()
         .from(usersTable)
@@ -118,21 +122,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId =
         "local_" + Date.now() + "_" + Math.random().toString(36).slice(2, 9);
 
-      const [created] = await db
-        .insert(usersTable)
-        .values({
-          id: userId,
-          email,
-          firstName: firstName ?? null,
-          lastName: lastName ?? null,
-          role: role ?? "user",
-          // algunos tipos de schema no declaran password, forzamos tipo:
-          password: hashed as any,
-        })
-        .returning();
+      // Usar transacción para garantizar atomicidad
+      const result = await db.transaction(async (tx) => {
+        const [created] = await tx
+          .insert(usersTable)
+          .values({
+            id: userId,
+            email,
+            firstName: firstName ?? null,
+            lastName: lastName ?? null,
+            role: sanitizedRole,
+            // algunos tipos de schema no declaran password, forzamos tipo:
+            password: hashed as any,
+          })
+          .returning();
 
-      req.session.userId = created.id;
-      return res.status(201).json(created);
+        // Si el rol creado es captain, crear automáticamente el perfil de captain
+        if (created.role === "captain") {
+          await tx
+            .insert(captainsTable)
+            .values({
+              userId: created.id,
+              name: `${firstName || 'Captain'} ${lastName || ''}`.trim(),
+              bio: '',
+              licenseNumber: '',
+              location: '',
+              experience: '',
+              verified: false,
+            });
+        }
+
+        return created;
+      });
+
+      req.session.userId = result.id;
+      return res.status(201).json(result);
     } catch (err) {
       console.error("Register error:", err);
       return res.status(500).json({ message: "Failed to register" });
