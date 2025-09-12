@@ -216,10 +216,6 @@ export default function CaptainProfile() {
       setUploadingAvatar(true);
       
       // Validate file
-      if (file.size > 50 * 1024 * 1024) {
-        throw new Error("Image too large. Maximum size is 50MB");
-      }
-
       if (!file.type.startsWith("image/")) {
         throw new Error("Invalid file type. Only images are allowed");
       }
