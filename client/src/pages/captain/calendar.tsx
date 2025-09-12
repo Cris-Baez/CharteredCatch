@@ -242,9 +242,9 @@ export default function CaptainCalendar() {
             <p className="text-storm-gray">Keep your calendar up to date so guests can book you.</p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
             {/* Charter selector */}
-            <div className="min-w-[220px]">
+            <div className="w-full sm:min-w-[220px] sm:max-w-[280px]">
               <Select
                 value={selectedCharterId ? String(selectedCharterId) : undefined}
                 onValueChange={(val) => setSelectedCharterId(Number(val))}
@@ -263,21 +263,36 @@ export default function CaptainCalendar() {
               </Select>
             </div>
 
-            {/* Export earnings (atajo) */}
-            <Button variant="outline" asChild title="Export your earnings report (financial)">
-              <a href="/api/captain/earnings/export?period=30days" target="_blank" rel="noreferrer">
-                <Download className="w-4 h-4 mr-2" /> Export (earnings)
-              </a>
-            </Button>
+            {/* Action buttons */}
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+              {/* Export earnings (atajo) */}
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="w-full sm:w-auto min-w-[120px]"
+                asChild 
+                title="Export your earnings report (financial)"
+              >
+                <a href="/api/captain/earnings/export?period=30days" target="_blank" rel="noreferrer">
+                  <Download className="w-4 h-4 mr-2" /> 
+                  <span className="hidden sm:inline">Export</span>
+                  <span className="sm:hidden">Export Earnings</span>
+                </a>
+              </Button>
 
-            {/* Add availability */}
-            <Dialog open={isAdding} onOpenChange={setIsAdding}>
-              <DialogTrigger asChild>
-                <Button disabled={!selectedCharterId}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Availability
-                </Button>
-              </DialogTrigger>
+              {/* Add availability */}
+              <Dialog open={isAdding} onOpenChange={setIsAdding}>
+                <DialogTrigger asChild>
+                  <Button 
+                    disabled={!selectedCharterId}
+                    size="sm"
+                    className="w-full sm:w-auto min-w-[130px] bg-ocean-blue hover:bg-blue-800"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    <span className="hidden sm:inline">Add Availability</span>
+                    <span className="sm:hidden">Add Date</span>
+                  </Button>
+                </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Add Availability</DialogTitle>
