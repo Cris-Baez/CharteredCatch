@@ -199,21 +199,21 @@ export default function Home() {
               <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-10">
                 {featuredCharters.slice(0, 6).map((charter, index) => (
                   <motion.div key={charter.id} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: index * 0.15 }} viewport={{ once: true }} className="group cursor-pointer" onClick={() => setLocation(`/charters/${charter.id}`)}>
-                    <Card className="overflow-hidden rounded-2xl border border-gray-100 shadow-md hover:shadow-2xl transition-all duration-300 group-hover:-translate-y-2">
+                    <Card className="overflow-hidden rounded-2xl border border-gray-100 shadow-md hover:shadow-2xl transition-all duration-300 group-hover:-translate-y-2 h-full flex flex-col">
                       <div className="relative h-52 overflow-hidden">
                         <img src={charter.images?.[0] || "/placeholder.jpg"} alt={charter.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                         <div className="absolute top-4 left-4">
                           <Badge className="bg-white/90 text-ocean-blue border border-ocean-blue/20 font-semibold shadow-sm">{charter.duration || "Trip"}</Badge>
                         </div>
                       </div>
-                      <CardContent className="p-6">
-                        <h3 className="text-xl font-bold text-gray-900 mb-1">{charter.title}</h3>
-                        <p className="text-gray-600 mb-2 flex items-center">
-                          <MapPin className="w-4 h-4 mr-1 text-ocean-blue" />
+                      <CardContent className="p-6 flex-1 flex flex-col">
+                        <h3 className="text-xl font-bold text-gray-900 mb-1 line-clamp-2">{charter.title}</h3>
+                        <p className="text-gray-600 mb-2 flex items-center line-clamp-1">
+                          <MapPin className="w-4 h-4 mr-1 text-ocean-blue flex-shrink-0" />
                           {charter.location}
                         </p>
-                        <p className="text-ocean-blue font-medium mb-4">Capt. {charter.captain?.name || "Unknown Captain"}</p>
-                        <div className="flex items-center justify-between">
+                        <p className="text-ocean-blue font-medium mb-4 line-clamp-1">Capt. {charter.captain?.name || "Unknown Captain"}</p>
+                        <div className="flex items-center justify-between mt-auto">
                           <div className="flex items-center">
                             <svg className="w-5 h-5 text-yellow-400 fill-yellow-400 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                               <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.974a1 1 0 00.95.69h4.18c.969 0 1.371 1.24.588 1.81l-3.39 2.463a1 1 0 00-.364 1.118l1.287 3.974c.3.922-.755 1.688-1.54 1.118l-3.39-2.462a1 1 0 00-1.175 0l-3.39 2.462c-.785.57-1.84-.196-1.54-1.118l1.287-3.974a1 1 0 00-.364-1.118L2.098 9.4c-.783-.57-.38-1.81.588-1.81h4.18a1 1 0 00.95-.69l1.286-3.974z" />
