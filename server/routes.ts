@@ -73,7 +73,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     session({
       store: new PgStore({
         conString: process.env.DATABASE_URL,
-        tableName: "session",
+        tableName: "sessions",
         createTableIfMissing: false,
       }),
       secret: process.env.SESSION_SECRET || "dev_secret",
@@ -556,7 +556,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         targetSpecies: r.targetSpecies,
         duration: r.duration,
         maxGuests: r.maxGuests,
-        price: r.price,
+        price: Number(r.price),
         boatSpecs: r.boatSpecs,
         included: r.included,
         images: r.images ?? [],
@@ -639,7 +639,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         targetSpecies: r.targetSpecies,
         duration: r.duration,
         maxGuests: r.maxGuests,
-        price: r.price,
+        price: Number(r.price),
         boatSpecs: r.boatSpecs,
         included: r.included,
         images: r.images ?? [],
@@ -728,7 +728,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         targetSpecies: r.targetSpecies,
         duration: r.duration,
         maxGuests: r.maxGuests,
-        price: r.price,
+        price: Number(r.price),
         boatSpecs: r.boatSpecs,
         included: r.included,
         images: r.images ?? [],
@@ -913,7 +913,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (description !== undefined) updateData.description = String(description);
       if (location !== undefined) updateData.location = String(location);
       if (price !== undefined) updateData.price = String(price);
-      if (duration !== undefined) updateData.duration = Number(duration);
+      if (duration !== undefined) updateData.duration = String(duration);
       if (maxGuests !== undefined) updateData.maxGuests = Number(maxGuests);
       if (isListed !== undefined) updateData.isListed = Boolean(isListed);
       if (requirements !== undefined) updateData.requirements = String(requirements);
