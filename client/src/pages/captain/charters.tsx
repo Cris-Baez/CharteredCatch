@@ -54,6 +54,23 @@ export default function CaptainCharters() {
     staleTime: 60 * 1000,
   });
 
+  // filtro local por título, ubicación, especies, specs
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!charters || !q) return charters || [];
+    return charters.filter((c) => {
+      const haystack = [
+        c.title,
+        c.location,
+        c.targetSpecies || "",
+        c.boatSpecs || "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [charters, query]);
+
   if (!user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -72,23 +89,6 @@ export default function CaptainCharters() {
       </div>
     );
   }
-
-  // filtro local por título, ubicación, especies, specs
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!charters || !q) return charters || [];
-    return charters.filter((c) => {
-      const haystack = [
-        c.title,
-        c.location,
-        c.targetSpecies || "",
-        c.boatSpecs || "",
-      ]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(q);
-    });
-  }, [charters, query]);
 
   const fmtUSD = (n: number) =>
     new Intl.NumberFormat(undefined, {
