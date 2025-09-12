@@ -10,6 +10,7 @@ import {
   MessageSquare,
   Pencil,
   CreditCard,
+  DollarSign,
 } from "lucide-react";
 import React from "react";
 
@@ -22,6 +23,7 @@ const defaultNav: NavItem[] = [
   { label: "Calendar", href: "/captain/calendar", icon: <CalendarIcon className="w-5 h-5" /> },
   { label: "Analytics", href: "/captain/analytics", icon: <TrendingUp className="w-5 h-5" /> },
   { label: "Messages", href: "/captain/messages", icon: <MessageSquare className="w-5 h-5" /> },
+  { label: "Payments", href: "/captain/payments", icon: <DollarSign className="w-5 h-5" /> },
   { label: "Subscription", href: "/captain/subscribe", icon: <CreditCard className="w-5 h-5" /> },
   { label: "Profile", href: "/captain/profile", icon: <Pencil className="w-5 h-5" /> },
 ];
