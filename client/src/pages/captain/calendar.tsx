@@ -218,7 +218,7 @@ export default function CaptainCalendar() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="max-w-md">
           <CardContent className="p-8 text-center">
-            <Ship className="mx-auto mb-4 text-ocean-blue" size={48} />
+            <Ship className="mx-auto mb-4 text-ocean-blue" size={64} />
             <h2 className="text-2xl font-bold mb-4">Captain Portal</h2>
             <p className="text-storm-gray mb-6">Please log in to access your captain dashboard</p>
             <Button asChild>
@@ -415,7 +415,7 @@ export default function CaptainCalendar() {
                           </p>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                           <Badge variant={isFull ? "destructive" : "secondary"}>
                             {isFull ? "Fully booked" : "Available"}
                           </Badge>
@@ -423,6 +423,7 @@ export default function CaptainCalendar() {
                           <Button
                             variant="outline"
                             size="sm"
+                            className="min-w-[60px]"
                             onClick={() => startEdit(row)}
                           >
                             <Pencil className="w-4 h-4 mr-1" />
@@ -432,6 +433,7 @@ export default function CaptainCalendar() {
                           <Button
                             variant="destructive"
                             size="sm"
+                            className="min-w-[70px]"
                             onClick={() => confirmDelete(row)}
                             disabled={deleteMutation.isPending}
                           >
@@ -460,15 +462,15 @@ export default function CaptainCalendar() {
                             Must be ≥ booked ({editRow.bookedSlots}).
                           </p>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-3 sm:gap-2">
                           <Button
-                            className="flex-1"
+                            className="flex-1 min-w-[80px]"
                             onClick={() => patchMutation.mutate({ id: editRow.id, slots: Math.max(editRow.bookedSlots, editSlots) })}
                             disabled={patchMutation.isPending}
                           >
                             {patchMutation.isPending ? "Saving..." : "Save"}
                           </Button>
-                          <Button variant="outline" className="flex-1" onClick={() => setEditRow(null)}>
+                          <Button variant="outline" className="flex-1 min-w-[80px]" onClick={() => setEditRow(null)}>
                             Cancel
                           </Button>
                         </div>
@@ -499,7 +501,7 @@ export default function CaptainCalendar() {
                   <p className="text-sm font-medium text-storm-gray">Days with availability</p>
                   <p className="text-3xl font-bold text-green-600">{metrics.daysWithAvailability}</p>
                 </div>
-                <CalendarIcon className="text-green-500" size={32} />
+                <CalendarIcon className="text-green-500" size={40} />
               </div>
             </CardContent>
           </Card>
@@ -511,7 +513,7 @@ export default function CaptainCalendar() {
                   <p className="text-sm font-medium text-storm-gray">Fully booked days</p>
                   <p className="text-3xl font-bold text-blue-600">{metrics.fullyBookedDays}</p>
                 </div>
-                <CalendarIcon className="text-blue-500" size={32} />
+                <CalendarIcon className="text-blue-500" size={40} />
               </div>
             </CardContent>
           </Card>
@@ -523,7 +525,7 @@ export default function CaptainCalendar() {
                   <p className="text-sm font-medium text-storm-gray">Remaining slots (month)</p>
                   <p className="text-3xl font-bold text-purple-600">{metrics.remainingSlots}</p>
                 </div>
-                <Clock className="text-purple-500" size={32} />
+                <Clock className="text-purple-500" size={40} />
               </div>
             </CardContent>
           </Card>
@@ -533,7 +535,7 @@ export default function CaptainCalendar() {
         {!loadingCharters && (!myCharters || myCharters.length === 0) && (
           <Card className="mt-8">
             <CardContent className="p-6 text-center">
-              <Ship className="mx-auto mb-4 text-storm-gray" size={56} />
+              <Ship className="mx-auto mb-4 text-storm-gray" size={72} />
               <h3 className="text-xl font-semibold mb-2">You don’t have any charters yet</h3>
               <p className="text-storm-gray mb-6">Create a charter first to manage its availability.</p>
               <Button asChild>

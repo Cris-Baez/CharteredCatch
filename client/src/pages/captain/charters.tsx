@@ -76,7 +76,7 @@ export default function CaptainCharters() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="max-w-md">
           <CardContent className="p-8 text-center">
-            <Ship className="mx-auto mb-4 text-ocean-blue" size={48} />
+            <Ship className="mx-auto mb-4 text-ocean-blue" size={64} />
             <h2 className="text-2xl font-bold mb-4">Captain Portal</h2>
             <p className="text-storm-gray mb-6">
               Please log in to access your captain dashboard
@@ -271,7 +271,7 @@ export default function CaptainCharters() {
         ) : (
           <Card className="text-center py-12">
             <CardContent>
-              <Ship className="mx-auto mb-4 text-storm-gray" size={64} />
+              <Ship className="mx-auto mb-4 text-storm-gray" size={80} />
               <h3 className="text-xl font-semibold mb-2">No Charters Listed</h3>
               <p className="text-storm-gray mb-6">
                 Start earning by creating your first fishing charter listing

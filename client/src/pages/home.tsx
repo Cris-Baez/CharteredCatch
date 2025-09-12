@@ -192,7 +192,7 @@ export default function Home() {
                             <Star className="w-4 h-4 mr-1 fill-yellow-400" />
                             {charter.captain?.rating || "New"}
                           </span>
-                          <span className="font-semibold text-ocean-blue">${charter.price}</span>
+                          <span className="font-semibold text-black ">${charter.price}</span>
                         </div>
                       </CardContent>
                     </Card>

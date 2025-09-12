@@ -618,14 +618,14 @@ export default function EditCharter() {
           </Card>
 
           {/* Action Buttons */}
-          <div className="flex justify-between">
+          <div className="flex flex-col sm:flex-row justify-between gap-4">
             {/* Delete Button (left side) */}
             <Button
               type="button"
               variant="destructive"
               onClick={handleDeleteCharter}
               disabled={deleteCharterMutation.isPending}
-              className="hover:bg-red-700"
+              className="hover:bg-red-700 w-full sm:w-auto min-w-[140px]"
             >
               {deleteCharterMutation.isPending ? (
                 <>
@@ -641,13 +641,18 @@ export default function EditCharter() {
             </Button>
 
             {/* Save & Cancel Buttons (right side) */}
-            <div className="flex gap-4">
-              <Button type="button" variant="outline" onClick={() => setLocation("/captain/charters")}>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto">
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="w-full sm:w-auto min-w-[80px]"
+                onClick={() => setLocation("/captain/charters")}
+              >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="bg-ocean-blue hover:bg-deep-blue"
+                className="bg-ocean-blue hover:bg-deep-blue w-full sm:w-auto min-w-[120px]"
                 disabled={updateCharterMutation.isPending}
               >
                 {updateCharterMutation.isPending ? (

@@ -92,7 +92,7 @@ export default function CaptainBookings() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="max-w-md">
           <CardContent className="p-8 text-center">
-            <Ship className="mx-auto mb-4 text-ocean-blue" size={48} />
+            <Ship className="mx-auto mb-4 text-ocean-blue" size={64} />
             <h2 className="text-2xl font-bold mb-4">Captain Portal</h2>
             <p className="text-storm-gray mb-6">
               Please log in to access your captain dashboard
@@ -349,12 +349,12 @@ export default function CaptainBookings() {
                             </div>
                           </div>
 
-                          <div className="flex gap-2">
+                          <div className="flex flex-wrap gap-3 sm:gap-4">
                             {b.status === "pending" && (
                               <>
                                 <Button 
                                   size="sm" 
-                                  className="bg-green-600 hover:bg-green-700 text-white"
+                                  className="bg-green-600 hover:bg-green-700 text-white min-w-[80px]"
                                   onClick={() => handleApproveBooking(b.id)}
                                   data-testid={`button-approve-${b.id}`}
                                 >
@@ -363,6 +363,7 @@ export default function CaptainBookings() {
                                 <Button 
                                   variant="destructive" 
                                   size="sm"
+                                  className="min-w-[70px]"
                                   onClick={() => handleRejectBooking(b.id)}
                                   data-testid={`button-reject-${b.id}`}
                                 >
@@ -370,7 +371,7 @@ export default function CaptainBookings() {
                                 </Button>
                               </>
                             )}
-                            <Button variant="ghost" size="sm" asChild>
+                            <Button variant="ghost" size="sm" className="min-w-[70px]" asChild>
                               <Link href={`/booking/${b.id}`}>
                                 <span className="inline-flex items-center">
                                   Details
@@ -390,7 +391,7 @@ export default function CaptainBookings() {
         ) : (
           <Card className="text-center py-14">
             <CardContent>
-              <CalendarIcon className="mx-auto mb-4 text-storm-gray" size={56} />
+              <CalendarIcon className="mx-auto mb-4 text-storm-gray" size={72} />
               <h3 className="text-xl font-semibold mb-2">No bookings found</h3>
               <p className="text-storm-gray mb-6">
                 New reservations will appear here as soon as guests book your charters.

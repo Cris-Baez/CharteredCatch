@@ -16,14 +16,14 @@ import React from "react";
 type NavItem = { label: string; href: string; icon: React.ReactNode };
 
 const defaultNav: NavItem[] = [
-  { label: "Overview", href: "/captain/overview", icon: <Ship className="w-4 h-4" /> },
-  { label: "Charters", href: "/captain/charters", icon: <Ship className="w-4 h-4" /> },
-  { label: "Bookings", href: "/captain/bookings", icon: <MessageSquare className="w-4 h-4" /> },
-  { label: "Calendar", href: "/captain/calendar", icon: <CalendarIcon className="w-4 h-4" /> },
-  { label: "Analytics", href: "/captain/analytics", icon: <TrendingUp className="w-4 h-4" /> },
-  { label: "Messages", href: "/captain/messages", icon: <MessageSquare className="w-4 h-4" /> },
-  { label: "Subscription", href: "/captain/subscribe", icon: <CreditCard className="w-4 h-4" /> },
-  { label: "Profile", href: "/captain/profile", icon: <Pencil className="w-4 h-4" /> },
+  { label: "Overview", href: "/captain/overview", icon: <Ship className="w-5 h-5" /> },
+  { label: "Charters", href: "/captain/charters", icon: <Ship className="w-5 h-5" /> },
+  { label: "Bookings", href: "/captain/bookings", icon: <MessageSquare className="w-5 h-5" /> },
+  { label: "Calendar", href: "/captain/calendar", icon: <CalendarIcon className="w-5 h-5" /> },
+  { label: "Analytics", href: "/captain/analytics", icon: <TrendingUp className="w-5 h-5" /> },
+  { label: "Messages", href: "/captain/messages", icon: <MessageSquare className="w-5 h-5" /> },
+  { label: "Subscription", href: "/captain/subscribe", icon: <CreditCard className="w-5 h-5" /> },
+  { label: "Profile", href: "/captain/profile", icon: <Pencil className="w-5 h-5" /> },
 ];
 
 export default function HeaderCaptain({
@@ -90,7 +90,7 @@ export default function HeaderCaptain({
               onClick={handleLogout}
               title="Logout"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-5 h-5" />
             </Button>
           </div>
         </div>
