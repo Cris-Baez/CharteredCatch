@@ -44,6 +44,7 @@ import CreateCharter from "./pages/captain/create-charter";
 import CaptainCalendar from "./pages/captain/calendar";
 import CaptainAnalytics from "./pages/captain/analytics";
 import CaptainSubscribe from "./pages/captain/subscribe";
+import EditCharter from "./pages/captain/edit-charter";
 
 // Admin
 import Admin from "./pages/admin";
@@ -86,6 +87,7 @@ function App() {
         <Route path="/captain/overview" component={CaptainOverview} />
         <Route path="/captain/charters" component={CaptainCharters} />
         <Route path="/captain/charters/new" component={CreateCharter} />
+        <Route path="/captain/charters/:id/edit" component={EditCharter} />
         <Route path="/captain/bookings" component={CaptainBookings} />
         <Route path="/captain/messages" component={CaptainMessages} />
         <Route path="/captain/earnings" component={CaptainEarnings} />

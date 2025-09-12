@@ -9,6 +9,7 @@ import {
   TrendingUp,
   MessageSquare,
   Pencil,
+  CreditCard,
 } from "lucide-react";
 import React from "react";
 
@@ -21,6 +22,7 @@ const defaultNav: NavItem[] = [
   { label: "Calendar", href: "/captain/calendar", icon: <CalendarIcon className="w-4 h-4" /> },
   { label: "Analytics", href: "/captain/analytics", icon: <TrendingUp className="w-4 h-4" /> },
   { label: "Messages", href: "/captain/messages", icon: <MessageSquare className="w-4 h-4" /> },
+  { label: "Subscription", href: "/captain/subscribe", icon: <CreditCard className="w-4 h-4" /> },
   { label: "Profile", href: "/captain/profile", icon: <Pencil className="w-4 h-4" /> },
 ];
 

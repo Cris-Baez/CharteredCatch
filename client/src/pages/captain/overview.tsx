@@ -25,6 +25,7 @@ import {
   MapPin,
   Eye,
   Pencil,
+  CreditCard,
 } from "lucide-react";
 
 /* ========= Tipos compatibles con tu backend ========= */
@@ -275,6 +276,13 @@ export default function CaptainOverview() {
                 <Link href="/captain/bookings">
                   <MessageSquare className="w-4 h-4 mr-2" />
                   View Bookings
+                </Link>
+              </Button>
+
+              <Button variant="outline" className="w-full justify-start bg-gradient-to-r from-ocean-blue/5 to-seafoam-50 border-ocean-blue/20 hover:from-ocean-blue/10 hover:to-seafoam-100" asChild>
+                <Link href="/captain/subscribe">
+                  <CreditCard className="w-4 h-4 mr-2 text-ocean-blue" />
+                  <span className="text-ocean-blue font-medium">Manage Subscription</span>
                 </Link>
               </Button>
             </CardContent>

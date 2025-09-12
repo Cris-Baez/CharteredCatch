@@ -1595,18 +1595,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ==============================
   // STRIPE SUBSCRIPTION ENDPOINTS  
   // ==============================
-  
-  // Initialize Stripe
-  if (!process.env.STRIPE_SECRET_KEY) {
-    throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
-  }
-  if (!process.env.STRIPE_SECRET_KEY) {
-    return res.status(503).json({ error: 'Stripe not configured' });
-  }
-  
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: "2024-11-20.acacia",
-  });
 
   // Create subscription for captain
   app.post("/api/captain/subscribe", async (req: Request, res: Response) => {
@@ -1615,8 +1603,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Unauthorized" });
       }
       
+      if (!process.env.STRIPE_SECRET_KEY) {
+        return res.status(503).json({ error: 'Stripe not configured' });
+      }
+      
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+        apiVersion: "2025-08-27.basil",
+      });
+      
       // Verificar si es un capitán
-      const captain = await db.select().from(captains).where(eq(captains.userId, req.session.userId)).execute();
+      const captain = await db.select().from(captainsTable).where(eq(captainsTable.userId, req.session.userId)).execute();
       if (!captain.length) {
         return res.status(403).json({ error: 'Only captains can subscribe' });
       }
@@ -1708,10 +1704,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verificar si es un capitán
-      const captain = await db.select().from(captains).where(eq(captains.userId, req.session.userId)).execute();
+      const captain = await db.select().from(captainsTable).where(eq(captainsTable.userId, req.session.userId)).execute();
       if (!captain.length) {
         return res.status(403).json({ error: 'Only captains can access subscription' });
       }
+
+      if (!process.env.STRIPE_SECRET_KEY) {
+        return res.status(503).json({ error: 'Stripe not configured' });
+      }
+      
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+        apiVersion: "2025-08-27.basil",
+      });
 
       const [user] = await db
         .select()
@@ -1748,10 +1752,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verificar si es un capitán
-      const captain = await db.select().from(captains).where(eq(captains.userId, req.session.userId)).execute();
+      const captain = await db.select().from(captainsTable).where(eq(captainsTable.userId, req.session.userId)).execute();
       if (!captain.length) {
         return res.status(403).json({ error: 'Only captains can cancel subscription' });
       }
+
+      if (!process.env.STRIPE_SECRET_KEY) {
+        return res.status(503).json({ error: 'Stripe not configured' });
+      }
+      
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+        apiVersion: "2025-08-27.basil",
+      });
 
       const [user] = await db
         .select()
