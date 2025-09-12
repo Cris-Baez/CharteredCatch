@@ -204,6 +204,7 @@ export default function MessagesUser() {
 
     // 1) optimista
     const optimisticMsg: SnakeMessage = {
+      id: Math.floor(Math.random() * 1_000_000) * -1, // id temporal negativo
       sender_id: me,
       receiver_id: receiver,
       content,

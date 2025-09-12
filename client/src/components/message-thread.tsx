@@ -12,9 +12,10 @@ interface Message {
 
 interface Participant {
   id: string;
-  firstName?: string;
-  lastName?: string;
-  profileImageUrl?: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  avatar?: string | null;
+  profileImageUrl?: string | null; // backward compatibility
 }
 
 interface Props {
