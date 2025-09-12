@@ -250,7 +250,7 @@ export default function UserCheckout() {
     charter?.images?.[0] ||
     "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1200&h=800&fit=crop";
 
-  const price = booking?.totalPrice ?? charter?.price ?? 0;
+  const price = Number(booking?.totalPrice) || Number(charter?.price) || 0;
   const currency = paymentOptions?.bank?.currency || "USD";
 
   const dateStrISO =
