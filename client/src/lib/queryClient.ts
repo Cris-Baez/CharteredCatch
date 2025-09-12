@@ -59,7 +59,14 @@ export const queryClient = new QueryClient({
       refetchInterval: false,
       refetchOnWindowFocus: false,
       staleTime: Infinity,
-      retry: false,
+      retry: (failureCount, error: any) => {
+        // Doble carga automática para endpoints críticos como charters
+        if (error?.message?.includes('charters') || error?.message?.includes('Failed to fetch')) {
+          return failureCount < 2; // Máximo 2 reintentos (3 total intentos)
+        }
+        return failureCount < 1; // 1 reintento para otros endpoints
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 3000), // Exponential backoff máximo 3s
     },
     mutations: {
       retry: false,
