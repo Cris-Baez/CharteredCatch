@@ -1600,8 +1600,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   if (!process.env.STRIPE_SECRET_KEY) {
     throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
   }
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return res.status(503).json({ error: 'Stripe not configured' });
+  }
+  
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: "2025-08-27.basil",
+    apiVersion: "2024-11-20.acacia",
   });
 
   // Create subscription for captain
@@ -1609,6 +1613,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       if (!req.session.userId) {
         return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      // Verificar si es un capitán
+      const captain = await db.select().from(captains).where(eq(captains.userId, req.session.userId)).execute();
+      if (!captain.length) {
+        return res.status(403).json({ error: 'Only captains can subscribe' });
       }
 
       const [user] = await db
@@ -1658,7 +1668,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         items: [{
           price_data: {
             currency: 'usd',
-            unit_amount: 4900, // $49.00 in cents
+            unit_amount: 4900,
             recurring: {
               interval: 'month',
             },
@@ -1668,8 +1678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             },
           },
         }],
-        trial_period_days: 30, // 1-month free trial
-        expand: ['latest_invoice.payment_intent'],
+        trial_period_days: 30,
       });
 
       // Update user with subscription ID
@@ -1680,7 +1689,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         subscriptionId: subscription.id,
-        clientSecret: (subscription.latest_invoice && typeof subscription.latest_invoice === 'object' && subscription.latest_invoice.payment_intent && typeof subscription.latest_invoice.payment_intent === 'object') ? subscription.latest_invoice.payment_intent.client_secret : null,
+        clientSecret: null, // No payment intent needed for trial
         status: subscription.status,
         trial_end: subscription.trial_end,
       });
@@ -1696,6 +1705,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       if (!req.session.userId) {
         return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      // Verificar si es un capitán
+      const captain = await db.select().from(captains).where(eq(captains.userId, req.session.userId)).execute();
+      if (!captain.length) {
+        return res.status(403).json({ error: 'Only captains can access subscription' });
       }
 
       const [user] = await db
@@ -1730,6 +1745,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       if (!req.session.userId) {
         return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      // Verificar si es un capitán
+      const captain = await db.select().from(captains).where(eq(captains.userId, req.session.userId)).execute();
+      if (!captain.length) {
+        return res.status(403).json({ error: 'Only captains can cancel subscription' });
       }
 
       const [user] = await db
