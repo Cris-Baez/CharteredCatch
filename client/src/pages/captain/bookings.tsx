@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import HeaderCaptain from "@/components/headercaptain";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,6 +68,8 @@ export default function CaptainBookings() {
   const [period, setPeriod] = useState<"7days" | "30days" | "90days" | "year">("30days");
   const [status, setStatus] = useState<"all" | TxStatus>("all");
   const [q, setQ] = useState("");
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data, isLoading, isError, error, refetch } = useQuery<EarningsResp>({
     queryKey: ["/api/captain/earnings", period],
@@ -138,6 +141,71 @@ export default function CaptainBookings() {
 
   const money = (n: number) =>
     new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
+
+  // Mutations para approve/reject bookings
+  const approveMutation = useMutation({
+    mutationFn: async (bookingId: number) => {
+      const res = await fetch(`/api/captain/bookings/${bookingId}/approve`, {
+        method: "PATCH",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to approve booking");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/captain/earnings"] });
+      toast({
+        title: "Booking Approved",
+        description: "The customer can now proceed with payment.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async (bookingId: number) => {
+      const res = await fetch(`/api/captain/bookings/${bookingId}/reject`, {
+        method: "PATCH",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to reject booking");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/captain/earnings"] });
+      toast({
+        title: "Booking Rejected",
+        description: "The booking has been cancelled.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleApproveBooking = (bookingId: number) => {
+    approveMutation.mutate(bookingId);
+  };
+
+  const handleRejectBooking = (bookingId: number) => {
+    rejectMutation.mutate(bookingId);
+  };
 
   const statusBadge = (s: TxStatus) =>
     s === "confirmed" ? "default" : s === "pending" ? "secondary" : s === "completed" ? "outline" : "destructive";
@@ -281,14 +349,36 @@ export default function CaptainBookings() {
                             </div>
                           </div>
 
-                          <Button variant="ghost" size="sm" asChild>
-                            <Link href={`/booking/${b.id}`}>
-                              <span className="inline-flex items-center">
-                                Details
-                                <ChevronRight className="w-4 h-4 ml-1" />
-                              </span>
-                            </Link>
-                          </Button>
+                          <div className="flex gap-2">
+                            {b.status === "pending" && (
+                              <>
+                                <Button 
+                                  size="sm" 
+                                  className="bg-green-600 hover:bg-green-700 text-white"
+                                  onClick={() => handleApproveBooking(b.id)}
+                                  data-testid={`button-approve-${b.id}`}
+                                >
+                                  Approve
+                                </Button>
+                                <Button 
+                                  variant="destructive" 
+                                  size="sm"
+                                  onClick={() => handleRejectBooking(b.id)}
+                                  data-testid={`button-reject-${b.id}`}
+                                >
+                                  Reject
+                                </Button>
+                              </>
+                            )}
+                            <Button variant="ghost" size="sm" asChild>
+                              <Link href={`/booking/${b.id}`}>
+                                <span className="inline-flex items-center">
+                                  Details
+                                  <ChevronRight className="w-4 h-4 ml-1" />
+                                </span>
+                              </Link>
+                            </Button>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>

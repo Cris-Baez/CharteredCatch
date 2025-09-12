@@ -775,12 +775,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         title: String(title),
         description: String(description),
         location: String(location),
-        lat: typeof lat === "number" ? lat : null,
-        lng: typeof lng === "number" ? lng : null,
+        lat: typeof lat === "number" ? lat.toString() : null,
+        lng: typeof lng === "number" ? lng.toString() : null,
         targetSpecies: String(targetSpecies),
         duration: String(duration),
         maxGuests: Number(maxGuests),
-        price: Number(price),
+        price: String(price),
         boatSpecs: boatSpecs ? String(boatSpecs) : null,
         included: included ? String(included) : null,
         images: Array.isArray(images) ? images.slice(0, 10) as string[] : [],
@@ -1800,6 +1800,154 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Cancel subscription error:", error);
       res.status(500).json({ error: "Failed to cancel subscription" });
+    }
+  });
+
+  // CAPTAIN: Aprobar/rechazar booking
+  app.patch("/api/captain/bookings/:id/approve", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const bookingId = Number(req.params.id);
+      if (!Number.isFinite(bookingId)) {
+        return res.status(400).json({ error: "Invalid booking ID" });
+      }
+
+      // Verificar que el booking pertenezca a un charter del captain logueado
+      const [cap] = await db.select({ id: captainsTable.id }).from(captainsTable).where(eq(captainsTable.userId, req.session.userId));
+      if (!cap) return res.status(403).json({ error: "Captain profile required" });
+
+      const [booking] = await db
+        .select({
+          id: bookingsTable.id,
+          status: bookingsTable.status,
+          charterId: bookingsTable.charterId,
+        })
+        .from(bookingsTable)
+        .leftJoin(chartersTable, eq(bookingsTable.charterId, chartersTable.id))
+        .where(and(eq(bookingsTable.id, bookingId), eq(chartersTable.captainId, cap.id)));
+
+      if (!booking) {
+        return res.status(404).json({ error: "Booking not found or not accessible" });
+      }
+
+      if (booking.status !== "pending") {
+        return res.status(400).json({ error: "Only pending bookings can be approved" });
+      }
+
+      const [updated] = await db
+        .update(bookingsTable)
+        .set({ status: "confirmed" })
+        .where(eq(bookingsTable.id, bookingId))
+        .returning();
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Approve booking error:", error);
+      return res.status(500).json({ error: "Failed to approve booking" });
+    }
+  });
+
+  // CAPTAIN: Rechazar booking
+  app.patch("/api/captain/bookings/:id/reject", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const bookingId = Number(req.params.id);
+      if (!Number.isFinite(bookingId)) {
+        return res.status(400).json({ error: "Invalid booking ID" });
+      }
+
+      // Verificar que el booking pertenezca a un charter del captain logueado
+      const [cap] = await db.select({ id: captainsTable.id }).from(captainsTable).where(eq(captainsTable.userId, req.session.userId));
+      if (!cap) return res.status(403).json({ error: "Captain profile required" });
+
+      const [booking] = await db
+        .select({
+          id: bookingsTable.id,
+          status: bookingsTable.status,
+          charterId: bookingsTable.charterId,
+        })
+        .from(bookingsTable)
+        .leftJoin(chartersTable, eq(bookingsTable.charterId, chartersTable.id))
+        .where(and(eq(bookingsTable.id, bookingId), eq(chartersTable.captainId, cap.id)));
+
+      if (!booking) {
+        return res.status(404).json({ error: "Booking not found or not accessible" });
+      }
+
+      if (booking.status !== "pending") {
+        return res.status(400).json({ error: "Only pending bookings can be rejected" });
+      }
+
+      const [updated] = await db
+        .update(bookingsTable)
+        .set({ status: "cancelled" })
+        .where(eq(bookingsTable.id, bookingId))
+        .returning();
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Reject booking error:", error);
+      return res.status(500).json({ error: "Failed to reject booking" });
+    }
+  });
+
+  // USER: Crear payment intent para booking confirmado
+  app.post("/api/bookings/:id/create-payment-intent", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const bookingId = Number(req.params.id);
+      if (!Number.isFinite(bookingId)) {
+        return res.status(400).json({ error: "Invalid booking ID" });
+      }
+
+      // Verificar que el booking pertenezca al usuario y esté confirmado
+      const [booking] = await db
+        .select({
+          id: bookingsTable.id,
+          userId: bookingsTable.userId,
+          status: bookingsTable.status,
+          totalPrice: bookingsTable.totalPrice,
+        })
+        .from(bookingsTable)
+        .where(eq(bookingsTable.id, bookingId));
+
+      if (!booking) {
+        return res.status(404).json({ error: "Booking not found" });
+      }
+
+      if (booking.userId !== req.session.userId) {
+        return res.status(403).json({ error: "Not your booking" });
+      }
+
+      if (booking.status !== "confirmed") {
+        return res.status(400).json({ error: "Booking must be confirmed by captain first" });
+      }
+
+      // Crear payment intent para pago directo 
+      const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+        apiVersion: "2025-08-27.basil",
+      });
+      const paymentIntent = await stripeClient.paymentIntents.create({
+        amount: Math.round(Number(booking.totalPrice) * 100), // Convert to cents
+        currency: "usd",
+        metadata: {
+          bookingId: booking.id.toString(),
+        },
+      });
+
+      res.json({ clientSecret: paymentIntent.client_secret });
+    } catch (error: any) {
+      console.error("Create payment intent error:", error);
+      res.status(500).json({ error: "Failed to create payment intent: " + error.message });
     }
   });
 

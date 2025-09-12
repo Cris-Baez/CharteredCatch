@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import type { CharterWithCaptain } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 const bookingSchema = z.object({
   tripDate: z.date(),
@@ -59,6 +60,7 @@ export default function CharterDetail() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { toast } = useToast();
 
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -110,7 +112,7 @@ export default function CharterDetail() {
       return;
     }
 
-    await fetch("/api/bookings", {
+    const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -125,8 +127,21 @@ export default function CharterDetail() {
       }),
     });
 
+    if (!res.ok) {
+      toast({
+        title: "Booking Failed",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Booking Requested!",
+      description: "Your booking request has been sent to the captain. You'll be notified when it's confirmed and ready for payment.",
+    });
     setIsBookingOpen(false);
-    setLocation("/messages"); // como tenías
+    setLocation("/user/my-trips");
   };
 
   const handleMessage = async () => {
@@ -167,12 +182,12 @@ export default function CharterDetail() {
   }
   if (!charter) return <p>No charter found</p>;
 
-  const images =
-    charter.images?.length > 0
-      ? charter.images
-      : [
-          "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1200&h=800&fit=crop",
-        ];
+  const rawImages = Array.isArray(charter.images) ? charter.images.filter(Boolean) : [] as string[];
+  const images: string[] = rawImages.length > 0
+    ? rawImages
+    : [
+        "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1200&h=800&fit=crop",
+      ];
 
   return (
     <div className="min-h-screen bg-background">
