@@ -128,10 +128,10 @@ export default function CreateCharter() {
     }
 
     for (const file of Array.from(files)) {
-      if (file.size > 5 * 1024 * 1024) {
+      if (file.size > 50 * 1024 * 1024) {
         toast({
           title: "Image too large",
-          description: `${file.name} is larger than 5MB. Please choose a smaller image.`,
+          description: `${file.name} is larger than 50MB. Please choose a smaller image.`,
           variant: "destructive",
         });
         continue;
