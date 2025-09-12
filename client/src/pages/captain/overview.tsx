@@ -281,7 +281,7 @@ export default function CaptainOverview() {
 
               <Button variant="outline" className="w-full justify-start bg-gradient-to-r from-ocean-blue/5 to-seafoam-50 border-ocean-blue/20 hover:from-ocean-blue/10 hover:to-seafoam-100" asChild>
                 <Link href="/captain/subscribe">
-                  <CreditCard className="w-4 h-4 mr-2 text-ocean-blue" />
+                  <CreditCard className="w-4 h-4 mr-2 text-black" />
                   <span className="text-black font-medium">Manage Subscription</span>
                 </Link>
               </Button>
