@@ -1,0 +1,44 @@
+Checking if castbuddy app is already loaded undefined Window
+content-script.js:1 castbuddy app is not loaded, finding videos
+content-script.js:1 castbuddy app is not loaded, finding videos
+content-script.js:1 document.URL is not same as base URL https://player.castbuddy.app/
+content-script.js:1 no videos found
+ Checking if castbuddy app is already loaded undefined Window
+ castbuddy app is not loaded, finding videos
+ castbuddy app is not loaded, finding videos
+ document.URL is not same as base URL https://player.castbuddy.app/
+ no videos found
+content-script.js:1 In response to message, finding videos on:  https://m.stripe.network/inner.html#url=https%3A%2F%2Fchartered-catch-cristopherpurav.replit.app%2F&title=&referrer=&muid=NA&sid=NA&version=6&preview=false&__shared_params__[version]=basil
+content-script.js:1 castbuddy app is not loaded, finding videos
+content-script.js:1 document.URL is not same as base URL https://player.castbuddy.app/
+content-script.js:1 no videos found
+content-script.js:1 In response to message, finding videos on:  https://js.stripe.com/v3/m-outer-3437aaddcdf6922d623e172c2d6f9278.html#url=https%3A%2F%2Fchartered-catch-cristopherpurav.replit.app%2F&title=&referrer=&muid=NA&sid=NA&version=6&preview=false&__shared_params__[version]=basil
+content-script.js:1 castbuddy app is not loaded, finding videos
+content-script.js:1 document.URL is not same as base URL https://player.castbuddy.app/
+content-script.js:1 no videos found
+content-script.js:1 In response to message, finding videos on:  https://chartered-catch-cristopherpurav.replit.app/
+content-script.js:1 castbuddy app is not loaded, finding videos
+content-script.js:1 document.URL is not same as base URL https://player.castbuddy.app/
+ In response to message, finding videos on:  https://js.stripe.com/v3/controller-with-preconnect-16b813516d5ffcf37fc58dfb2aaa6524.html#__shared_params__[version]=basil&__shared_params__[light_experiment_assignments]=%7B%22token%22%3A%22bfb68914-e349-4a0e-aa10-46776091d664%22%2C%22assignments%22%3A%7B%7D%7D&apiKey=pk_test_FAKE1234567890abcdefghijklmn&apiVersion=2025-03-31.basil&stripeJsId=bfb68914-e349-4a0e-aa10-46776091d664&stripeObjId=sobj-c3c7b587-d1df-4031-8a5a-c285be4e912b&firstStripeInstanceCreatedLatency=34&controllerCount=1&isCheckout=false&stripeJsLoadTime=1757679058054&manualBrowserDeprecationRollout=false&mids[guid]=NA&mids[muid]=NA&mids[sid]=NA&referrer=https%3A%2F%2Fchartered-catch-cristopherpurav.replit.app%2F&controllerId=__privateStripeController2971
+m.stripe.network/inner.html#url=https%3A%2F%2Fchartered-catch-cristopherpurav.replit.app%2F&title=&referrer=&muid=NA&sid=NA&version=6&preview=false&__shared_params__[version]=basil:1 Unchecked runtime.lastError: The message port closed before a response was received.Entender este error
+ castbuddy app is not loaded, finding videos
+ document.URL is not same as base URL https://player.castbuddy.app/
+ no videos found
+js.stripe.com/v3/m-outer-3437aaddcdf6922d623e172c2d6f9278.html#url=https%3A%2F%2Fchartered-catch-cristopherpurav.replit.app%2F&title=&referrer=&muid=NA&sid=NA&version=6&preview=false&__shared_params__[version]=basil:1 Unchecked runtime.lastError: The message port closed before a response was received.Entender este error
+js.stripe.com/v3/m-outer-3437aaddcdf6922d623e172c2d6f9278.html#url=https%3A%2F%2Fchartered-catch-cristopherpurav.replit.app%2F&title=&referrer=&muid=NA&sid=NA&version=6&preview=false&__shared_params__[version]=basil:1 Unchecked runtime.lastError: The message port closed before a response was received.Entender este error
+js.stripe.com/v3/controller-with-preconnect-16b813516d5ffcf37fc58dfb2aaa6524.html#__shared_params__[version]=basil&__shared_params__[light_experiment_assignments]=%7B%22token%22%3A%22bfb68914-e349-4a0e-aa10-46776091d664%22%2C%22assignments%22%3A%7B%7D%7D&apiKey=pk_test_FAKE1234567890abcdefghijklmn&apiVersion=2025-03-31.basil&stripeJsId=bfb68914-e349-4a0e-aa10-46776091d664&stripeObjId=sobj-c3c7b587-d1df-4031-8a5a-c285be4e912b&firstStripeInstanceCreatedLatency=34&controllerCount=1&isCheckout=false&stripeJsLoadTime=1757679058054&manualBrowserDeprecationRollout=false&mids[guid]=NA&mids[muid]=NA&mids[sid]=NA&referrer=https%3A%2F%2Fchartered-catch-cristopherpurav.replit.app%2F&controllerId=__privateStripeController2971:1 Unchecked runtime.lastError: The message port closed before a response was received.Entender este error
+js.stripe.com/v3/controller-with-preconnect-16b813516d5ffcf37fc58dfb2aaa6524.html#__shared_params__[version]=basil&__shared_params__[light_experiment_assignments]=%7B%22token%22%3A%22bfb68914-e349-4a0e-aa10-46776091d664%22%2C%22assignments%22%3A%7B%7D%7D&apiKey=pk_test_FAKE1234567890abcdefghijklmn&apiVersion=2025-03-31.basil&stripeJsId=bfb68914-e349-4a0e-aa10-46776091d664&stripeObjId=sobj-c3c7b587-d1df-4031-8a5a-c285be4e912b&firstStripeInstanceCreatedLatency=34&controllerCount=1&isCheckout=false&stripeJsLoadTime=1757679058054&manualBrowserDeprecationRollout=false&mids[guid]=NA&mids[muid]=NA&mids[sid]=NA&referrer=https%3A%2F%2Fchartered-catch-cristopherpurav.replit.app%2F&controllerId=__privateStripeController2971:1 Unchecked runtime.lastError: The message port closed before a response was received.Entender este error
+content-script.js:1 no videos found
+(índice):1 Unchecked runtime.lastError: The message port closed before a response was received.Entender este error
+content-script.js:1 Checking if castbuddy app is already loaded undefined Window
+content-script.js:1 castbuddy app is not loaded, finding videos
+content-script.js:1 castbuddy app is not loaded, finding videos
+content-script.js:1 document.URL is not same as base URL https://player.castbuddy.app/
+content-script.js:1 no videos found
+content-script.js:1 Checking if castbuddy app is already loaded undefined Window
+content-script.js:1 castbuddy app is not loaded, finding videos
+content-script.js:1 castbuddy app is not loaded, finding videos
+content-script.js:1 document.URL is not same as base URL https://player.castbuddy.app/
+content-script.js:1 no videos found
+/api/charters:1  Failed to load resource: the server responded with a status of 500 ()Entender este error
+/api/charters:1  Failed to load resource: the server responded with a status of 500 ()
