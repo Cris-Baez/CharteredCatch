@@ -1222,11 +1222,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const rawPeriod = String(req.query.period || "30days") as
           | "7days" | "30days" | "90days" | "year";
 
+        // DEBUG: Log current user
+        console.log("🔍 Captain earnings DEBUG - session userId:", req.session.userId);
+
         // 1) hallar captain.id del usuario en sesión
         const [cap] = await db
           .select({ id: captainsTable.id })
           .from(captainsTable)
           .where(eq(captainsTable.userId, req.session.userId));
+        
+        console.log("🔍 Found captain profile:", cap);
+        
         if (!cap) return res.json({
           period: rawPeriod,
           nowISO: new Date().toISOString(),
@@ -1260,6 +1266,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .from(bookingsTable)
           .leftJoin(chartersTable, eq(bookingsTable.charterId, chartersTable.id))
           .where(eq(chartersTable.captainId, cap.id));
+        
+        console.log("🔍 Found", rows.length, "bookings for captain", cap.id);
+        console.log("🔍 Bookings statuses:", rows.map(r => `${r.b_id}:${r.b_status}`).join(", "));
 
         // 3) rango temporal actual y anterior para % cambio
         const now = new Date();
