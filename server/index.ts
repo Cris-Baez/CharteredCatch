@@ -42,6 +42,17 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Deshabilitar ETag para APIs (evita 304 sin body)
+  app.set('etag', false);
+  
+  // No-cache para todas las rutas API
+  app.use('/api', (req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    next();
+  });
+
   const server = await registerRoutes(app);
 
   // Error handler
