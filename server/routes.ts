@@ -996,6 +996,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // DELETE /api/charters/:id (eliminar charter)
+  app.delete("/api/charters/:id", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const charterId = Number(req.params.id);
+      if (!Number.isFinite(charterId)) {
+        return res.status(400).json({ message: "Invalid charter ID" });
+      }
+
+      // Verificar que el usuario es un capitán
+      const [cap] = await db
+        .select({ id: captainsTable.id })
+        .from(captainsTable)
+        .where(eq(captainsTable.userId, req.session.userId));
+
+      if (!cap) {
+        return res.status(403).json({ message: "Captain profile required" });
+      }
+
+      // Verificar que el charter pertenece al capitán
+      const [existingCharter] = await db
+        .select({ id: chartersTable.id, captainId: chartersTable.captainId })
+        .from(chartersTable)
+        .where(eq(chartersTable.id, charterId));
+
+      if (!existingCharter) {
+        return res.status(404).json({ message: "Charter not found" });
+      }
+
+      if (existingCharter.captainId !== cap.id) {
+        return res.status(403).json({ message: "Not your charter" });
+      }
+
+      // Eliminar el charter
+      await db.delete(chartersTable).where(eq(chartersTable.id, charterId));
+
+      return res.json({ success: true, message: "Charter deleted successfully" });
+    } catch (error) {
+      console.error("Delete charter error:", error);
+      return res.status(500).json({ message: "Failed to delete charter" });
+    }
+  });
+
   // ==============================
   // CAPTAINS
   // ==============================

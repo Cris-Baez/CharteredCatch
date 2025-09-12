@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
 // Icons
-import { ArrowLeft, Save, Ship, MapPin, DollarSign, Users, Clock, Image, X, Upload, Plus, GripVertical } from "lucide-react";
+import { ArrowLeft, Save, Ship, MapPin, DollarSign, Users, Clock, Image, X, Upload, Plus, GripVertical, Trash2 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 
 type Charter = {
@@ -117,6 +117,36 @@ export default function EditCharter() {
       toast({
         title: "Update Failed",
         description: error.message || "Failed to update charter",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete charter mutation
+  const deleteCharterMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/charters/${charterId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to delete charter");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Charter Deleted",
+        description: "Your charter has been permanently deleted.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["charters"] });
+      setLocation("/captain/charters");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message || "Failed to delete charter",
         variant: "destructive",
       });
     },
@@ -261,6 +291,15 @@ export default function EditCharter() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     updateCharterMutation.mutate(formData);
+  };
+
+  const handleDeleteCharter = () => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this charter? This action cannot be undone."
+    );
+    if (confirmed) {
+      deleteCharterMutation.mutate();
+    }
   };
 
   if (loadingAuth || isLoading) {
@@ -578,28 +617,52 @@ export default function EditCharter() {
             </CardContent>
           </Card>
 
-          {/* Submit Button */}
-          <div className="flex justify-end gap-4">
-            <Button type="button" variant="outline" onClick={() => setLocation("/captain/charters")}>
-              Cancel
-            </Button>
+          {/* Action Buttons */}
+          <div className="flex justify-between">
+            {/* Delete Button (left side) */}
             <Button
-              type="submit"
-              className="bg-ocean-blue hover:bg-deep-blue"
-              disabled={updateCharterMutation.isPending}
+              type="button"
+              variant="destructive"
+              onClick={handleDeleteCharter}
+              disabled={deleteCharterMutation.isPending}
+              className="hover:bg-red-700"
             >
-              {updateCharterMutation.isPending ? (
+              {deleteCharterMutation.isPending ? (
                 <>
                   <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                  Saving...
+                  Deleting...
                 </>
               ) : (
                 <>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Changes
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Charter
                 </>
               )}
             </Button>
+
+            {/* Save & Cancel Buttons (right side) */}
+            <div className="flex gap-4">
+              <Button type="button" variant="outline" onClick={() => setLocation("/captain/charters")}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="bg-ocean-blue hover:bg-deep-blue"
+                disabled={updateCharterMutation.isPending}
+              >
+                {updateCharterMutation.isPending ? (
+                  <>
+                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </form>
       </main>
