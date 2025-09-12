@@ -17,7 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 
 // Icons
-import { ArrowLeft, Save, Ship, MapPin, DollarSign, Users, Clock, Image, X, Upload, Plus } from "lucide-react";
+import { ArrowLeft, Save, Ship, MapPin, DollarSign, Users, Clock, Image, X, Upload, Plus, GripVertical } from "lucide-react";
+import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 
 type Charter = {
   id: number;
@@ -150,6 +151,25 @@ export default function EditCharter() {
     if (!files) return;
 
     Array.from(files).forEach(file => {
+      // Client-side validation
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast({
+          title: "Image too large",
+          description: `${file.name} is larger than 5MB. Please choose a smaller image.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Invalid file type",
+          description: `${file.name} is not an image. Please select an image file.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = (e) => {
         const imageDataUrl = e.target?.result as string;
@@ -176,6 +196,27 @@ export default function EditCharter() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Client-side validation
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      toast({
+        title: "Image too large",
+        description: `${file.name} is larger than 5MB. Please choose a smaller image.`,
+        variant: "destructive",
+      });
+      event.target.value = '';
+      return;
+    }
+    
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: `${file.name} is not an image. Please select an image file.`,
+        variant: "destructive",
+      });
+      event.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
       const imageDataUrl = e.target?.result as string;
@@ -197,6 +238,19 @@ export default function EditCharter() {
         prev.images[index],
         ...prev.images.filter((_, i) => i !== index)
       ]
+    }));
+  };
+
+  const handleImageReorder = (result: DropResult) => {
+    if (!result.destination) return;
+    
+    const items = Array.from(formData.images);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    
+    setFormData(prev => ({
+      ...prev,
+      images: items
     }));
   };
 
@@ -333,81 +387,111 @@ export default function EditCharter() {
                     <p className="text-xs text-gray-500 mb-3">
                       {formData.images.length > 0 && "First image will be used as main photo"}
                     </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
-                      {formData.images.map((image, index) => (
-                        <div key={index} className="relative group border rounded-lg overflow-hidden">
-                          <img
-                            src={image}
-                            alt={`Charter image ${index + 1}`}
-                            className="w-full h-32 object-cover"
-                          />
-                          
-                          {/* Image overlay with controls */}
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <div className="flex gap-2">
-                              {/* Make Main Photo */}
-                              {index !== 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleImageMoveToFirst(index)}
-                                  className="bg-blue-500 text-white rounded-full p-2 hover:bg-blue-600 transition-colors"
-                                  title="Set as main photo"
-                                  data-testid={`button-make-main-${index}`}
-                                >
-                                  <Upload className="w-3 h-3" />
-                                </button>
-                              )}
-                              
-                              {/* Replace Image */}
-                              <div>
-                                <input
-                                  type="file"
-                                  id={`replace-image-${index}`}
-                                  accept="image/*"
-                                  onChange={(e) => handleImageReplace(index, e)}
-                                  className="hidden"
-                                  data-testid={`input-replace-image-${index}`}
-                                />
-                                <label
-                                  htmlFor={`replace-image-${index}`}
-                                  className="bg-green-500 text-white rounded-full p-2 hover:bg-green-600 transition-colors cursor-pointer inline-flex"
-                                  title="Replace image"
-                                >
-                                  <Image className="w-3 h-3" />
-                                </label>
-                              </div>
-                              
-                              {/* Delete Image */}
-                              <button
-                                type="button"
-                                onClick={() => handleImageRemove(index)}
-                                className="bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition-colors"
-                                title="Delete image"
-                                data-testid={`button-remove-image-${index}`}
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </div>
+                    <DragDropContext onDragEnd={handleImageReorder}>
+                      <Droppable droppableId="charter-images" direction="horizontal">
+                        {(provided) => (
+                          <div
+                            {...provided.droppableProps}
+                            ref={provided.innerRef}
+                            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2"
+                          >
+                            {formData.images.map((image, index) => (
+                              <Draggable key={`image-${index}`} draggableId={`image-${index}`} index={index}>
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    className={`relative group border rounded-lg overflow-hidden transition-transform ${
+                                      snapshot.isDragging ? 'rotate-2 scale-105 shadow-lg' : ''
+                                    }`}
+                                  >
+                                    {/* Drag handle */}
+                                    <div
+                                      {...provided.dragHandleProps}
+                                      className="absolute top-2 right-2 z-10 bg-black/60 text-white p-1 rounded cursor-move opacity-0 group-hover:opacity-100 transition-opacity"
+                                      title="Drag to reorder"
+                                    >
+                                      <GripVertical className="w-3 h-3" />
+                                    </div>
+                                    
+                                    <img
+                                      src={image}
+                                      alt={`Charter image ${index + 1}`}
+                                      className="w-full h-32 object-cover"
+                                    />
+                                    
+                                    {/* Image overlay with controls */}
+                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                      <div className="flex gap-2">
+                                        {/* Make Main Photo */}
+                                        {index !== 0 && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleImageMoveToFirst(index)}
+                                            className="bg-blue-500 text-white rounded-full p-2 hover:bg-blue-600 transition-colors"
+                                            title="Set as main photo"
+                                            data-testid={`button-make-main-${index}`}
+                                          >
+                                            <Upload className="w-3 h-3" />
+                                          </button>
+                                        )}
+                                        
+                                        {/* Replace Image */}
+                                        <div>
+                                          <input
+                                            type="file"
+                                            id={`replace-image-${index}`}
+                                            accept="image/*"
+                                            onChange={(e) => handleImageReplace(index, e)}
+                                            className="hidden"
+                                            data-testid={`input-replace-image-${index}`}
+                                          />
+                                          <label
+                                            htmlFor={`replace-image-${index}`}
+                                            className="bg-green-500 text-white rounded-full p-2 hover:bg-green-600 transition-colors cursor-pointer inline-flex"
+                                            title="Replace image"
+                                          >
+                                            <Image className="w-3 h-3" />
+                                          </label>
+                                        </div>
+                                        
+                                        {/* Delete Image */}
+                                        <button
+                                          type="button"
+                                          onClick={() => handleImageRemove(index)}
+                                          className="bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition-colors"
+                                          title="Delete image"
+                                          data-testid={`button-remove-image-${index}`}
+                                        >
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                    
+                                    {/* Main photo indicator */}
+                                    {index === 0 && (
+                                      <div className="absolute top-2 left-2">
+                                        <Badge className="bg-blue-600 text-white text-xs">
+                                          Main Photo
+                                        </Badge>
+                                      </div>
+                                    )}
+                                    
+                                    {/* Image counter */}
+                                    <div className="absolute bottom-2 right-2">
+                                      <Badge variant="secondary" className="text-xs">
+                                        {index + 1}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))}
+                            {provided.placeholder}
                           </div>
-                          
-                          {/* Main photo indicator */}
-                          {index === 0 && (
-                            <div className="absolute top-2 left-2">
-                              <Badge className="bg-blue-600 text-white text-xs">
-                                Main Photo
-                              </Badge>
-                            </div>
-                          )}
-                          
-                          {/* Image counter */}
-                          <div className="absolute bottom-2 right-2">
-                            <Badge variant="secondary" className="text-xs">
-                              {index + 1}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        )}
+                      </Droppable>
+                    </DragDropContext>
                   </div>
                 )}
                 

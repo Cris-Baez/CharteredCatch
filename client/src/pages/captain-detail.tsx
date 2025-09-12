@@ -103,7 +103,7 @@ export default function CaptainDetail() {
         {/* Header del capitán */}
         <div className="flex flex-col lg:flex-row items-center lg:items-start gap-8 mb-12">
           <Avatar className="w-32 h-32 border-4 border-white shadow-md">
-            <AvatarImage src={captain.avatar || ""} />
+            <AvatarImage src={captain.avatar || ""} useDefaultForCaptain />
             <AvatarFallback>{fullName[0] || "C"}</AvatarFallback>
           </Avatar>
           <div className="flex-1 text-center lg:text-left">

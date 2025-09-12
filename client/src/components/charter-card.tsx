@@ -133,7 +133,7 @@ export default function CharterCard({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Avatar className="w-9 h-9 md:w-10 md:h-10">
-              <AvatarImage src={charter.captain?.avatar || ""} />
+              <AvatarImage src={charter.captain?.avatar || ""} useDefaultForCaptain />
               <AvatarFallback>
                 {charter.captain?.name?.[0]?.toUpperCase() || "C"}
               </AvatarFallback>

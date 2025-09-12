@@ -46,8 +46,8 @@ function andAll<T>(conds: (T | undefined)[]) {
 // registerRoutes
 // ==============================
 export async function registerRoutes(app: Express): Promise<Server> {
-  // JSON y estáticos
-  app.use(express.json());
+  // JSON y estáticos (límite configurado en index.ts)
+  // app.use(express.json()); // Ya configurado en index.ts con 50MB limit
   app.use(
     "/attached_assets",
     express.static(path.join(process.cwd(), "attached_assets"))
@@ -917,7 +917,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (maxGuests !== undefined) updateData.maxGuests = Number(maxGuests);
       if (isListed !== undefined) updateData.isListed = Boolean(isListed);
       if (requirements !== undefined) updateData.requirements = String(requirements);
-      if (images !== undefined) updateData.images = Array.isArray(images) ? images.slice(0, 10) : [];
+      if (images !== undefined) {
+        if (Array.isArray(images)) {
+          // Validar que cada imagen sea base64 válida y no muy grande
+          for (const img of images) {
+            if (typeof img === "string") {
+              if (img.length > 5 * 1024 * 1024) { // 5MB limit per image
+                return res.status(400).json({ message: "One or more images are too large. Maximum size is 5MB per image" });
+              }
+              if (img.startsWith('data:image/') || img.startsWith('http')) {
+                // Valid image URL or base64
+                continue;
+              } else if (img.length > 0) {
+                return res.status(400).json({ message: "Invalid image format detected" });
+              }
+            }
+          }
+          updateData.images = images.slice(0, 10); // Limit to 10 images
+        } else {
+          updateData.images = [];
+        }
+      }
 
       const [updated] = await db
         .update(chartersTable)
@@ -1392,6 +1412,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!avatar || typeof avatar !== "string") {
         return res.status(400).json({ error: "Avatar data required" });
+      }
+
+      // Validaciones de seguridad para base64
+      if (avatar.length > 5 * 1024 * 1024) { // 5MB limit
+        return res.status(400).json({ error: "Image too large. Maximum size is 5MB" });
+      }
+
+      // Verificar que sea base64 válido y tipo de imagen
+      if (!avatar.startsWith('data:image/')) {
+        return res.status(400).json({ error: "Invalid image format. Only images are allowed" });
       }
 
       const [captain] = await db

@@ -281,7 +281,7 @@ export default function CaptainProfile() {
                 <div className="flex flex-col items-center">
                   <div className="relative">
                     <Avatar className="w-28 h-28 ring-2 ring-white shadow">
-                      <AvatarImage src={captain?.avatar || ""} />
+                      <AvatarImage src={captain?.avatar || ""} useDefaultForCaptain />
                       <AvatarFallback className="text-xl">
                         {user?.firstName?.[0] || "C"}
                       </AvatarFallback>

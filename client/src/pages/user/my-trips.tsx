@@ -546,9 +546,9 @@ export default function MyTrips() {
             <Button
               className="bg-ocean-blue hover:bg-blue-800 text-white"
               onClick={sendMessage}
-              disabled={messageMutation.isLoading}
+              disabled={messageMutation.isPending}
             >
-              {messageMutation.isLoading ? "Sending…" : "Send message"}
+              {messageMutation.isPending ? "Sending…" : "Send message"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -603,7 +603,7 @@ export default function MyTrips() {
                   {/* Capitán */}
                   <div className="mt-3 flex items-center gap-3">
                     <Avatar className="h-9 w-9">
-                      <AvatarImage src={detailsBooking.charter?.captain?.avatar || ""} />
+                      <AvatarImage src={detailsBooking.charter?.captain?.avatar || ""} useDefaultForCaptain />
                       <AvatarFallback>
                         {detailsBooking.charter?.captain?.name?.[0] || "C"}
                       </AvatarFallback>
@@ -797,7 +797,7 @@ function TripCard({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={charter?.captain?.avatar || ""} />
+                  <AvatarImage src={charter?.captain?.avatar || ""} useDefaultForCaptain />
                   <AvatarFallback>
                     {charter?.captain?.name?.[0] || "C"}
                   </AvatarFallback>

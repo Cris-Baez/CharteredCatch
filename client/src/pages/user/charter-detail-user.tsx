@@ -361,7 +361,7 @@ export default function CharterDetailUser() {
             <Card className="rounded-xl shadow-sm">
               <CardHeader className="flex flex-row items-center gap-3 pb-2">
                 <Avatar className="w-12 h-12">
-                  <AvatarImage src={charter.captain?.avatar || ""} />
+                  <AvatarImage src={charter.captain?.avatar || ""} useDefaultForCaptain />
                   <AvatarFallback>
                     {charter.captain?.name?.[0] || "C"}
                   </AvatarFallback>

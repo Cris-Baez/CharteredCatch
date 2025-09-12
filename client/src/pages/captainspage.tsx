@@ -127,7 +127,7 @@ export default function CaptainsPage() {
                 <CardContent className="p-5 flex flex-col gap-3">
                   <div className="flex items-center gap-4">
                     <Avatar className="w-14 h-14">
-                      <AvatarImage src={captain.avatar || ""} />
+                      <AvatarImage src={captain.avatar || ""} useDefaultForCaptain />
                       <AvatarFallback>{captain.user.firstName?.[0] || "C"}</AvatarFallback>
                     </Avatar>
                     <div>

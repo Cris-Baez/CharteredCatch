@@ -4,6 +4,7 @@ import * as React from "react"
 import * as AvatarPrimitive from "@radix-ui/react-avatar"
 
 import { cn } from "@/lib/utils"
+import defaultCaptainAvatar from "@assets/default-captain-avatar.svg"
 
 const Avatar = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Root>,
@@ -22,10 +23,13 @@ Avatar.displayName = AvatarPrimitive.Root.displayName
 
 const AvatarImage = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Image>,
-  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image>
->(({ className, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image> & { 
+    useDefaultForCaptain?: boolean 
+  }
+>(({ className, src, useDefaultForCaptain, ...props }, ref) => (
   <AvatarPrimitive.Image
     ref={ref}
+    src={src || (useDefaultForCaptain ? defaultCaptainAvatar : undefined)}
     className={cn("aspect-square h-full w-full", className)}
     {...props}
   />
