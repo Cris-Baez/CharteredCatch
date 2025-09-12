@@ -426,6 +426,70 @@ export default function CaptainResources() {
           </div>
         </section>
 
+        {/* Subscription Plans */}
+        <section id="subscription" className="mb-12 md:mb-16">
+          <h2 className="text-3xl font-bold mb-8 text-center">Captain Subscription</h2>
+          
+          <div className="max-w-md mx-auto">
+            <div className="relative">
+              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                <span className="bg-ocean-blue text-white px-4 py-1 rounded-full text-sm font-medium">
+                  Best Value
+                </span>
+              </div>
+              
+              <Card className="border-2 border-ocean-blue shadow-lg">
+                <CardHeader className="text-center pb-4">
+                  <CardTitle className="text-2xl font-bold text-ocean-blue">Professional Captain</CardTitle>
+                  <div className="mt-4">
+                    <span className="text-4xl font-bold">$49</span>
+                    <span className="text-gray-600">/month</span>
+                  </div>
+                  <p className="text-sm text-storm-gray mt-2">
+                    <span className="font-semibold text-green-600">1 month free trial</span> • Cancel anytime
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-3 mb-6">
+                    <li className="flex items-center">
+                      <CheckCircle2 className="w-5 h-5 text-green-500 mr-3" />
+                      <span>Unlimited charter listings</span>
+                    </li>
+                    <li className="flex items-center">
+                      <CheckCircle2 className="w-5 h-5 text-green-500 mr-3" />
+                      <span>Direct customer payments</span>
+                    </li>
+                    <li className="flex items-center">
+                      <CheckCircle2 className="w-5 h-5 text-green-500 mr-3" />
+                      <span>No booking commissions</span>
+                    </li>
+                    <li className="flex items-center">
+                      <CheckCircle2 className="w-5 h-5 text-green-500 mr-3" />
+                      <span>Advanced analytics dashboard</span>
+                    </li>
+                    <li className="flex items-center">
+                      <CheckCircle2 className="w-5 h-5 text-green-500 mr-3" />
+                      <span>Priority customer support</span>
+                    </li>
+                    <li className="flex items-center">
+                      <CheckCircle2 className="w-5 h-5 text-green-500 mr-3" />
+                      <span>Verified captain badge</span>
+                    </li>
+                  </ul>
+                  
+                  <Button className="w-full bg-ocean-blue hover:bg-deep-blue" asChild>
+                    <a href="/captain/subscribe">Start Free Trial</a>
+                  </Button>
+                  
+                  <p className="text-xs text-center text-storm-gray mt-3">
+                    No setup fees • Secure payment processing
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </section>
+
         {/* Resources & Support */}
         <section id="resources" className="rounded-2xl border bg-white p-6 md:p-8">
           <h2 className="text-2xl font-bold mb-6 text-center">Additional Resources</h2>

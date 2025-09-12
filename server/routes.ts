@@ -7,6 +7,7 @@ import bcrypt from "bcrypt";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import cors from "cors";
+import Stripe from "stripe"; // Stripe integration for subscriptions
 
 import { db } from "./db";
 import {
@@ -1590,6 +1591,174 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Failed to update read status" });
       }
     });
+
+  // ==============================
+  // STRIPE SUBSCRIPTION ENDPOINTS  
+  // ==============================
+  
+  // Initialize Stripe
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
+  }
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2025-08-27.basil",
+  });
+
+  // Create subscription for captain
+  app.post("/api/captain/subscribe", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const [user] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, req.session.userId));
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Check if user already has an active subscription
+      if (user.stripeSubscriptionId) {
+        const subscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
+        
+        if (subscription.status === 'active' || subscription.status === 'trialing') {
+          return res.json({
+            subscription: {
+              id: subscription.id,
+              status: subscription.status,
+              current_period_end: subscription.current_period_end,
+            }
+          });
+        }
+      }
+
+      // Create or get Stripe customer
+      let customer;
+      if (user.stripeCustomerId) {
+        customer = await stripe.customers.retrieve(user.stripeCustomerId);
+      } else {
+        customer = await stripe.customers.create({
+          email: user.email || "",
+          name: [user.firstName, user.lastName].filter(Boolean).join(" ") || undefined,
+        });
+
+        // Update user with customer ID
+        await db
+          .update(usersTable)
+          .set({ stripeCustomerId: customer.id })
+          .where(eq(usersTable.id, user.id));
+      }
+
+      // Create subscription with 1-month trial
+      const subscription = await stripe.subscriptions.create({
+        customer: customer.id,
+        items: [{
+          price_data: {
+            currency: 'usd',
+            unit_amount: 4900, // $49.00 in cents
+            recurring: {
+              interval: 'month',
+            },
+            product_data: {
+              name: 'Captain Subscription',
+              description: 'Professional charter captain subscription with full platform access',
+            },
+          },
+        }],
+        trial_period_days: 30, // 1-month free trial
+        expand: ['latest_invoice.payment_intent'],
+      });
+
+      // Update user with subscription ID
+      await db
+        .update(usersTable)
+        .set({ stripeSubscriptionId: subscription.id })
+        .where(eq(usersTable.id, user.id));
+
+      res.json({
+        subscriptionId: subscription.id,
+        clientSecret: (subscription.latest_invoice && typeof subscription.latest_invoice === 'object' && subscription.latest_invoice.payment_intent && typeof subscription.latest_invoice.payment_intent === 'object') ? subscription.latest_invoice.payment_intent.client_secret : null,
+        status: subscription.status,
+        trial_end: subscription.trial_end,
+      });
+
+    } catch (error: any) {
+      console.error("Subscription creation error:", error);
+      res.status(500).json({ error: "Failed to create subscription: " + error.message });
+    }
+  });
+
+  // Get subscription status
+  app.get("/api/captain/subscription", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const [user] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, req.session.userId));
+
+      if (!user || !user.stripeSubscriptionId) {
+        return res.json({ subscription: null });
+      }
+
+      const subscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
+
+      res.json({
+        subscription: {
+          id: subscription.id,
+          status: subscription.status,
+          current_period_end: subscription.current_period_end,
+          trial_end: subscription.trial_end,
+          cancel_at_period_end: subscription.cancel_at_period_end,
+        }
+      });
+
+    } catch (error: any) {
+      console.error("Get subscription error:", error);
+      res.status(500).json({ error: "Failed to get subscription" });
+    }
+  });
+
+  // Cancel subscription
+  app.post("/api/captain/subscription/cancel", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const [user] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, req.session.userId));
+
+      if (!user || !user.stripeSubscriptionId) {
+        return res.status(404).json({ error: "No subscription found" });
+      }
+
+      const subscription = await stripe.subscriptions.update(user.stripeSubscriptionId, {
+        cancel_at_period_end: true,
+      });
+
+      res.json({
+        subscription: {
+          id: subscription.id,
+          status: subscription.status,
+          cancel_at_period_end: subscription.cancel_at_period_end,
+          current_period_end: subscription.current_period_end,
+        }
+      });
+
+    } catch (error: any) {
+      console.error("Cancel subscription error:", error);
+      res.status(500).json({ error: "Failed to cancel subscription" });
+    }
+  });
 
     // ==============================
     // HTTP SERVER
