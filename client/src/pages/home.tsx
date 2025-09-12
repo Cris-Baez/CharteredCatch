@@ -254,7 +254,7 @@ export default function Home() {
                 <Card key={captain.id} className="rounded-xl shadow hover:shadow-lg transition">
                   <CardContent className="p-5 flex flex-col gap-3">
                     <div className="flex items-center gap-4">
-                      <img src={captain.avatar || "/placeholder.jpg"} alt={captain.user.firstName} className="w-16 h-16 rounded-full object-cover" />
+                      <img src={captain.avatar || GRAY_PLACEHOLDER} alt={captain.user.firstName} className="w-16 h-16 rounded-full object-cover" />
                       <div>
                         <h3 className="font-semibold text-lg text-black">{captain.user.firstName} {captain.user.lastName}</h3>
                         <p className="text-sm text-gray-500 flex items-center gap-1">
