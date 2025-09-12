@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import HeaderCaptain from "@/components/headercaptain";
 
@@ -13,12 +13,11 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 
 // Icons
 import { ArrowLeft, Save, Ship, MapPin, DollarSign, Users, Clock, Image, X, Upload, Plus, GripVertical } from "lucide-react";
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 
 type Charter = {
   id: number;
@@ -27,12 +26,10 @@ type Charter = {
   description?: string | null;
   location?: string | null;
   images: string[];
-  price: number;
-  duration: number;
+  price: string;      // viene como string desde backend
+  duration: string;   // viene como texto
   maxGuests: number;
   isListed: boolean;
-  amenities: string[];
-  requirements?: string | null;
 };
 
 export default function EditCharter() {
@@ -40,7 +37,7 @@ export default function EditCharter() {
   const [, setLocation] = useLocation();
   const [match, params] = useRoute("/captain/charters/:id/edit");
   const { toast } = useToast();
-  
+
   const charterId = params?.id;
 
   // Form state
@@ -48,12 +45,10 @@ export default function EditCharter() {
     title: "",
     description: "",
     location: "",
-    price: 0,
-    duration: 0,
+    price: "",
+    duration: "",
     maxGuests: 0,
     isListed: false,
-    amenities: [] as string[],
-    requirements: "",
     images: [] as string[],
   });
 
@@ -84,12 +79,10 @@ export default function EditCharter() {
         title: charter.title || "",
         description: charter.description || "",
         location: charter.location || "",
-        price: charter.price || 0,
-        duration: charter.duration || 0,
+        price: charter.price?.toString() || "",
+        duration: charter.duration || "",
         maxGuests: charter.maxGuests || 0,
         isListed: charter.isListed || false,
-        amenities: charter.amenities || [],
-        requirements: charter.requirements || "",
         images: charter.images || [],
       });
     }
@@ -131,18 +124,9 @@ export default function EditCharter() {
   });
 
   const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [field]: value,
-    }));
-  };
-
-  const handleAmenityToggle = (amenity: string) => {
-    setFormData(prev => ({
-      ...prev,
-      amenities: prev.amenities.includes(amenity)
-        ? prev.amenities.filter(a => a !== amenity)
-        : [...prev.amenities, amenity],
     }));
   };
 
@@ -150,9 +134,8 @@ export default function EditCharter() {
     const files = event.target.files;
     if (!files) return;
 
-    Array.from(files).forEach(file => {
-      // Client-side validation
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+    Array.from(files).forEach((file) => {
+      if (file.size > 5 * 1024 * 1024) {
         toast({
           title: "Image too large",
           description: `${file.name} is larger than 5MB. Please choose a smaller image.`,
@@ -160,8 +143,8 @@ export default function EditCharter() {
         });
         return;
       }
-      
-      if (!file.type.startsWith('image/')) {
+
+      if (!file.type.startsWith("image/")) {
         toast({
           title: "Invalid file type",
           description: `${file.name} is not an image. Please select an image file.`,
@@ -173,22 +156,21 @@ export default function EditCharter() {
       const reader = new FileReader();
       reader.onload = (e) => {
         const imageDataUrl = e.target?.result as string;
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
-          images: [...prev.images, imageDataUrl]
+          images: [...prev.images, imageDataUrl],
         }));
       };
       reader.readAsDataURL(file);
     });
-    
-    // Reset input para permitir seleccionar el mismo archivo nuevamente
-    event.target.value = '';
+
+    event.target.value = "";
   };
 
   const handleImageRemove = (index: number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      images: prev.images.filter((_, i) => i !== index)
+      images: prev.images.filter((_, i) => i !== index),
     }));
   };
 
@@ -196,61 +178,56 @@ export default function EditCharter() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Client-side validation
-    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+    if (file.size > 5 * 1024 * 1024) {
       toast({
         title: "Image too large",
         description: `${file.name} is larger than 5MB. Please choose a smaller image.`,
         variant: "destructive",
       });
-      event.target.value = '';
+      event.target.value = "";
       return;
     }
-    
-    if (!file.type.startsWith('image/')) {
+
+    if (!file.type.startsWith("image/")) {
       toast({
         title: "Invalid file type",
         description: `${file.name} is not an image. Please select an image file.`,
         variant: "destructive",
       });
-      event.target.value = '';
+      event.target.value = "";
       return;
     }
 
     const reader = new FileReader();
     reader.onload = (e) => {
       const imageDataUrl = e.target?.result as string;
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        images: prev.images.map((img, i) => i === index ? imageDataUrl : img)
+        images: prev.images.map((img, i) => (i === index ? imageDataUrl : img)),
       }));
     };
     reader.readAsDataURL(file);
-    
-    // Reset input
-    event.target.value = '';
+
+    event.target.value = "";
   };
 
   const handleImageMoveToFirst = (index: number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      images: [
-        prev.images[index],
-        ...prev.images.filter((_, i) => i !== index)
-      ]
+      images: [prev.images[index], ...prev.images.filter((_, i) => i !== index)],
     }));
   };
 
   const handleImageReorder = (result: DropResult) => {
     if (!result.destination) return;
-    
+
     const items = Array.from(formData.images);
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
-    
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
-      images: items
+      images: items,
     }));
   };
 
@@ -278,7 +255,9 @@ export default function EditCharter() {
           <Card>
             <CardContent className="p-8 text-center">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Charter Not Found</h2>
-              <p className="text-gray-600 mb-6">The charter you're trying to edit doesn't exist or you don't have permission to edit it.</p>
+              <p className="text-gray-600 mb-6">
+                The charter you're trying to edit doesn't exist or you don't have permission to edit it.
+              </p>
               <Button onClick={() => setLocation("/captain/charters")}>
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Charters
@@ -289,12 +268,6 @@ export default function EditCharter() {
       </div>
     );
   }
-
-  const commonAmenities = [
-    "WiFi", "Air Conditioning", "Sound System", "Bathroom", "Kitchen",
-    "Fishing Equipment", "Snorkeling Gear", "Life Jackets", "Cooler",
-    "Sunshade", "Seating", "Table", "Fresh Water", "Towels"
-  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-ocean-50 to-seafoam-50">
@@ -331,7 +304,6 @@ export default function EditCharter() {
                   onChange={(e) => handleInputChange("title", e.target.value)}
                   placeholder="Amazing Deep Sea Fishing Adventure"
                   required
-                  data-testid="input-charter-title"
                 />
               </div>
 
@@ -343,7 +315,6 @@ export default function EditCharter() {
                   onChange={(e) => handleInputChange("description", e.target.value)}
                   placeholder="Describe your charter experience, what guests can expect..."
                   rows={4}
-                  data-testid="textarea-charter-description"
                 />
               </div>
 
@@ -358,7 +329,6 @@ export default function EditCharter() {
                     placeholder="Miami, FL"
                     className="pl-10"
                     required
-                    data-testid="input-charter-location"
                   />
                 </div>
               </div>
@@ -373,7 +343,7 @@ export default function EditCharter() {
                 Charter Images
                 {formData.images.length > 0 && (
                   <Badge variant="secondary" className="ml-2">
-                    {formData.images.length} image{formData.images.length !== 1 ? 's' : ''}
+                    {formData.images.length} image{formData.images.length !== 1 ? "s" : ""}
                   </Badge>
                 )}
               </CardTitle>
@@ -402,7 +372,7 @@ export default function EditCharter() {
                                     ref={provided.innerRef}
                                     {...provided.draggableProps}
                                     className={`relative group border rounded-lg overflow-hidden transition-transform ${
-                                      snapshot.isDragging ? 'rotate-2 scale-105 shadow-lg' : ''
+                                      snapshot.isDragging ? "rotate-2 scale-105 shadow-lg" : ""
                                     }`}
                                   >
                                     {/* Drag handle */}
@@ -413,30 +383,22 @@ export default function EditCharter() {
                                     >
                                       <GripVertical className="w-3 h-3" />
                                     </div>
-                                    
-                                    <img
-                                      src={image}
-                                      alt={`Charter image ${index + 1}`}
-                                      className="w-full h-32 object-cover"
-                                    />
-                                    
-                                    {/* Image overlay with controls */}
+
+                                    <img src={image} alt={`Charter image ${index + 1}`} className="w-full h-32 object-cover" />
+
+                                    {/* Controls */}
                                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                       <div className="flex gap-2">
-                                        {/* Make Main Photo */}
                                         {index !== 0 && (
                                           <button
                                             type="button"
                                             onClick={() => handleImageMoveToFirst(index)}
                                             className="bg-blue-500 text-white rounded-full p-2 hover:bg-blue-600 transition-colors"
                                             title="Set as main photo"
-                                            data-testid={`button-make-main-${index}`}
                                           >
                                             <Upload className="w-3 h-3" />
                                           </button>
                                         )}
-                                        
-                                        {/* Replace Image */}
                                         <div>
                                           <input
                                             type="file"
@@ -444,7 +406,6 @@ export default function EditCharter() {
                                             accept="image/*"
                                             onChange={(e) => handleImageReplace(index, e)}
                                             className="hidden"
-                                            data-testid={`input-replace-image-${index}`}
                                           />
                                           <label
                                             htmlFor={`replace-image-${index}`}
@@ -454,35 +415,22 @@ export default function EditCharter() {
                                             <Image className="w-3 h-3" />
                                           </label>
                                         </div>
-                                        
-                                        {/* Delete Image */}
                                         <button
                                           type="button"
                                           onClick={() => handleImageRemove(index)}
                                           className="bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition-colors"
                                           title="Delete image"
-                                          data-testid={`button-remove-image-${index}`}
                                         >
                                           <X className="w-3 h-3" />
                                         </button>
                                       </div>
                                     </div>
-                                    
-                                    {/* Main photo indicator */}
+
                                     {index === 0 && (
                                       <div className="absolute top-2 left-2">
-                                        <Badge className="bg-blue-600 text-white text-xs">
-                                          Main Photo
-                                        </Badge>
+                                        <Badge className="bg-blue-600 text-white text-xs">Main Photo</Badge>
                                       </div>
                                     )}
-                                    
-                                    {/* Image counter */}
-                                    <div className="absolute bottom-2 right-2">
-                                      <Badge variant="secondary" className="text-xs">
-                                        {index + 1}
-                                      </Badge>
-                                    </div>
                                   </div>
                                 )}
                               </Draggable>
@@ -494,7 +442,7 @@ export default function EditCharter() {
                     </DragDropContext>
                   </div>
                 )}
-                
+
                 {/* Add Images */}
                 <div>
                   <Label>Add New Images</Label>
@@ -506,7 +454,6 @@ export default function EditCharter() {
                       multiple
                       onChange={handleImageUpload}
                       className="hidden"
-                      data-testid="input-image-upload"
                     />
                     <label
                       htmlFor="image-upload"
@@ -514,14 +461,12 @@ export default function EditCharter() {
                     >
                       <div className="text-center">
                         <Plus className="w-6 h-6 mx-auto text-gray-400 mb-1" />
-                        <span className="text-sm text-gray-600">
-                          Click to add images
-                        </span>
+                        <span className="text-sm text-gray-600">Click to add images</span>
                       </div>
                     </label>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    Add multiple images to showcase your charter. You can upload JPG, PNG files. First image will be used as main photo.
+                    Add multiple images to showcase your charter. JPG or PNG only. First image will be used as main photo.
                   </p>
                 </div>
               </div>
@@ -543,28 +488,25 @@ export default function EditCharter() {
                   id="price"
                   type="number"
                   value={formData.price}
-                  onChange={(e) => handleInputChange("price", Number(e.target.value))}
+                  onChange={(e) => handleInputChange("price", e.target.value)}
                   placeholder="500"
                   min="0"
                   required
-                  data-testid="input-charter-price"
                 />
               </div>
 
               <div>
-                <Label htmlFor="duration">Duration (hours) *</Label>
+                <Label htmlFor="duration">Duration *</Label>
                 <div className="relative">
                   <Clock className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
                   <Input
                     id="duration"
-                    type="number"
+                    type="text"
                     value={formData.duration}
-                    onChange={(e) => handleInputChange("duration", Number(e.target.value))}
-                    placeholder="6"
+                    onChange={(e) => handleInputChange("duration", e.target.value)}
+                    placeholder="6 hours"
                     className="pl-10"
-                    min="1"
                     required
-                    data-testid="input-charter-duration"
                   />
                 </div>
               </div>
@@ -582,54 +524,8 @@ export default function EditCharter() {
                     className="pl-10"
                     min="1"
                     required
-                    data-testid="input-charter-max-guests"
                   />
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Amenities */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Amenities & Features</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {commonAmenities.map((amenity) => (
-                  <div
-                    key={amenity}
-                    onClick={() => handleAmenityToggle(amenity)}
-                    className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                      formData.amenities.includes(amenity)
-                        ? "bg-ocean-blue/10 border-ocean-blue text-ocean-blue"
-                        : "bg-gray-50 border-gray-200 hover:bg-gray-100"
-                    }`}
-                    data-testid={`amenity-${amenity.toLowerCase().replace(/\s+/g, '-')}`}
-                  >
-                    <span className="text-sm font-medium">{amenity}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Requirements */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Requirements & Notes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div>
-                <Label htmlFor="requirements">Special Requirements (Optional)</Label>
-                <Textarea
-                  id="requirements"
-                  value={formData.requirements}
-                  onChange={(e) => handleInputChange("requirements", e.target.value)}
-                  placeholder="Any age restrictions, experience requirements, or special notes..."
-                  rows={3}
-                  data-testid="textarea-charter-requirements"
-                />
               </div>
             </CardContent>
           </Card>
@@ -650,7 +546,6 @@ export default function EditCharter() {
                 <Switch
                   checked={formData.isListed}
                   onCheckedChange={(checked) => handleInputChange("isListed", checked)}
-                  data-testid="switch-charter-listed"
                 />
               </div>
             </CardContent>
@@ -658,18 +553,13 @@ export default function EditCharter() {
 
           {/* Submit Button */}
           <div className="flex justify-end gap-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setLocation("/captain/charters")}
-            >
+            <Button type="button" variant="outline" onClick={() => setLocation("/captain/charters")}>
               Cancel
             </Button>
             <Button
               type="submit"
               className="bg-ocean-blue hover:bg-deep-blue"
               disabled={updateCharterMutation.isPending}
-              data-testid="button-save-charter"
             >
               {updateCharterMutation.isPending ? (
                 <>
