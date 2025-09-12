@@ -142,6 +142,26 @@ export const availability = pgTable(
 );
 
 // =====================
+// Captain Payment Info
+// =====================
+export const captainPaymentInfo = pgTable("captain_payment_info", {
+  id: serial("id").primaryKey(),
+  captainId: integer("captain_id").references(() => captains.id).notNull().unique(),
+  bankName: text("bank_name"),
+  accountNumber: text("account_number"),
+  routingNumber: text("routing_number"),
+  accountHolderName: text("account_holder_name"),
+  paypalEmail: text("paypal_email"),
+  venmoUsername: text("venmo_username"),
+  zelleEmail: text("zelle_email"),
+  cashAppTag: text("cashapp_tag"),
+  instructions: text("instructions"), // Custom payment instructions
+  preferredMethod: text("preferred_method").default("bank"), // "bank", "paypal", "venmo", "zelle", "cashapp"
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// =====================
 // Insert Schemas
 // =====================
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -180,6 +200,12 @@ export const insertAvailabilitySchema = createInsertSchema(availability).omit({
   createdAt: true,
 });
 
+export const insertCaptainPaymentInfoSchema = createInsertSchema(captainPaymentInfo).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // =====================
 // Types
 // =====================
@@ -190,6 +216,7 @@ export type Booking = typeof bookings.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
 export type Availability = typeof availability.$inferSelect;
+export type CaptainPaymentInfo = typeof captainPaymentInfo.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type UpsertUser = typeof users.$inferInsert;
@@ -199,6 +226,7 @@ export type InsertBooking = z.infer<typeof insertBookingSchema>;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type InsertReview = z.infer<typeof insertReviewSchema>;
 export type InsertAvailability = z.infer<typeof insertAvailabilitySchema>;
+export type InsertCaptainPaymentInfo = z.infer<typeof insertCaptainPaymentInfoSchema>;
 
 // Extended types for API responses
 export type CharterWithCaptain = Charter & {
