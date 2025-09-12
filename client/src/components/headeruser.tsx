@@ -37,7 +37,7 @@ export default function HeaderUser() {
             <img
               src="/attached_assets/IMG_2128-Photoroom_1749772590031.png"
               alt="Charterly Logo"
-              className="h-20 md:h-24 lg:h-28 w-auto object-contain transition-transform hover:scale-110"
+              className="h-32 md:h-36 lg:h-40 w-auto object-contain transition-transform hover:scale-110"
             />
           </div>
         </Link>

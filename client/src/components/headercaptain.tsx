@@ -56,7 +56,7 @@ export default function HeaderCaptain({
           <img
             src={logoSrc}
             alt="Charterly"
-            className="h-20 md:h-24 lg:h-[96px] w-auto object-contain"
+            className="h-32 md:h-36 lg:h-40 w-auto object-contain"
           />
         </Link>
 
@@ -127,7 +127,7 @@ function MobileCaptainDrawer({
             <img
               src={logoSrc}
               alt="Charterly"
-              className="h-10 w-auto object-contain"
+              className="h-16 w-auto object-contain"
             />
             <span className="text-sm text-gray-500">Captain Panel</span>
           </Link>
