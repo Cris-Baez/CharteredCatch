@@ -35,6 +35,7 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useToast } from "@/hooks/use-toast";
 
 import {
   MapPin,
@@ -80,6 +81,7 @@ export default function CharterDetailUser() {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [active, setActive] = useState(0);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const { toast } = useToast();
 
   // 1) Usuario autenticado (protección de ruta)
   const {
@@ -144,8 +146,7 @@ export default function CharterDetailUser() {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          // idealmente el backend toma el userId desde la sesión
-          userId: me.id,
+          // backend takes userId from session for security
           charterId: charter.id,
           tripDate: data.tripDate.toISOString(),
           guests: data.guests,
@@ -160,29 +161,21 @@ export default function CharterDetailUser() {
 
       setIsBookingOpen(false);
 
-      // Redirige a checkout con bookingId (y fallback si no viene id)
-      const bookingId =
-        typeof created?.id === "number" || typeof created?.id === "string"
-          ? String(created.id)
-          : "";
-      const q = new URLSearchParams({
-        ...(bookingId ? { bookingId } : {}),
-        charterId: String(charter.id),
-        date: data.tripDate.toISOString(),
-        guests: String(data.guests),
-      }).toString();
+      toast({
+        title: "Booking Requested!",
+        description: "Your booking request has been sent to the captain. You'll be notified when it's confirmed and ready for payment.",
+      });
 
-      setLocation(`/user/checkout?${q}`);
+      // Redirect to my-trips to see pending booking
+      setLocation("/user/my-trips");
     } catch (err) {
       console.error(err);
       setIsBookingOpen(false);
-      // En caso de error igual llevamos a checkout con datos mínimos para reintentar pago
-      const q = new URLSearchParams({
-        charterId: String(charter?.id ?? ""),
-        date: data.tripDate.toISOString(),
-        guests: String(data.guests),
-      }).toString();
-      setLocation(`/user/checkout?${q}`);
+      toast({
+        title: "Booking Failed",
+        description: "Please try again later.",
+        variant: "destructive",
+      });
     }
   };
 
