@@ -181,36 +181,69 @@ export default function CaptainProfile() {
     },
   });
 
+  // Upload to Cloudinary
+  const uploadToCloudinary = async (file: File): Promise<string> => {
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+    
+    if (!cloudName || !uploadPreset) {
+      throw new Error('Cloudinary configuration is missing. Please check your environment variables.');
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', uploadPreset);
+    
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+    
+    if (!response.ok) {
+      throw new Error('Failed to upload image to Cloudinary');
+    }
+    
+    const data = await response.json();
+    return data.secure_url;
+  };
+
   // Avatar
   const handleAvatarUpload = async (file: File) => {
     try {
       setUploadingAvatar(true);
       
-      // Convertir file a base64
-      const reader = new FileReader();
-      reader.onload = async () => {
-        try {
-          const base64 = reader.result as string;
-          const r = await fetch("/api/captain/avatar", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ avatar: base64 }),
-          });
-          if (!r.ok) {
-            const t = await r.text();
-            throw new Error(t || "Avatar upload failed");
-          }
-          await queryClient.invalidateQueries({ queryKey: ["/api/captain/me"] });
-        } catch (e: any) {
-          alert(e?.message || "Avatar upload failed");
-        } finally {
-          setUploadingAvatar(false);
-        }
-      };
-      reader.readAsDataURL(file);
+      // Validate file
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error("Image too large. Maximum size is 5MB");
+      }
+
+      if (!file.type.startsWith("image/")) {
+        throw new Error("Invalid file type. Only images are allowed");
+      }
+      
+      // Upload to Cloudinary
+      const avatarUrl = await uploadToCloudinary(file);
+      
+      // Send URL to backend
+      const r = await fetch("/api/captain/avatar", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ avatar: avatarUrl }),
+      });
+      
+      if (!r.ok) {
+        const t = await r.text();
+        throw new Error(t || "Avatar upload failed");
+      }
+      
+      await queryClient.invalidateQueries({ queryKey: ["/api/captain/me"] });
     } catch (e: any) {
       alert(e?.message || "Avatar upload failed");
+    } finally {
       setUploadingAvatar(false);
     }
   };

@@ -1450,22 +1450,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Unauthorized" });
       }
 
-      // Por simplicidad, vamos a manejar el avatar como base64 en lugar de files
-      // El frontend puede enviar la imagen como base64 en el body
       const { avatar } = req.body ?? {};
 
       if (!avatar || typeof avatar !== "string") {
-        return res.status(400).json({ error: "Avatar data required" });
+        return res.status(400).json({ error: "Avatar URL required" });
       }
 
-      // Validaciones de seguridad para base64
-      if (avatar.length > 5 * 1024 * 1024) { // 5MB limit
-        return res.status(400).json({ error: "Image too large. Maximum size is 5MB" });
-      }
-
-      // Verificar que sea base64 válido y tipo de imagen
-      if (!avatar.startsWith('data:image/')) {
-        return res.status(400).json({ error: "Invalid image format. Only images are allowed" });
+      // Validar que sea una URL válida (http/https)
+      if (!avatar.startsWith("http://") && !avatar.startsWith("https://")) {
+        return res.status(400).json({ error: "Invalid avatar format, only URLs allowed" });
       }
 
       const [captain] = await db
