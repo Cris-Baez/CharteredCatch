@@ -1,0 +1,73 @@
+Perfecto 👌, aquí tienes un resumen claro y ordenado de todos los problemas detectados en tu proyecto para que se lo pases directo al agente/IA que vaya a corregirlos:
+
+⸻
+
+🚨 Problemas detectados en el proyecto
+
+1. Inconsistencias de tipos en charters
+	•	price en DB es decimal → pero en routes.ts lo estabas tratando como string.
+	•	duration en DB es text → pero en PATCH /api/charters/:id lo convertías con Number(duration).
+	•	lat y lng en DB son decimal → en POST /api/captain/charters los convertías a string.
+
+⚠️ Esto provoca 500 cuando Drizzle intenta castear los valores.
+
+⸻
+
+2. Columna images
+	•	En schema.ts defines images: text("images").array().
+	•	Si en Postgres la columna realmente es text y no text[], entonces cada vez que intentas insertar un array (["img1", "img2"]) la consulta falla.
+
+⚠️ Confirmar el DDL de la tabla charters en la base de datos.
+
+⸻
+
+3. Filtros en /api/charters
+	•	Estás aplicando filtros con eq incluso cuando vienen vacíos ("").
+	•	Ejemplo: ?duration= → genera eq(duration, ""), lo cual nunca matchea nada.
+
+⚠️ Resultado: los charters no se muestran aunque existan en la base.
+
+⸻
+
+4. Sesiones
+	•	En schema.ts la tabla se llama sessions.
+	•	En routes.ts la estabas configurando como session.
+
+⚠️ Eso rompe el guardado de sesiones → req.session.userId puede ser undefined, lo que impide crear charters desde el panel de capitán.
+
+⸻
+
+5. Conversión de datos hacia el frontend
+	•	price llega como string desde Drizzle ("200.00") y no lo conviertes a number.
+	•	duration se guarda como texto libre, pero en el frontend esperas un valor uniforme ("6 hours", "8 hours").
+
+⚠️ Resultado: el frontend puede mostrar valores inconsistentes o romper si espera números.
+
+⸻
+
+✅ Cambios que deben hacerse
+	1.	Unificar tipos en routes.ts:
+	•	price → siempre manejarlo como string en DB, pero convertir a Number() al enviar al frontend.
+	•	duration → tratarlo siempre como string.
+	•	lat/lng → guardar como number, no como string.
+	2.	Verificar columna images:
+	•	Confirmar si es text[].
+	•	Si no lo es, migrar a text[] o guardar como jsonb.
+	3.	Ajustar filtros en /api/charters:
+	•	Ignorar query params vacíos (undefined o "").
+Ejemplo:
+
+duration && duration.trim() !== ""
+  ? eq(chartersTable.duration, duration)
+  : undefined,
+
+
+	4.	Corregir la tabla de sesión:
+	•	Usar tableName: "sessions" en la configuración de PgStore.
+	5.	Normalizar salida al frontend:
+	•	Convertir price a número (Number(r.price)).
+	•	Asegurar que duration siempre se guarde en formato uniforme ("4 hours", "6 hours", etc.).
+
+⸻
+
+¿Quieres que te lo prepare también en formato “tareas para el agente” (checklist con pasos exactos de edición de código y DB) para que solo tenga que ir ejecutando uno por uno?

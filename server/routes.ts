@@ -522,14 +522,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const whereCond = andAll([
         eq(chartersTable.isListed, true),
-        location
+        location && String(location).trim() !== ""
           ? ilike(chartersTable.location, `%${String(location)}%`)
           : undefined,
-        targetSpecies
+        targetSpecies && String(targetSpecies).trim() !== ""
           ? ilike(chartersTable.targetSpecies, `%${String(targetSpecies)}%`)
           : undefined,
-        duration ? eq(chartersTable.duration, String(duration)) : undefined,
-        captainId ? eq(chartersTable.captainId, Number(captainId)) : undefined,
+        duration && String(duration).trim() !== ""
+          ? eq(chartersTable.duration, String(duration))
+          : undefined,
+        captainId && String(captainId).trim() !== ""
+          ? eq(chartersTable.captainId, Number(captainId))
+          : undefined,
       ]);
 
       const baseQuery = db
@@ -836,8 +840,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         title: String(title),
         description: String(description),
         location: String(location),
-        lat: typeof lat === "number" ? lat.toString() : null,
-        lng: typeof lng === "number" ? lng.toString() : null,
+        lat: typeof lat === "number" ? lat : null,
+        lng: typeof lng === "number" ? lng : null,
         targetSpecies: String(targetSpecies),
         duration: String(duration),
         maxGuests: Number(maxGuests),
