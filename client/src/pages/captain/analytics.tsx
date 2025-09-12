@@ -209,7 +209,7 @@ export default function CaptainAnalytics() {
         <div className="mb-6 lg:mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Analytics & Insights</h1>
-            <p className="text-storm-gray">.</p>
+            <p className="text-storm-gray">Track your performance and grow your charter business.</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -364,7 +364,7 @@ export default function CaptainAnalytics() {
                     <div>
                       <p className="font-semibold">{fmtMoney(pendingAmount, currency)}</p>
                       <p className="text-sm text-storm-gray">
-                        {typeof pendingTrips === "number" ? `${pendingTrips} trips waiting confirmation` : "Awaiting confirmation"}
+                        {typeof pendingTrips === "number" ? `${pendingTrips} trips awaiting confirmation` : "Awaiting confirmation"}
                       </p>
                     </div>
                     <Button variant="outline" asChild>
@@ -382,9 +382,9 @@ export default function CaptainAnalytics() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <TipItem title="Keep availability updated" desc="Calendarios al día evitan rechazos y aumentan conversiones." />
-                  <TipItem title="Photos & details matter" desc="Imágenes nítidas y descripciones claras elevan el interés." />
-                  <TipItem title="Encourage reviews" desc="Un follow-up corto tras cada viaje mejora tu rating sostenido." />
+                  <TipItem title="Keep availability updated" desc="Up-to-date calendars avoid rejections and increase conversions." />
+                  <TipItem title="Photos & details matter" desc="Sharp images and clear descriptions increase interest." />
+                  <TipItem title="Encourage reviews" desc="A short follow-up after each trip improves your sustained rating." />
                 </div>
               </CardContent>
             </Card>

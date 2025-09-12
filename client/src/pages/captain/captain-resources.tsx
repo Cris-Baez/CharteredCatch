@@ -166,7 +166,7 @@ export default function CaptainResources() {
                     </ul>
                   </div>
                   <div className="text-xs text-storm-gray">
-                    Nota: verifica requisitos locales/estatales según tu zona.
+                    Note: verify local/state requirements according to your area.
                   </div>
                 </div>
               </CardContent>
