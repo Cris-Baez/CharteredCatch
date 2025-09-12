@@ -6,6 +6,7 @@ import {
   messages,
   reviews,
   availability,
+  captainPaymentInfo,
   type User,
   type Captain,
   type Charter,
@@ -13,6 +14,7 @@ import {
   type Message,
   type Review,
   type Availability,
+  type CaptainPaymentInfo,
   type UpsertUser,
   type InsertCaptain,
   type InsertCharter,
@@ -20,6 +22,7 @@ import {
   type InsertMessage,
   type InsertReview,
   type InsertAvailability,
+  type InsertCaptainPaymentInfo,
   type CharterWithCaptain,
   type MessageThread,
 } from "@shared/schema";
@@ -93,6 +96,10 @@ export interface IStorage {
   getCaptainRecentBookings(captainId: number): Promise<any[]>;
   getCaptainMessageThreads(captainId: number): Promise<any[]>;
   getCaptainEarnings(captainId: number): Promise<any>;
+
+  // Captain Payment Info
+  getCaptainPaymentInfo(captainId: number): Promise<CaptainPaymentInfo | undefined>;
+  upsertCaptainPaymentInfo(captainId: number, paymentInfo: Partial<InsertCaptainPaymentInfo>): Promise<CaptainPaymentInfo>;
 
   // Admin operations
   getAllCaptainsWithUsers(): Promise<(Captain & { user: User })[]>;
@@ -502,6 +509,30 @@ export class DatabaseStorage implements IStorage {
       .where(eq(charters.id, charterId))
       .returning();
     return charter;
+  }
+
+  // =====================
+  // CAPTAIN PAYMENT INFO
+  // =====================
+
+  async getCaptainPaymentInfo(captainId: number): Promise<CaptainPaymentInfo | undefined> {
+    const [paymentInfo] = await db
+      .select()
+      .from(captainPaymentInfo)
+      .where(eq(captainPaymentInfo.captainId, captainId));
+    return paymentInfo;
+  }
+
+  async upsertCaptainPaymentInfo(captainId: number, paymentInfo: Partial<InsertCaptainPaymentInfo>): Promise<CaptainPaymentInfo> {
+    const [result] = await db
+      .insert(captainPaymentInfo)
+      .values({ captainId, ...paymentInfo })
+      .onConflictDoUpdate({
+        target: captainPaymentInfo.captainId,
+        set: { ...paymentInfo, updatedAt: new Date() },
+      })
+      .returning();
+    return result;
   }
 }
 

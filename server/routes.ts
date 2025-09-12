@@ -10,6 +10,7 @@ import cors from "cors";
 import Stripe from "stripe"; // Stripe integration for subscriptions
 
 import { db } from "./db";
+import { storage } from "./storage";
 import {
   users as usersTable,
   captains as captainsTable,
@@ -17,6 +18,9 @@ import {
   bookings as bookingsTable,
   availability as availabilityTable,
   messages,
+  captainPaymentInfo as captainPaymentInfoTable,
+  insertCaptainPaymentInfoSchema,
+  type CaptainPaymentInfo,
 } from "@shared/schema";
 import { and, eq, ilike, inArray, gte, lt } from "drizzle-orm";
 
@@ -45,6 +49,15 @@ function andAll<T>(conds: (T | undefined)[]) {
 // Helper para convertir campos numéricos manejando nulos
 function toNumberOrNull(value: any): number | null {
   return value != null ? Number(value) : null;
+}
+
+// Helper para enmascarar datos sensibles en payment info
+function maskSensitivePaymentData(paymentInfo: CaptainPaymentInfo): CaptainPaymentInfo {
+  return {
+    ...paymentInfo,
+    accountNumber: paymentInfo.accountNumber ? `****${paymentInfo.accountNumber.slice(-4)}` : null,
+    routingNumber: paymentInfo.routingNumber ? `****${paymentInfo.routingNumber.slice(-4)}` : null,
+  };
 }
 
 // Serializador para charters
@@ -2279,6 +2292,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Create payment intent error:", error);
       res.status(500).json({ error: "Failed to create payment intent: " + error.message });
+    }
+  });
+
+  // ==============================
+  // CAPTAIN PAYMENT INFO
+  // ==============================
+
+  // CAPTAIN: Get payment info
+  app.get("/api/captain/payment-info", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      // Get captain profile using storage
+      const captain = await storage.getCaptainByUserId(req.session.userId);
+      if (!captain) {
+        return res.status(403).json({ error: "Captain profile required" });
+      }
+
+      // Get payment info using storage
+      const paymentInfo = await storage.getCaptainPaymentInfo(captain.id);
+      if (!paymentInfo) {
+        return res.status(404).json({ error: "Payment information not found" });
+      }
+
+      // Return masked sensitive data for security
+      const maskedPaymentInfo = maskSensitivePaymentData(paymentInfo);
+      res.json(maskedPaymentInfo);
+    } catch (error) {
+      console.error("Get payment info error:", error);
+      res.status(500).json({ error: "Failed to get payment information" });
+    }
+  });
+
+  // CAPTAIN: Save payment info
+  app.post("/api/captain/payment-info", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      // Get captain profile using storage
+      const captain = await storage.getCaptainByUserId(req.session.userId);
+      if (!captain) {
+        return res.status(403).json({ error: "Captain profile required" });
+      }
+
+      // Validate request body using Zod schema
+      const validationResult = insertCaptainPaymentInfoSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid payment information", 
+          details: validationResult.error.issues.map(issue => ({
+            field: issue.path.join('.'),
+            message: issue.message
+          }))
+        });
+      }
+
+      const validatedData = validationResult.data;
+
+      // Save payment info using storage interface
+      const paymentInfo = await storage.upsertCaptainPaymentInfo(captain.id, validatedData);
+
+      // Return masked sensitive data for security
+      const maskedPaymentInfo = maskSensitivePaymentData(paymentInfo);
+      res.json(maskedPaymentInfo);
+    } catch (error) {
+      console.error("Save payment info error:", error);
+      res.status(500).json({ error: "Failed to save payment information" });
     }
   });
 
