@@ -206,7 +206,7 @@ export default function Home() {
                       <div className="relative h-52 overflow-hidden">
                         <img src={charter.images?.[0] || GRAY_PLACEHOLDER} alt={charter.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                         <div className="absolute top-4 left-4">
-                          <Badge className="bg-white/90 text-ocean-blue border border-ocean-blue/20 font-semibold shadow-sm">{charter.duration || "Trip"}</Badge>
+                          <Badge className="bg-white/90 text-ocean-blue border border-ocean-blue/20 font-semibold shadow-sm">{charter.targetSpecies || "Trip"}</Badge>
                         </div>
                       </div>
                       <CardContent className="p-6 flex-1 flex flex-col">
