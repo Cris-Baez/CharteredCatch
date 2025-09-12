@@ -857,6 +857,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PATCH /api/charters/:id → actualizar charter (solo del captain propietario)
+  app.patch("/api/charters/:id", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const charterId = Number(req.params.id);
+      if (!Number.isFinite(charterId)) {
+        return res.status(400).json({ message: "Invalid charter ID" });
+      }
+
+      // Verificar que el usuario es un capitán
+      const [cap] = await db
+        .select({ id: captainsTable.id })
+        .from(captainsTable)
+        .where(eq(captainsTable.userId, req.session.userId));
+
+      if (!cap) {
+        return res.status(403).json({ message: "Captain profile required" });
+      }
+
+      // Verificar que el charter pertenece al capitán
+      const [existingCharter] = await db
+        .select({ id: chartersTable.id, captainId: chartersTable.captainId })
+        .from(chartersTable)
+        .where(eq(chartersTable.id, charterId));
+
+      if (!existingCharter) {
+        return res.status(404).json({ message: "Charter not found" });
+      }
+
+      if (existingCharter.captainId !== cap.id) {
+        return res.status(403).json({ message: "Not your charter" });
+      }
+
+      const {
+        title,
+        description,
+        location,
+        price,
+        duration,
+        maxGuests,
+        isListed,
+        amenities,
+        requirements,
+        images,
+      } = req.body ?? {};
+
+      // Construir objeto de actualización solo con campos proporcionados
+      const updateData: any = {};
+      
+      if (title !== undefined) updateData.title = String(title);
+      if (description !== undefined) updateData.description = String(description);
+      if (location !== undefined) updateData.location = String(location);
+      if (price !== undefined) updateData.price = String(price);
+      if (duration !== undefined) updateData.duration = Number(duration);
+      if (maxGuests !== undefined) updateData.maxGuests = Number(maxGuests);
+      if (isListed !== undefined) updateData.isListed = Boolean(isListed);
+      if (requirements !== undefined) updateData.requirements = String(requirements);
+      if (images !== undefined) updateData.images = Array.isArray(images) ? images.slice(0, 10) : [];
+
+      const [updated] = await db
+        .update(chartersTable)
+        .set(updateData)
+        .where(eq(chartersTable.id, charterId))
+        .returning();
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Update charter error:", error);
+      return res.status(500).json({ message: "Failed to update charter" });
+    }
+  });
+
   // ==============================
   // CAPTAINS
   // ==============================

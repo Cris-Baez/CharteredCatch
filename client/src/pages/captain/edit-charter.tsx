@@ -160,12 +160,43 @@ export default function EditCharter() {
       };
       reader.readAsDataURL(file);
     });
+    
+    // Reset input para permitir seleccionar el mismo archivo nuevamente
+    event.target.value = '';
   };
 
   const handleImageRemove = (index: number) => {
     setFormData(prev => ({
       ...prev,
       images: prev.images.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleImageReplace = (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const imageDataUrl = e.target?.result as string;
+      setFormData(prev => ({
+        ...prev,
+        images: prev.images.map((img, i) => i === index ? imageDataUrl : img)
+      }));
+    };
+    reader.readAsDataURL(file);
+    
+    // Reset input
+    event.target.value = '';
+  };
+
+  const handleImageMoveToFirst = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      images: [
+        prev.images[index],
+        ...prev.images.filter((_, i) => i !== index)
+      ]
     }));
   };
 
@@ -286,6 +317,11 @@ export default function EditCharter() {
               <CardTitle className="flex items-center">
                 <Image className="w-5 h-5 mr-2" />
                 Charter Images
+                {formData.images.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {formData.images.length} image{formData.images.length !== 1 ? 's' : ''}
+                  </Badge>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -293,23 +329,82 @@ export default function EditCharter() {
                 {/* Current Images */}
                 {formData.images.length > 0 && (
                   <div>
-                    <Label>Current Images</Label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2">
+                    <Label>Charter Images</Label>
+                    <p className="text-xs text-gray-500 mb-3">
+                      {formData.images.length > 0 && "First image will be used as main photo"}
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
                       {formData.images.map((image, index) => (
-                        <div key={index} className="relative group">
+                        <div key={index} className="relative group border rounded-lg overflow-hidden">
                           <img
                             src={image}
                             alt={`Charter image ${index + 1}`}
-                            className="w-full h-24 object-cover rounded-lg border"
+                            className="w-full h-32 object-cover"
                           />
-                          <button
-                            type="button"
-                            onClick={() => handleImageRemove(index)}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                            data-testid={`button-remove-image-${index}`}
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
+                          
+                          {/* Image overlay with controls */}
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <div className="flex gap-2">
+                              {/* Make Main Photo */}
+                              {index !== 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleImageMoveToFirst(index)}
+                                  className="bg-blue-500 text-white rounded-full p-2 hover:bg-blue-600 transition-colors"
+                                  title="Set as main photo"
+                                  data-testid={`button-make-main-${index}`}
+                                >
+                                  <Upload className="w-3 h-3" />
+                                </button>
+                              )}
+                              
+                              {/* Replace Image */}
+                              <div>
+                                <input
+                                  type="file"
+                                  id={`replace-image-${index}`}
+                                  accept="image/*"
+                                  onChange={(e) => handleImageReplace(index, e)}
+                                  className="hidden"
+                                  data-testid={`input-replace-image-${index}`}
+                                />
+                                <label
+                                  htmlFor={`replace-image-${index}`}
+                                  className="bg-green-500 text-white rounded-full p-2 hover:bg-green-600 transition-colors cursor-pointer inline-flex"
+                                  title="Replace image"
+                                >
+                                  <Image className="w-3 h-3" />
+                                </label>
+                              </div>
+                              
+                              {/* Delete Image */}
+                              <button
+                                type="button"
+                                onClick={() => handleImageRemove(index)}
+                                className="bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition-colors"
+                                title="Delete image"
+                                data-testid={`button-remove-image-${index}`}
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                          
+                          {/* Main photo indicator */}
+                          {index === 0 && (
+                            <div className="absolute top-2 left-2">
+                              <Badge className="bg-blue-600 text-white text-xs">
+                                Main Photo
+                              </Badge>
+                            </div>
+                          )}
+                          
+                          {/* Image counter */}
+                          <div className="absolute bottom-2 right-2">
+                            <Badge variant="secondary" className="text-xs">
+                              {index + 1}
+                            </Badge>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -342,7 +437,7 @@ export default function EditCharter() {
                     </label>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    Add multiple images to showcase your charter. You can upload JPG, PNG files.
+                    Add multiple images to showcase your charter. You can upload JPG, PNG files. First image will be used as main photo.
                   </p>
                 </div>
               </div>
