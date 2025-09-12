@@ -210,7 +210,7 @@ export default function Home() {
                         </div>
                       </div>
                       <CardContent className="p-6 flex-1 flex flex-col">
-                        <h3 className="text-xl font-bold text-gray-900 mb-1 line-clamp-2">{charter.title}</h3>
+                        <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-2">{charter.title}</h3>
                         <p className="text-gray-600 mb-2 flex items-center line-clamp-1">
                           <MapPin className="w-4 h-4 mr-1 text-ocean-blue flex-shrink-0" />
                           {charter.location}
