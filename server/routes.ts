@@ -873,6 +873,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.session.userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
+
       const [cap] = await db
         .select({ id: captainsTable.id })
         .from(captainsTable)
@@ -936,14 +937,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         duration,
         maxGuests,
         isListed,
-        amenities,
-        requirements,
         images,
       } = req.body ?? {};
 
-      // Construir objeto de actualización solo con campos proporcionados
+      // Construir objeto de actualización solo con campos válidos
       const updateData: any = {};
-      
+
       if (title !== undefined) updateData.title = String(title);
       if (description !== undefined) updateData.description = String(description);
       if (location !== undefined) updateData.location = String(location);
@@ -951,24 +950,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (duration !== undefined) updateData.duration = String(duration);
       if (maxGuests !== undefined) updateData.maxGuests = Number(maxGuests);
       if (isListed !== undefined) updateData.isListed = Boolean(isListed);
-      if (requirements !== undefined) updateData.requirements = String(requirements);
+
       if (images !== undefined) {
         if (Array.isArray(images)) {
-          // Validar que cada imagen sea base64 válida y no muy grande
+          // Validar y limitar a 10 imágenes
+          const validImages = [];
           for (const img of images) {
             if (typeof img === "string") {
-              if (img.length > 5 * 1024 * 1024) { // 5MB limit per image
-                return res.status(400).json({ message: "One or more images are too large. Maximum size is 5MB per image" });
+              if (img.length > 5 * 1024 * 1024) {
+                return res
+                  .status(400)
+                  .json({ message: "One or more images are too large (max 5MB)" });
               }
-              if (img.startsWith('data:image/') || img.startsWith('http')) {
-                // Valid image URL or base64
-                continue;
-              } else if (img.length > 0) {
-                return res.status(400).json({ message: "Invalid image format detected" });
+              if (img.startsWith("data:image/") || img.startsWith("http")) {
+                validImages.push(img);
               }
             }
           }
-          updateData.images = images.slice(0, 10); // Limit to 10 images
+          updateData.images = validImages.slice(0, 10);
         } else {
           updateData.images = [];
         }
