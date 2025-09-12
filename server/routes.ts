@@ -1230,6 +1230,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+  // ==============================
+  // CAPTAIN PROFILE MANAGEMENT
+  // ==============================
+  
+  // GET /api/captain/me - obtener perfil del captain logueado
+  app.get("/api/captain/me", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const [captain] = await db
+        .select({
+          id: captainsTable.id,
+          userId: captainsTable.userId,
+          bio: captainsTable.bio,
+          experience: captainsTable.experience,
+          licenseNumber: captainsTable.licenseNumber,
+          location: captainsTable.location,
+          avatar: captainsTable.avatar,
+          verified: captainsTable.verified,
+          rating: captainsTable.rating,
+          reviewCount: captainsTable.reviewCount,
+        })
+        .from(captainsTable)
+        .where(eq(captainsTable.userId, req.session.userId));
+
+      if (!captain) {
+        return res.status(404).json({ error: "Captain profile not found" });
+      }
+
+      return res.json(captain);
+    } catch (error) {
+      console.error("Get captain me error:", error);
+      return res.status(500).json({ error: "Failed to fetch captain profile" });
+    }
+  });
+
+  // PATCH /api/captain/me - actualizar perfil del captain logueado
+  app.patch("/api/captain/me", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const [captain] = await db
+        .select()
+        .from(captainsTable)
+        .where(eq(captainsTable.userId, req.session.userId));
+
+      if (!captain) {
+        return res.status(404).json({ error: "Captain profile not found" });
+      }
+
+      const { bio, licenseNumber, location, experience } = req.body ?? {};
+
+      const [updated] = await db
+        .update(captainsTable)
+        .set({
+          bio: typeof bio === "string" ? bio : captain.bio,
+          licenseNumber: typeof licenseNumber === "string" ? licenseNumber : captain.licenseNumber,
+          location: typeof location === "string" ? location : captain.location,
+          experience: typeof experience === "string" ? experience : captain.experience,
+        })
+        .where(eq(captainsTable.userId, req.session.userId))
+        .returning();
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Update captain me error:", error);
+      return res.status(500).json({ error: "Failed to update captain profile" });
+    }
+  });
+
+  // PATCH /api/captain/avatar - subir avatar del captain
+  app.patch("/api/captain/avatar", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      // Por simplicidad, vamos a manejar el avatar como base64 en lugar de files
+      // El frontend puede enviar la imagen como base64 en el body
+      const { avatar } = req.body ?? {};
+
+      if (!avatar || typeof avatar !== "string") {
+        return res.status(400).json({ error: "Avatar data required" });
+      }
+
+      const [captain] = await db
+        .select()
+        .from(captainsTable)
+        .where(eq(captainsTable.userId, req.session.userId));
+
+      if (!captain) {
+        return res.status(404).json({ error: "Captain profile not found" });
+      }
+
+      const [updated] = await db
+        .update(captainsTable)
+        .set({ avatar })
+        .where(eq(captainsTable.userId, req.session.userId))
+        .returning();
+
+      return res.json({ success: true, avatar: updated.avatar });
+    } catch (error) {
+      console.error("Update avatar error:", error);
+      return res.status(500).json({ error: "Failed to update avatar" });
+    }
+  });
+
     // ==============================
     // CAPTAINS EXTRA (Onboarding + Suscripción - stub)
     // ==============================

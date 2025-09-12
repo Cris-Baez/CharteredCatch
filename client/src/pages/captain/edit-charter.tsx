@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 
 // Icons
-import { ArrowLeft, Save, Ship, MapPin, DollarSign, Users, Clock, Image } from "lucide-react";
+import { ArrowLeft, Save, Ship, MapPin, DollarSign, Users, Clock, Image, X, Upload, Plus } from "lucide-react";
 
 type Charter = {
   id: number;
@@ -145,6 +145,30 @@ export default function EditCharter() {
     }));
   };
 
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const imageDataUrl = e.target?.result as string;
+        setFormData(prev => ({
+          ...prev,
+          images: [...prev.images, imageDataUrl]
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageRemove = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     updateCharterMutation.mutate(formData);
@@ -251,6 +275,75 @@ export default function EditCharter() {
                     required
                     data-testid="input-charter-location"
                   />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Images */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Image className="w-5 h-5 mr-2" />
+                Charter Images
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Current Images */}
+                {formData.images.length > 0 && (
+                  <div>
+                    <Label>Current Images</Label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2">
+                      {formData.images.map((image, index) => (
+                        <div key={index} className="relative group">
+                          <img
+                            src={image}
+                            alt={`Charter image ${index + 1}`}
+                            className="w-full h-24 object-cover rounded-lg border"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleImageRemove(index)}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                            data-testid={`button-remove-image-${index}`}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Add Images */}
+                <div>
+                  <Label>Add New Images</Label>
+                  <div className="mt-2">
+                    <input
+                      type="file"
+                      id="image-upload"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      data-testid="input-image-upload"
+                    />
+                    <label
+                      htmlFor="image-upload"
+                      className="flex items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-ocean-blue hover:bg-ocean-50 transition-colors"
+                    >
+                      <div className="text-center">
+                        <Plus className="w-6 h-6 mx-auto text-gray-400 mb-1" />
+                        <span className="text-sm text-gray-600">
+                          Click to add images
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Add multiple images to showcase your charter. You can upload JPG, PNG files.
+                  </p>
                 </div>
               </div>
             </CardContent>

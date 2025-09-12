@@ -185,21 +185,32 @@ export default function CaptainProfile() {
   const handleAvatarUpload = async (file: File) => {
     try {
       setUploadingAvatar(true);
-      const fd = new FormData();
-      fd.append("avatar", file);
-      const r = await fetch("/api/captain/avatar", {
-        method: "PATCH",
-        credentials: "include",
-        body: fd,
-      });
-      if (!r.ok) {
-        const t = await r.text();
-        throw new Error(t || "Avatar upload failed");
-      }
-      await queryClient.invalidateQueries({ queryKey: ["/api/captain/me"] });
+      
+      // Convertir file a base64
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64 = reader.result as string;
+          const r = await fetch("/api/captain/avatar", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ avatar: base64 }),
+          });
+          if (!r.ok) {
+            const t = await r.text();
+            throw new Error(t || "Avatar upload failed");
+          }
+          await queryClient.invalidateQueries({ queryKey: ["/api/captain/me"] });
+        } catch (e: any) {
+          alert(e?.message || "Avatar upload failed");
+        } finally {
+          setUploadingAvatar(false);
+        }
+      };
+      reader.readAsDataURL(file);
     } catch (e: any) {
       alert(e?.message || "Avatar upload failed");
-    } finally {
       setUploadingAvatar(false);
     }
   };
