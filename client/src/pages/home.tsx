@@ -177,13 +177,15 @@ export default function Home() {
                     <Card className="overflow-hidden shadow hover:shadow-lg transition h-full flex flex-col">
                       <MobileImageCarousel images={charter.images} />
                       <img src={charter.images?.[0] || GRAY_PLACEHOLDER} alt={charter.title} className="hidden md:block h-40 w-full object-cover" />
-                      <CardContent className="p-4 space-y-2 flex-1 flex flex-col">
-                        <h3 className="text-lg font-bold text-gray-900 line-clamp-2">{charter.title}</h3>
-                        <p className="flex items-center text-gray-600 text-sm line-clamp-1">
+                      <CardContent className="p-4 flex-1 flex flex-col">
+                        <div className="h-14 mb-2">
+                          <h3 className="text-lg font-bold text-gray-900 line-clamp-2 leading-tight">{charter.title}</h3>
+                        </div>
+                        <p className="flex items-center text-gray-600 text-sm line-clamp-1 mb-1">
                           <MapPin className="w-4 h-4 mr-1 flex-shrink-0" />
                           {charter.location}
                         </p>
-                        <p className="text-ocean-blue font-medium text-sm flex items-center line-clamp-1">
+                        <p className="text-ocean-blue font-medium text-sm flex items-center line-clamp-1 mb-3">
                           <UserIcon className="w-4 h-4 mr-1 flex-shrink-0" />
                           Capt. {charter.captain?.name || "Unknown"}
                         </p>
@@ -210,7 +212,9 @@ export default function Home() {
                         </div>
                       </div>
                       <CardContent className="p-6 flex-1 flex flex-col">
-                        <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-2">{charter.title}</h3>
+                        <div className="h-14 mb-3">
+                          <h3 className="text-lg font-bold text-gray-900 line-clamp-2 leading-tight">{charter.title}</h3>
+                        </div>
                         <p className="text-gray-600 mb-2 flex items-center line-clamp-1">
                           <MapPin className="w-4 h-4 mr-1 text-ocean-blue flex-shrink-0" />
                           {charter.location}
