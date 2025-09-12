@@ -88,7 +88,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       origin: [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
-        // "https://tu-dominio.com",
+        // Dominios de Replit deployment
+        /^https:\/\/.*\.replit\.app$/,
+        /^https:\/\/.*\.replit\.dev$/,
       ],
       credentials: true,
     })
