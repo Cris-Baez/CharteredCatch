@@ -47,8 +47,11 @@ interface Captain {
   };
 }
 
+// Placeholder gris para imágenes vacías
+const GRAY_PLACEHOLDER = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23d1d5db' font-size='18' font-family='system-ui'%3ENo Image%3C/text%3E%3C/svg%3E";
+
 function MobileImageCarousel({ images }: { images?: string[] | null }) {
-  const pics = images && images.length > 0 ? images : ["/placeholder.jpg"];
+  const pics = images && images.length > 0 ? images : [GRAY_PLACEHOLDER];
   const [idx, setIdx] = useState(0);
   if (pics.length <= 1) {
     return <img src={pics[0]} alt="charter" className="h-40 w-full object-cover" />;
@@ -170,21 +173,21 @@ export default function Home() {
             <>
               <div className="md:hidden flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
                 {featuredCharters.slice(0, 6).map((charter, index) => (
-                  <motion.div key={charter.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6, delay: index * 0.1 }} className="flex-shrink-0 w-72" onClick={() => setLocation(`/charters/${charter.id}`)}>
-                    <Card className="overflow-hidden shadow hover:shadow-lg transition">
+                  <motion.div key={charter.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6, delay: index * 0.1 }} className="flex-shrink-0 w-72 h-full" onClick={() => setLocation(`/charters/${charter.id}`)}>
+                    <Card className="overflow-hidden shadow hover:shadow-lg transition h-full flex flex-col">
                       <MobileImageCarousel images={charter.images} />
-                      <img src={charter.images?.[0] || "/placeholder.jpg"} alt={charter.title} className="hidden md:block h-40 w-full object-cover" />
-                      <CardContent className="p-4 space-y-2">
-                        <h3 className="text-lg font-bold text-gray-900">{charter.title}</h3>
-                        <p className="flex items-center text-gray-600 text-sm">
-                          <MapPin className="w-4 h-4 mr-1" />
+                      <img src={charter.images?.[0] || GRAY_PLACEHOLDER} alt={charter.title} className="hidden md:block h-40 w-full object-cover" />
+                      <CardContent className="p-4 space-y-2 flex-1 flex flex-col">
+                        <h3 className="text-lg font-bold text-gray-900 line-clamp-2">{charter.title}</h3>
+                        <p className="flex items-center text-gray-600 text-sm line-clamp-1">
+                          <MapPin className="w-4 h-4 mr-1 flex-shrink-0" />
                           {charter.location}
                         </p>
-                        <p className="text-ocean-blue font-medium text-sm flex items-center">
-                          <UserIcon className="w-4 h-4 mr-1" />
+                        <p className="text-ocean-blue font-medium text-sm flex items-center line-clamp-1">
+                          <UserIcon className="w-4 h-4 mr-1 flex-shrink-0" />
                           Capt. {charter.captain?.name || "Unknown"}
                         </p>
-                        <div className="flex justify-between items-center mt-3">
+                        <div className="flex justify-between items-center mt-auto pt-2">
                           <span className="flex items-center text-yellow-500">
                             <Star className="w-4 h-4 mr-1 fill-yellow-400" />
                             {charter.captain?.rating || "New"}
@@ -201,7 +204,7 @@ export default function Home() {
                   <motion.div key={charter.id} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: index * 0.15 }} viewport={{ once: true }} className="group cursor-pointer" onClick={() => setLocation(`/charters/${charter.id}`)}>
                     <Card className="overflow-hidden rounded-2xl border border-gray-100 shadow-md hover:shadow-2xl transition-all duration-300 group-hover:-translate-y-2 h-full flex flex-col">
                       <div className="relative h-52 overflow-hidden">
-                        <img src={charter.images?.[0] || "/placeholder.jpg"} alt={charter.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                        <img src={charter.images?.[0] || GRAY_PLACEHOLDER} alt={charter.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                         <div className="absolute top-4 left-4">
                           <Badge className="bg-white/90 text-ocean-blue border border-ocean-blue/20 font-semibold shadow-sm">{charter.duration || "Trip"}</Badge>
                         </div>
