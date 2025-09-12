@@ -156,7 +156,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       req.session.userId = result.id;
-      return res.status(201).json(result);
+      // No devolver el hash de contraseña por seguridad
+      const { password: hashedPassword, ...safeResult } = result;
+      return res.status(201).json(safeResult);
     } catch (err) {
       console.error("Register error:", err);
       return res.status(500).json({ message: "Failed to register" });
@@ -190,7 +192,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       req.session.userId = userRow.id;
-      return res.json(userRow);
+      // No devolver el hash de contraseña por seguridad
+      const { password: _, ...safeUserRow } = userRow as any;
+      return res.json(safeUserRow);
     } catch (err) {
       console.error("Login error:", err);
       return res.status(500).json({ message: "Failed to login" });
@@ -211,7 +215,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.session.destroy(() => {});
         return res.status(401).json({ message: "Unauthorized" });
       }
-      return res.json(userRow);
+      // No devolver el hash de contraseña por seguridad
+      const { password: _, ...safeUserRow } = userRow as any;
+      return res.json(safeUserRow);
     } catch (err) {
       console.error("Get user error:", err);
       return res.status(500).json({ message: "Failed to get user" });
@@ -247,7 +253,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(usersTable.id, req.session.userId))
         .returning();
 
-      return res.json(updated);
+      // No devolver el hash de contraseña por seguridad
+      const { password: _, ...safeUpdated } = updated as any;
+      return res.json(safeUpdated);
     } catch (err) {
       console.error("Error updating profile:", err);
       return res.status(500).json({ error: "Failed to update profile" });

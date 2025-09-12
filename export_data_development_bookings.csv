@@ -1,0 +1,7 @@
+id,user_id,charter_id,trip_date,guests,total_price,status,message,created_at
+9,user_1757105080395_1,17,2025-09-12 20:44:40.968,4,850.00,confirmed,"Looking forward to the deep sea adventure! First time fishing for Mahi.",2025-09-05 20:44:41.020816
+10,user_1757105080395_2,19,2025-09-19 20:44:40.968,2,520.00,confirmed,"Anniversary trip - hoping for a beautiful sunset!",2025-09-05 20:44:41.020816
+11,user_1757105080395_3,21,2025-09-26 20:44:40.968,5,400.00,cancelled,"Family trip with 3 kids ages 8-14. They're all excited!",2025-09-05 20:44:41.020816
+12,user_1757105080395_1,23,2025-10-05 20:44:40.968,3,1200.00,confirmed,"Bucket list trip - hoping to catch my first marlin!",2025-09-05 20:44:41.020816
+13,user_1757105080395_3,24,2025-09-11 06:00:00,5,950.00,pending,"",2025-09-08 22:26:24.148324
+14,user_1757105080395_3,18,2025-09-19 06:00:00,3,450.00,cancelled,"",2025-09-12 00:58:32.08624

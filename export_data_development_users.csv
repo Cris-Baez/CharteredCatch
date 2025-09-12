@@ -1,0 +1,16 @@
+id,email,password,first_name,last_name,profile_image_url,role,stripe_customer_id,stripe_subscription_id,created_at,updated_at
+captain_1757105080395_4,captain.lopez@example.com,$2b$10$bbh0Wlgxa3a8ixO7FcQCmetQVpgGKwObZO/PUkgrwAOjreP8thuRK,Maria,Lopez,,captain,,,2025-09-05 20:44:40.451956,2025-09-05 20:44:40.451956
+captain_1757105080395_1,captain.rodriguez@example.com,$2b$10$tmBR61xGTcwPXxMm/nT9D.mMYWErq9s4P/NVrQvnmMtl36ZYEQVRi,Carlos,Rodriguez,,captain,,,2025-09-05 20:44:40.451956,2025-09-05 20:44:40.451956
+captain_1757105080395_2,captain.martinez@example.com,$2b$10$RwMXrooJwgtuMh5RtaeUV.uynRLVHtk1bIb3f27hldbjdkAgAPM0.,Ana,Martinez,,captain,,,2025-09-05 20:44:40.451956,2025-09-05 20:44:40.451956
+captain_1757105080395_3,captain.garcia@example.com,$2b$10$RsWF2eKxzY.Rs25aSLa6DOYYMB3t4YbPdSK9266WEDRwK7PF4E9di,Diego,Garcia,,captain,,,2025-09-05 20:44:40.451956,2025-09-05 20:44:40.451956
+user_1757105080395_1,john.doe@example.com,$2b$10$Ue57JkS.tN0n84YQyvXI4OrSyqdclbPIkGW41/7KFqkILY5ykqzsi,John,Doe,,user,,,2025-09-05 20:44:40.451956,2025-09-05 20:44:40.451956
+user_1757105080395_2,sarah.wilson@example.com,$2b$10$KVXKJishPbGgLdBKjHRf1eW/hLWAILYVZf6ZwuNRRWIfuGHXo5XMO,Sarah,Wilson,,user,,,2025-09-05 20:44:40.451956,2025-09-05 20:44:40.451956
+user_1757105080395_3,mike.johnson@example.com,$2b$10$L9UQygk5ixHczHv0ndXVB.HSzbSKKJ7LpAsYt3Yh.gs8IYZzUNYru,Mike,Johnson,,user,,,2025-09-05 20:44:40.451956,2025-09-05 20:44:40.451956
+captain_1757107047010_q9gj974xg,captain1@example.com,$2b$10$nYigqF1FLbqDaN6NYLqCu.lwsFxWDcD.3KIykhTD91YfZ465yoQOK,Carlos,Martinez,,captain,,,2025-09-05 21:17:27.564899,2025-09-05 21:17:27.564899
+local_1757363183634_26skdo0,cristophercaptain@gmail.com,$2b$10$iDsDc9TVpOfVY1KbD9DjBepGugL1I8jrmohKCxNcfsB4pIwc..AwW,cristopher,baez,,captain,,,2025-09-08 20:26:23.701653,2025-09-08 20:26:23.701653
+local_1757634566064_fro6by4,test@example.com,$2b$10$s5K2qt0ZIzLBdSN84m7Fren7Lxwsek4PEG3lap0/0kQ98TeXmCi/2,Test,User,,user,,,2025-09-11 23:49:26.115795,2025-09-11 23:49:26.115795
+local_1757634595039_dtzmpfk,captain@test.com,$2b$10$AHcHdanWhzQ7HLptg6gRsOrA..19EIEltpzQC.rw1Q9NL3xp1XvBq,Captain,Test,,captain,,,2025-09-11 23:49:55.091418,2025-09-11 23:49:55.091418
+local_1757642514682_sldfx2m,test-captain@example.com,$2b$10$wgxbD38KJTtB5PxkLNjQW.q/T/3qTBKENG05NoNDEXSUTwcSIUIQ6,Test,Captain,,captain,,,2025-09-12 02:01:54.736863,2025-09-12 02:01:54.736863
+local_1757642548495_honl7hy,test-captain2@example.com,$2b$10$AkCdBzK71gOqWzgxLO.n9OmBpBeSqd.9J8C/47O/y6WNqarp4ajPa,Test2,Captain2,,captain,,,2025-09-12 02:02:28.547426,2025-09-12 02:02:28.547426
+local_1757642581657_ukhe3qw,test-captain3@example.com,$2b$10$R/1NO76LR.DKLyy5SxPQuu8s3QadzYUbQHvKBZlbPhD9xHerxe0ye,Test3,Captain3,,captain,,,2025-09-12 02:03:01.708645,2025-09-12 02:03:01.708645
+local_1757642600597_8kz65rz,test-user@example.com,$2b$10$kUx0cV5grXc7mqOolzls7eP7tUqVP8RSqCcrbJkBvZYtYghhc9Bz.,Test,User,,user,,,2025-09-12 02:03:20.64986,2025-09-12 02:03:20.64986

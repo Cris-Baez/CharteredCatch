@@ -1,0 +1,11 @@
+id,user_id,name,bio,experience,license_number,location,avatar,verified,rating,review_count
+11,captain_1757105080395_1,Captain Rodriguez,"Experienced captain with over 15 years navigating Caribbean waters. Specialist in deep sea fishing and family tours.","15 years of experience in sport fishing, family tours and diving excursions. Certified in maritime first aid.",CAP-2024-001,"Miami, FL",/attached_assets/image_1749589187411.png,true,4.90,147
+12,captain_1757105080395_2,Captain Martinez,"Professional fishing guide specializing in inshore and offshore adventures. Expert in Mahi, Tuna, and Marlin fishing.","12 years guiding fishing expeditions in Florida Keys. Coast Guard licensed and insured.",CAP-2024-002,"Key West, FL",/attached_assets/image_1749589049214.png,true,4.80,98
+13,captain_1757105080395_3,Captain Garcia,"Sunset cruise specialist and fishing enthusiast. Perfect for romantic getaways and family adventures.","8 years providing memorable ocean experiences. Specialized in sunset tours and reef fishing.",CAP-2024-003,"Fort Lauderdale, FL",/attached_assets/image_1749589265116.png,true,4.70,73
+14,captain_1757105080395_4,Captain Lopez,"Charter boat captain focused on big game fishing. Tournaments winner with multiple records.","20+ years in sport fishing. Tournament champion and big game specialist.",CAP-2024-004,"Naples, FL",/attached_assets/image_1749589117238.png,true,5.00,156
+16,local_1757634595039_dtzmpfk,Captain Test,"","","","",NULL,false,0.00,0
+17,captain_1757107047010_q9gj974xg,Carlos Martinez,"","","","",NULL,false,0.00,0
+18,local_1757363183634_26skdo0,cristopher baez,"","","","",NULL,false,0.00,0
+19,local_1757642548495_honl7hy,Test2 Captain2,"","","","",NULL,false,0.00,0
+20,local_1757642514682_sldfx2m,Test Captain,"","","","",NULL,false,0.00,0
+21,local_1757642581657_ukhe3qw,Test3 Captain3,"","","","",NULL,false,0.00,0
