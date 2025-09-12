@@ -837,6 +837,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "maxGuests and price are required" });
       }
 
+      // Validar imágenes (solo URLs)
+      let validImages: string[] = [];
+      if (Array.isArray(images)) {
+        for (const img of images) {
+          if (typeof img === "string") {
+            if (!img.startsWith("http://") && !img.startsWith("https://")) {
+              return res.status(400).json({ message: "Invalid image format, only URLs allowed" });
+            }
+            validImages.push(img);
+          }
+        }
+        validImages = validImages.slice(0, 10);
+      }
+
       const payload: typeof chartersTable.$inferInsert = {
         captainId: cap.id,
         title: String(title),
@@ -850,7 +864,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         price: String(price),
         boatSpecs: boatSpecs ? String(boatSpecs) : null,
         included: included ? String(included) : null,
-        images: Array.isArray(images) ? images.slice(0, 10) as string[] : [],
+        images: validImages,
         available: Boolean(available),
         isListed: Boolean(isListed),
       };
@@ -953,18 +967,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (images !== undefined) {
         if (Array.isArray(images)) {
-          // Validar y limitar a 10 imágenes
+          // Validar que sean URLs válidas
           const validImages = [];
           for (const img of images) {
             if (typeof img === "string") {
-              if (img.length > 5 * 1024 * 1024) {
-                return res
-                  .status(400)
-                  .json({ message: "One or more images are too large (max 5MB)" });
+              if (!img.startsWith("http://") && !img.startsWith("https://")) {
+                return res.status(400).json({ message: "Invalid image format, only URLs allowed" });
               }
-              if (img.startsWith("data:image/") || img.startsWith("http")) {
-                validImages.push(img);
-              }
+              validImages.push(img);
             }
           }
           updateData.images = validImages.slice(0, 10);
