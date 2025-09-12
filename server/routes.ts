@@ -840,8 +840,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         title: String(title),
         description: String(description),
         location: String(location),
-        lat: typeof lat === "number" ? lat : null,
-        lng: typeof lng === "number" ? lng : null,
+        lat: typeof lat === "number" ? lat.toString() : null,
+        lng: typeof lng === "number" ? lng.toString() : null,
         targetSpecies: String(targetSpecies),
         duration: String(duration),
         maxGuests: Number(maxGuests),
@@ -1569,7 +1569,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
           .returning();
 
-        return res.status(201).json(created);
+        return res.status(201).json(serializeBooking(created));
       } catch (error) {
         console.error("Create booking error:", error);
         return res.status(500).json({ message: "Failed to create booking" });
@@ -2124,7 +2124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(bookingsTable.id, bookingId))
         .returning();
 
-      return res.json(updated);
+      return res.json(serializeBooking(updated));
     } catch (error) {
       console.error("Approve booking error:", error);
       return res.status(500).json({ error: "Failed to approve booking" });
@@ -2171,7 +2171,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(bookingsTable.id, bookingId))
         .returning();
 
-      return res.json(updated);
+      return res.json(serializeBooking(updated));
     } catch (error) {
       console.error("Reject booking error:", error);
       return res.status(500).json({ error: "Failed to reject booking" });
