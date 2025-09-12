@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useCharters } from "@/hooks/use-charters";
 import { motion } from "framer-motion";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
@@ -94,14 +95,7 @@ export default function Home() {
     }, 5000);
     return () => clearInterval(interval);
   }, [fishingPhotos.length]);
-  const { data: featuredCharters, isLoading, error } = useQuery<CharterWithCaptain[]>({
-    queryKey: ["charters"],
-    queryFn: async () => {
-      const res = await fetch("/api/charters");
-      if (!res.ok) throw new Error("Failed to fetch charters");
-      return res.json();
-    },
-  });
+  const { data: featuredCharters, isLoading, error } = useCharters();
   const { data: captains, isLoading: isLoadingCaptains } = useQuery<Captain[]>({
     queryKey: ["captains"],
     queryFn: async () => {

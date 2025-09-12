@@ -39,7 +39,7 @@ export default function SearchResults() {
   const [sortBy, setSortBy] = useState<string>("rating");
   const [filters, setFilters] = useState({
     location: "",
-    species: "",
+    targetSpecies: "",
     duration: "",
     date: "",
   });
@@ -54,7 +54,7 @@ export default function SearchResults() {
     const params = new URLSearchParams(locationStr.split("?")[1] || "");
     setFilters({
       location: params.get("location") || "",
-      species: params.get("species") || "",
+      targetSpecies: params.get("targetSpecies") || "",
       duration: params.get("duration") || "",
       date: params.get("date") || "",
     });
@@ -69,7 +69,7 @@ export default function SearchResults() {
     queryFn: async () => {
       const params = new URLSearchParams();
       if (filters.location) params.set("location", filters.location);
-      if (filters.species) params.set("species", filters.species);
+      if (filters.targetSpecies) params.set("targetSpecies", filters.targetSpecies);
       if (filters.duration) params.set("duration", filters.duration);
       if (filters.date) params.set("date", filters.date);
       const res = await fetch(`/api/charters?${params.toString()}`);
@@ -116,14 +116,14 @@ export default function SearchResults() {
 
   const handleSearch = (newFilters: {
     location: string;
-    species: string;
+    targetSpecies: string;
     duration: string;
     date: string;
   }) => {
     setFilters(newFilters);
     const params = new URLSearchParams();
     if (newFilters.location) params.set("location", newFilters.location);
-    if (newFilters.species) params.set("species", newFilters.species);
+    if (newFilters.targetSpecies) params.set("targetSpecies", newFilters.targetSpecies);
     if (newFilters.duration) params.set("duration", newFilters.duration);
     if (newFilters.date) params.set("date", newFilters.date);
     const queryString = params.toString();
@@ -131,7 +131,7 @@ export default function SearchResults() {
   };
 
   const clearFilters = () => {
-    const empty = { location: "", species: "", duration: "", date: "" };
+    const empty = { location: "", targetSpecies: "", duration: "", date: "" };
     setFilters(empty);
     setLocation("/search");
   };
@@ -207,7 +207,7 @@ export default function SearchResults() {
                 <p className="text-storm-gray">
                   {sortedCharters.length} charters found
                   {filters.location && ` in ${filters.location}`}
-                  {filters.species && ` for ${filters.species}`}
+                  {filters.targetSpecies && ` for ${filters.targetSpecies}`}
                 </p>
               )}
             </div>
