@@ -770,25 +770,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "maxGuests and price are required" });
       }
 
+      const payload: typeof chartersTable.$inferInsert = {
+        captainId: cap.id,
+        title: String(title),
+        description: String(description),
+        location: String(location),
+        lat: typeof lat === "number" ? lat : null,
+        lng: typeof lng === "number" ? lng : null,
+        targetSpecies: String(targetSpecies),
+        duration: String(duration),
+        maxGuests: Number(maxGuests),
+        price: Number(price),
+        boatSpecs: boatSpecs ? String(boatSpecs) : null,
+        included: included ? String(included) : null,
+        images: Array.isArray(images) ? images.slice(0, 10) as string[] : [],
+        available: Boolean(available),
+        isListed: Boolean(isListed),
+      };
+      
       const [created] = await db
         .insert(chartersTable)
-        .values({
-          captainId: cap.id,
-          title: String(title),
-          description: String(description),
-          location: String(location),
-          lat: typeof lat === "number" ? lat : null,
-          lng: typeof lng === "number" ? lng : null,
-          targetSpecies: String(targetSpecies),
-          duration: String(duration),
-          maxGuests: Number(maxGuests),
-          price: Number(price),
-          boatSpecs: boatSpecs ? String(boatSpecs) : null,
-          included: included ? String(included) : null,
-          images: Array.isArray(images) ? images.slice(0, 10) : [],
-          available: Boolean(available),
-          isListed: Boolean(isListed),
-        })
+        .values(payload)
         .returning();
 
       return res.status(201).json(created);
@@ -1617,6 +1619,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Only captains can subscribe' });
       }
 
+      // Verificar si el capitán está verificado
+      if (!captain[0].verified) {
+        return res.status(403).json({ 
+          error: 'Captain must be verified before subscribing',
+          requiresVerification: true 
+        });
+      }
+
       const [user] = await db
         .select()
         .from(usersTable)
@@ -1628,7 +1638,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user already has an active subscription
       if (user.stripeSubscriptionId) {
-        const subscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
+        const { data: subscription } = await stripe.subscriptions.retrieve(user.stripeSubscriptionId) as any;
         
         if (subscription.status === 'active' || subscription.status === 'trialing') {
           return res.json({
@@ -1668,7 +1678,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             recurring: {
               interval: 'month',
             },
-          },
+            product_data: {
+              name: 'Captain Subscription',
+              description: 'Professional charter captain subscription with full platform access',
+            },
+          } as any,
         }],
         trial_period_days: 30,
       });
@@ -1722,7 +1736,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ subscription: null });
       }
 
-      const subscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
+      const { data: subscription } = await stripe.subscriptions.retrieve(user.stripeSubscriptionId) as any;
 
       res.json({
         subscription: {
@@ -1770,9 +1784,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "No subscription found" });
       }
 
-      const subscription = await stripe.subscriptions.update(user.stripeSubscriptionId, {
+      const { data: subscription } = await stripe.subscriptions.update(user.stripeSubscriptionId, {
         cancel_at_period_end: true,
-      });
+      }) as any;
 
       res.json({
         subscription: {

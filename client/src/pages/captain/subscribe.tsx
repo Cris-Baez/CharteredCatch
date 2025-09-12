@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,7 @@ import {
   TrendingUp,
   Users,
   AlertTriangle,
+  Clock,
 } from "lucide-react";
 
 type SubscriptionStatus = {
@@ -32,6 +34,7 @@ export default function CaptainSubscribe() {
   const [subscription, setSubscription] = useState<SubscriptionStatus>(null);
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState(false);
+  const [captainData, setCaptainData] = useState<{verified: boolean} | null>(null);
 
   useEffect(() => {
     if (!loadingAuth && !isAuthenticated) {
@@ -40,9 +43,26 @@ export default function CaptainSubscribe() {
     }
 
     if (isAuthenticated) {
+      fetchCaptainData();
       fetchSubscriptionStatus();
     }
   }, [loadingAuth, isAuthenticated, setLocation]);
+
+  const fetchCaptainData = async () => {
+    try {
+      const response = await fetch("/api/captains", {
+        credentials: "include",
+      });
+      
+      if (response.ok) {
+        const captains = await response.json();
+        const myCaptain = captains.find((c: any) => c.userId === user?.id);
+        setCaptainData(myCaptain ? { verified: myCaptain.verified } : null);
+      }
+    } catch (error) {
+      console.error("Error fetching captain data:", error);
+    }
+  };
 
   const fetchSubscriptionStatus = async () => {
     try {
@@ -196,8 +216,40 @@ export default function CaptainSubscribe() {
           </Card>
         )}
 
+        {/* Verification Status */}
+        {captainData && !captainData.verified && (
+          <Card className="mb-8 border-2 border-amber-200 bg-amber-50">
+            <CardHeader>
+              <CardTitle className="flex items-center text-amber-800">
+                <Clock className="w-5 h-5 mr-2" />
+                Verification Required
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <p className="text-amber-700">
+                  Your captain account is pending verification from our team. You'll need to be verified before you can subscribe to our professional plan.
+                </p>
+                <div className="bg-white/60 p-4 rounded-lg">
+                  <h4 className="font-medium text-amber-800 mb-2">What happens next:</h4>
+                  <ol className="list-decimal list-inside space-y-1 text-sm text-amber-700">
+                    <li>Our team reviews your captain credentials</li>
+                    <li>You'll receive an email when verification is complete</li>
+                    <li>Once verified, you can subscribe and start listing charters</li>
+                  </ol>
+                </div>
+                <Button variant="outline" className="w-full" asChild>
+                  <a href="mailto:support@charterly.com">
+                    Contact Support
+                  </a>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Subscription Plan */}
-        {!subscription && (
+        {captainData && captainData.verified && !subscription && (
           <div className="max-w-md mx-auto mb-8">
             <div className="relative">
               <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">

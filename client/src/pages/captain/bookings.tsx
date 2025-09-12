@@ -133,7 +133,7 @@ export default function CaptainBookings() {
       arr.push(tx);
       map.set(key, arr);
     }
-    return [...map.entries()].map(([key, items]) => ({ key, items }));
+    return Array.from(map.entries()).map(([key, items]) => ({ key, items }));
   }, [filtered]);
 
   const money = (n: number) =>
@@ -249,7 +249,7 @@ export default function CaptainBookings() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-4">
-                  {g.items.map((b) => (
+                  {g.items.map((b: RecentTx) => (
                     <Card key={b.id} className="hover:shadow-md transition-shadow">
                       <CardContent className="p-5">
                         <div className="flex items-start justify-between gap-4">
