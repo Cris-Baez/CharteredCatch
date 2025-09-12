@@ -130,18 +130,46 @@ export default function EditCharter() {
     }));
   };
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const uploadToCloudinary = async (file: File): Promise<string> => {
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+    
+    if (!cloudName || !uploadPreset) {
+      throw new Error('Cloudinary configuration is missing. Please check your environment variables.');
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', uploadPreset);
+    
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+    
+    if (!response.ok) {
+      throw new Error('Failed to upload image to Cloudinary');
+    }
+    
+    const data = await response.json();
+    return data.secure_url;
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) return;
 
-    Array.from(files).forEach((file) => {
+    for (const file of Array.from(files)) {
       if (file.size > 5 * 1024 * 1024) {
         toast({
           title: "Image too large",
           description: `${file.name} is larger than 5MB. Please choose a smaller image.`,
           variant: "destructive",
         });
-        return;
+        continue;
       }
 
       if (!file.type.startsWith("image/")) {
@@ -150,19 +178,34 @@ export default function EditCharter() {
           description: `${file.name} is not an image. Please select an image file.`,
           variant: "destructive",
         });
-        return;
+        continue;
       }
 
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const imageDataUrl = e.target?.result as string;
-        setFormData((prev) => ({
-          ...prev,
-          images: [...prev.images, imageDataUrl],
-        }));
-      };
-      reader.readAsDataURL(file);
-    });
+      try {
+        const imageUrl = await uploadToCloudinary(file);
+        setFormData((prev) => {
+          const newImages = [...prev.images, imageUrl];
+          if (newImages.length > 10) {
+            toast({
+              title: "Limit reached",
+              description: "Maximum 10 images allowed per charter.",
+              variant: "destructive",
+            });
+            return prev;
+          }
+          return {
+            ...prev,
+            images: newImages,
+          };
+        });
+      } catch (error: any) {
+        toast({
+          title: "Upload failed",
+          description: error?.message || `Failed to upload ${file.name}. Please try again.`,
+          variant: "destructive",
+        });
+      }
+    }
 
     event.target.value = "";
   };
@@ -174,7 +217,7 @@ export default function EditCharter() {
     }));
   };
 
-  const handleImageReplace = (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageReplace = async (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -198,15 +241,19 @@ export default function EditCharter() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const imageDataUrl = e.target?.result as string;
+    try {
+      const imageUrl = await uploadToCloudinary(file);
       setFormData((prev) => ({
         ...prev,
-        images: prev.images.map((img, i) => (i === index ? imageDataUrl : img)),
+        images: prev.images.map((img, i) => (i === index ? imageUrl : img)),
       }));
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+      toast({
+        title: "Upload failed",
+        description: `Failed to upload ${file.name}. Please try again.`,
+        variant: "destructive",
+      });
+    }
 
     event.target.value = "";
   };

@@ -85,7 +85,35 @@ export default function CreateCharter() {
   /* ======================
      Foto: subir / cover
   ====================== */
-  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const uploadToCloudinary = async (file: File): Promise<string> => {
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+    
+    if (!cloudName || !uploadPreset) {
+      throw new Error('Cloudinary configuration is missing. Please check your environment variables.');
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', uploadPreset);
+    
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+    
+    if (!response.ok) {
+      throw new Error('Failed to upload image to Cloudinary');
+    }
+    
+    const data = await response.json();
+    return data.secure_url;
+  };
+
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) return;
 
@@ -99,14 +127,36 @@ export default function CreateCharter() {
       return;
     }
 
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setUploadedPhotos((prev) => [...prev, result]);
-      };
-      reader.readAsDataURL(file);
-    });
+    for (const file of Array.from(files)) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "Image too large",
+          description: `${file.name} is larger than 5MB. Please choose a smaller image.`,
+          variant: "destructive",
+        });
+        continue;
+      }
+
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Invalid file type",
+          description: `${file.name} is not an image. Please select an image file.`,
+          variant: "destructive",
+        });
+        continue;
+      }
+
+      try {
+        const imageUrl = await uploadToCloudinary(file);
+        setUploadedPhotos((prev) => [...prev, imageUrl]);
+      } catch (error: any) {
+        toast({
+          title: "Upload failed",
+          description: error?.message || `Failed to upload ${file.name}. Please try again.`,
+          variant: "destructive",
+        });
+      }
+    }
 
     // reset input para poder volver a seleccionar el mismo archivo si hace falta
     event.currentTarget.value = "";
