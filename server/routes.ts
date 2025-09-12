@@ -1668,10 +1668,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             recurring: {
               interval: 'month',
             },
-            product_data: {
-              name: 'Captain Subscription',
-              description: 'Professional charter captain subscription with full platform access',
-            },
           },
         }],
         trial_period_days: 30,
