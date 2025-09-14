@@ -569,13 +569,7 @@ export default function CaptainBookings() {
                               </>
                             )}
                             
-                            {booking.status === "confirmed" && (
-                              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                                <p className="text-sm font-medium text-blue-800">
-                                  ✅ Approved - Waiting for payment
-                                </p>
-                              </div>
-                            )}
+                            
 
                             {booking.status === "completed" && (
                               <div className="text-center p-4 bg-green-50 rounded-lg">
