@@ -37,7 +37,7 @@ export default function MapPopupCard({
           className="w-full h-20 md:h-24 object-cover"
           loading="lazy"
         />
-        <div className="absolute bottom-1 left-1.5 rounded bg-black/60 text-white text-[10px] px-1 py-0.5 font-semibold">
+        <div data-testid={`price-badge-${charter.id}`} className="absolute bottom-1 left-1.5 rounded bg-black/60 text-white text-[10px] px-1 py-0.5 font-semibold">
           ${charter.price}
         </div>
       </div>
@@ -102,6 +102,7 @@ export default function MapPopupCard({
             size="sm"
             variant="ghost"
             onClick={onClose}
+            data-testid={`button-close-${charter.id}`}
             className="h-6 px-2 text-[11px] text-gray-600"
           >
             Close
@@ -109,6 +110,7 @@ export default function MapPopupCard({
           <Button
             size="sm"
             onClick={onViewDetails}
+            data-testid={`button-details-${charter.id}`}
             className="h-6 px-2 text-[11px] bg-ocean-blue text-white hover:bg-blue-800"
           >
             Details

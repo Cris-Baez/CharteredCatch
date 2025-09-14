@@ -121,8 +121,6 @@ export default function CharterDetail() {
         charterId: charter.id,
         tripDate: data.tripDate, // Date; tu backend debe parsearlo (ISO)
         guests: data.guests,
-        totalPrice: charter.price, // si tu backend lo calcula, puedes omitirlo
-        status: "pending",
         message: data.message || "",
       }),
     });
