@@ -438,6 +438,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/availability/bulk - Create multiple availability entries at once
+  app.post("/api/availability/bulk", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const { charterId, dates, slots } = req.body ?? {};
+      const cid = Number(charterId);
+      const s = Number(slots);
+      
+      if (!Number.isFinite(cid) || !Array.isArray(dates) || !Number.isFinite(s) || s <= 0 || dates.length === 0) {
+        return res.status(400).json({ error: "Invalid payload. Need charterId, dates array, and slots" });
+      }
+
+      // Verificar que el charter pertenezca al capitán logueado
+      const [cap] = await db.select({ id: captainsTable.id }).from(captainsTable).where(eq(captainsTable.userId, req.session.userId));
+      if (!cap) return res.status(403).json({ error: "Captain profile required" });
+
+      const [ownCharter] = await db
+        .select({ id: chartersTable.id, captainId: chartersTable.captainId })
+        .from(chartersTable)
+        .where(eq(chartersTable.id, cid));
+
+      if (!ownCharter || ownCharter.captainId !== cap.id) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      // Crear múltiples entradas de disponibilidad
+      const validDates = dates.filter(date => {
+        try {
+          const d = new Date(date);
+          return !isNaN(d.getTime());
+        } catch {
+          return false;
+        }
+      });
+
+      if (validDates.length === 0) {
+        return res.status(400).json({ error: "No valid dates provided" });
+      }
+
+      const availabilityEntries = validDates.map(date => ({
+        charterId: cid,
+        date: new Date(date) as any,
+        slots: s,
+        bookedSlots: 0,
+      }));
+
+      const created = await db
+        .insert(availabilityTable)
+        .values(availabilityEntries)
+        .returning();
+
+      return res.status(201).json({ 
+        message: `Created ${created.length} availability entries`,
+        created: created.length,
+        entries: created
+      });
+    } catch (err) {
+      console.error("Bulk availability create error:", err);
+      return res.status(500).json({ error: "Failed to create bulk availability" });
+    }
+  });
+
   // PATCH /api/availability/:id  { slots }
   app.patch("/api/availability/:id", async (req: Request, res: Response) => {
     try {
@@ -1222,16 +1285,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const rawPeriod = String(req.query.period || "30days") as
           | "7days" | "30days" | "90days" | "year";
 
-        // DEBUG: Log current user
-        console.log("🔍 Captain earnings DEBUG - session userId:", req.session.userId);
-
         // 1) hallar captain.id del usuario en sesión
         const [cap] = await db
           .select({ id: captainsTable.id })
           .from(captainsTable)
           .where(eq(captainsTable.userId, req.session.userId));
-        
-        console.log("🔍 Found captain profile:", cap);
         
         if (!cap) return res.json({
           period: rawPeriod,
@@ -1266,9 +1324,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .from(bookingsTable)
           .leftJoin(chartersTable, eq(bookingsTable.charterId, chartersTable.id))
           .where(eq(chartersTable.captainId, cap.id));
-        
-        console.log("🔍 Found", rows.length, "bookings for captain", cap.id);
-        console.log("🔍 Bookings statuses:", rows.map(r => `${r.b_id}:${r.b_status}`).join(", "));
 
         // 3) rango temporal actual y anterior para % cambio
         const now = new Date();

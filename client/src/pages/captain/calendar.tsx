@@ -67,6 +67,13 @@ export default function CaptainCalendar() {
   const [newSlots, setNewSlots] = useState<number>(1);
   const [editRow, setEditRow] = useState<AvailabilityItem | null>(null);
   const [editSlots, setEditSlots] = useState<number>(1);
+  
+  // Bulk availability states
+  const [isBulkAdding, setIsBulkAdding] = useState(false);
+  const [bulkStartDate, setBulkStartDate] = useState<Date | undefined>();
+  const [bulkEndDate, setBulkEndDate] = useState<Date | undefined>();
+  const [bulkSlots, setBulkSlots] = useState<number>(1);
+  const [bulkDaysOfWeek, setBulkDaysOfWeek] = useState<number[]>([]);
 
   // 1) Traer charters del capitán
   const { data: myCharters, isLoading: loadingCharters } = useQuery<CharterLite[]>({
@@ -122,8 +129,7 @@ export default function CaptainCalendar() {
   // 3) Mutations: add, update, delete
   const addMutation = useMutation({
     mutationFn: async (payload: { charterId: number; date: string; slots: number }) => {
-      // URL primero, método después
-      return apiRequest("/api/availability", "POST", payload);
+      return apiRequest("POST", "/api/availability", payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/availability", selectedCharterId, monthKey] });
@@ -142,7 +148,7 @@ export default function CaptainCalendar() {
 
   const patchMutation = useMutation({
     mutationFn: async (payload: { id: number; slots: number }) => {
-      return apiRequest(`/api/availability/${payload.id}`, "PATCH", { slots: payload.slots });
+      return apiRequest("PATCH", `/api/availability/${payload.id}`, { slots: payload.slots });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/availability", selectedCharterId, monthKey] });
@@ -155,7 +161,7 @@ export default function CaptainCalendar() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/availability/${id}`, "DELETE");
+      return apiRequest("DELETE", `/api/availability/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/availability", selectedCharterId, monthKey] });
@@ -163,6 +169,32 @@ export default function CaptainCalendar() {
     },
     onError: (e: any) =>
       toast({ title: "Error", description: e?.message || "Failed to delete availability", variant: "destructive" }),
+  });
+
+  // Bulk availability mutation
+  const bulkAddMutation = useMutation({
+    mutationFn: async (payload: { charterId: number; dates: string[]; slots: number }) => {
+      return apiRequest("POST", "/api/availability/bulk", payload);
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/availability", selectedCharterId, monthKey] });
+      setIsBulkAdding(false);
+      setBulkStartDate(undefined);
+      setBulkEndDate(undefined);
+      setBulkSlots(1);
+      setBulkDaysOfWeek([]);
+      toast({ 
+        title: "Bulk Availability Added", 
+        description: `Successfully added availability for ${data.created} days.`
+      });
+    },
+    onError: (e: any) => {
+      toast({
+        title: "Error",
+        description: e?.message || "Failed to add bulk availability",
+        variant: "destructive",
+      });
+    },
   });
 
   // 4) Derivadas para métricas
@@ -200,6 +232,44 @@ export default function CaptainCalendar() {
       charterId: selectedCharterId,
       date: dayKey(selectedDate),
       slots: Math.max(1, newSlots),
+    });
+  };
+
+  // Generate date range for bulk operations
+  const generateDateRange = (start: Date, end: Date, daysOfWeek: number[] = []): string[] => {
+    const dates: string[] = [];
+    const current = new Date(start);
+    
+    while (current <= end) {
+      // If no specific days of week selected, include all days
+      // Otherwise, only include selected days of week (0 = Sunday, 1 = Monday, etc.)
+      if (daysOfWeek.length === 0 || daysOfWeek.includes(current.getDay())) {
+        dates.push(dayKey(current));
+      }
+      current.setDate(current.getDate() + 1);
+    }
+    
+    return dates;
+  };
+
+  const handleBulkAdd = () => {
+    if (!bulkStartDate || !bulkEndDate || !selectedCharterId) return;
+    
+    const dates = generateDateRange(bulkStartDate, bulkEndDate, bulkDaysOfWeek);
+    
+    if (dates.length === 0) {
+      toast({
+        title: "No dates selected",
+        description: "Please select at least one valid date range.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    bulkAddMutation.mutate({
+      charterId: selectedCharterId,
+      dates: dates,
+      slots: Math.max(1, bulkSlots),
     });
   };
 
@@ -280,7 +350,7 @@ export default function CaptainCalendar() {
                 </a>
               </Button>
 
-              {/* Add availability */}
+              {/* Add single availability */}
               <Dialog open={isAdding} onOpenChange={setIsAdding}>
                 <DialogTrigger asChild>
                   <Button 
@@ -289,7 +359,7 @@ export default function CaptainCalendar() {
                     className="w-full sm:w-auto min-w-[130px] bg-ocean-blue hover:bg-blue-800"
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    <span className="hidden sm:inline">Add Availability</span>
+                    <span className="hidden sm:inline">Add Single Day</span>
                     <span className="sm:hidden">Add Date</span>
                   </Button>
                 </DialogTrigger>
@@ -326,6 +396,113 @@ export default function CaptainCalendar() {
                     </Button>
                     <Button onClick={handleAdd} disabled={!selectedCharterId || addMutation.isPending}>
                       {addMutation.isPending ? "Adding..." : "Add"}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Add bulk availability */}
+            <Dialog open={isBulkAdding} onOpenChange={setIsBulkAdding}>
+              <DialogTrigger asChild>
+                <Button 
+                  disabled={!selectedCharterId}
+                  size="sm"
+                  variant="outline"
+                  className="w-full sm:w-auto min-w-[140px] border-ocean-blue text-ocean-blue hover:bg-ocean-blue hover:text-white"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">Add Multiple Days</span>
+                  <span className="sm:hidden">Bulk Add</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Add Bulk Availability</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="bulk-start-date">Start Date</Label>
+                      <Input
+                        id="bulk-start-date"
+                        type="date"
+                        value={bulkStartDate ? dayKey(bulkStartDate) : ''}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setBulkStartDate(v ? new Date(`${v}T00:00:00Z`) : undefined);
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="bulk-end-date">End Date</Label>
+                      <Input
+                        id="bulk-end-date"
+                        type="date"
+                        value={bulkEndDate ? dayKey(bulkEndDate) : ''}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setBulkEndDate(v ? new Date(`${v}T00:00:00Z`) : undefined);
+                        }}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="bulk-slots">Available Slots</Label>
+                    <Input
+                      id="bulk-slots"
+                      type="number"
+                      min={1}
+                      value={bulkSlots}
+                      onChange={(e) => setBulkSlots(Number(e.target.value) || 1)}
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Days of Week (optional - leave empty for all days)</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {[
+                        { day: 0, label: 'Sun' },
+                        { day: 1, label: 'Mon' },
+                        { day: 2, label: 'Tue' },
+                        { day: 3, label: 'Wed' },
+                        { day: 4, label: 'Thu' },
+                        { day: 5, label: 'Fri' },
+                        { day: 6, label: 'Sat' },
+                      ].map(({ day, label }) => (
+                        <Button
+                          key={day}
+                          type="button"
+                          size="sm"
+                          variant={bulkDaysOfWeek.includes(day) ? "default" : "outline"}
+                          onClick={() => {
+                            if (bulkDaysOfWeek.includes(day)) {
+                              setBulkDaysOfWeek(bulkDaysOfWeek.filter(d => d !== day));
+                            } else {
+                              setBulkDaysOfWeek([...bulkDaysOfWeek, day].sort());
+                            }
+                          }}
+                          className="min-w-[60px]"
+                        >
+                          {label}
+                        </Button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-storm-gray mt-1">
+                      Select specific days of the week, or leave empty to include all days in the range.
+                    </p>
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setIsBulkAdding(false)}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={handleBulkAdd} 
+                      disabled={!selectedCharterId || !bulkStartDate || !bulkEndDate || bulkAddMutation.isPending}
+                    >
+                      {bulkAddMutation.isPending ? "Adding..." : "Add Bulk Availability"}
                     </Button>
                   </div>
                 </div>
