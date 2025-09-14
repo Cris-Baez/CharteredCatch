@@ -36,7 +36,7 @@ export default function CaptainDashboard() {
             <h2 className="text-2xl font-bold mb-4">Captain Portal</h2>
             <p className="text-storm-gray mb-6">Please log in to access your captain dashboard</p>
             <Button asChild>
-              <a href="/api/login">Log In</a>
+              <a href="/login">Log In</a>
             </Button>
           </CardContent>
         </Card>
