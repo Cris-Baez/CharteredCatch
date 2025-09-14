@@ -176,17 +176,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     session({
       store: new PgStore({
         conString: process.env.DATABASE_URL,
-        tableName: "sessions",
-        createTableIfMissing: false,
+        tableName: "session",
+        createTableIfMissing: true,
       }),
       secret: process.env.SESSION_SECRET || "dev_secret_insecure_change_in_production",
       resave: false,
       saveUninitialized: false,
       cookie: {
         httpOnly: true,
-        // Secure cookies in production (HTTPS) or when NODE_ENV=production
-        secure: process.env.NODE_ENV === "production" || process.env.REPLIT_DEPLOYMENT === "1",
-        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+        // Auto secure cookies based on connection type (HTTP/HTTPS)
+        secure: "auto",
+        sameSite: "lax",
         maxAge: 7 * 24 * 60 * 60 * 1000, // 1 semana
       },
     })

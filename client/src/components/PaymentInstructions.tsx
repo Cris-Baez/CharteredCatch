@@ -95,11 +95,11 @@ export default function PaymentInstructions({
         return;
       }
       
-      // Validar tamaño (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
+      // Validar tamaño (max 100MB)
+      if (file.size > 100 * 1024 * 1024) {
         toast({
           title: "File Too Large",
-          description: "Please upload an image smaller than 5MB",
+          description: "Please upload an image smaller than 100MB",
           variant: "destructive",
         });
         return;
@@ -329,7 +329,7 @@ export default function PaymentInstructions({
                       data-testid="input-payment-proof"
                     />
                   </Label>
-                  <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 5MB</p>
+                  <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 100MB</p>
                 </div>
               </div>
 
