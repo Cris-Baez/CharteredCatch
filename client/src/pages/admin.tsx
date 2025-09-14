@@ -36,7 +36,7 @@ export default function Admin() {
   // ⚡ TODAS LAS MUTATIONS TAMBIÉN AL INICIO
   const updateCaptainMutation = useMutation({
     mutationFn: async ({ captainId, verified }: { captainId: number; verified: boolean }) => {
-      return apiRequest(`/api/admin/captains/${captainId}`, "PATCH", { verified });
+      return apiRequest("PATCH", `/api/admin/captains/${captainId}`, { verified });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/captains"] });
@@ -56,7 +56,7 @@ export default function Admin() {
 
   const updateCharterMutation = useMutation({
     mutationFn: async ({ charterId, isListed }: { charterId: number; isListed: boolean }) => {
-      return apiRequest(`/api/admin/charters/${charterId}`, "PATCH", { isListed });
+      return apiRequest("PATCH", `/api/admin/charters/${charterId}`, { isListed });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/charters"] });
