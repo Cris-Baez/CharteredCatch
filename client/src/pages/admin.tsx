@@ -333,7 +333,7 @@ export default function Admin() {
                   <div className="bg-gradient-to-r from-cyan-500 to-blue-500 p-2 rounded-lg mr-2 shadow-lg">
                     <Ship className="w-4 h-4 text-white" />
                   </div>
-                  <span className="text-gray-800">Gestionar Charters</span>
+                  <span className="text-gray-800">Manage Charters</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-3 sm:px-6">
