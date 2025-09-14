@@ -409,7 +409,7 @@ export default function Admin() {
                   <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-2 rounded-lg mr-2 shadow-lg">
                     <CreditCard className="w-4 h-4 text-white" />
                   </div>
-                  <span className="text-gray-800">Suscripciones</span>
+                  <span className="text-gray-800">Subscriptions</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-3 sm:px-6">
