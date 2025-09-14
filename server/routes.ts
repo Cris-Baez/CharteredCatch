@@ -24,7 +24,7 @@ import {
   type CaptainPaymentInfo,
 } from "@shared/schema";
 import { z } from "zod";
-import { and, eq, ilike, inArray, gte, lt, or, isNotNull } from "drizzle-orm";
+import { and, eq, ilike, inArray, gte, lt, or, isNotNull, desc } from "drizzle-orm";
 
 /**
  * SessionData: solo guardamos userId para evitar conflictos de tipos
@@ -2374,6 +2374,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Reject booking error:", error);
       return res.status(500).json({ error: "Failed to reject booking" });
+    }
+  });
+
+  // CAPTAIN: Ver todos sus bookings
+  app.get("/api/captain/bookings", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      // Verificar que el usuario sea capitán
+      const [captain] = await db
+        .select({ id: captainsTable.id })
+        .from(captainsTable)
+        .where(eq(captainsTable.userId, req.session.userId));
+
+      if (!captain) {
+        return res.status(403).json({ error: "Captain profile required" });
+      }
+
+      // Obtener todos los bookings para charters de este capitán
+      const rows = await db
+        .select({
+          // Booking info
+          b_id: bookingsTable.id,
+          b_userId: bookingsTable.userId,
+          b_charterId: bookingsTable.charterId,
+          b_tripDate: bookingsTable.tripDate,
+          b_guests: bookingsTable.guests,
+          b_totalPrice: bookingsTable.totalPrice,
+          b_status: bookingsTable.status,
+          b_message: bookingsTable.message,
+          b_createdAt: bookingsTable.createdAt,
+          // Charter info
+          c_title: chartersTable.title,
+          c_location: chartersTable.location,
+          c_duration: chartersTable.duration,
+          // User info (who made the booking)
+          u_firstName: usersTable.firstName,
+          u_lastName: usersTable.lastName,
+          u_email: usersTable.email,
+        })
+        .from(bookingsTable)
+        .innerJoin(chartersTable, eq(bookingsTable.charterId, chartersTable.id))
+        .innerJoin(usersTable, eq(bookingsTable.userId, usersTable.id))
+        .where(eq(chartersTable.captainId, captain.id))
+        .orderBy(desc(bookingsTable.createdAt));
+
+      // Transform to expected format
+      const bookings = rows.map(row => ({
+        id: row.b_id,
+        userId: row.b_userId,
+        charterId: row.b_charterId,
+        tripDate: row.b_tripDate?.toISOString() || null,
+        guests: row.b_guests,
+        totalPrice: row.b_totalPrice,
+        status: row.b_status,
+        message: row.b_message,
+        createdAt: row.b_createdAt?.toISOString() || null,
+        charter: {
+          title: row.c_title,
+          location: row.c_location,
+          duration: row.c_duration,
+        },
+        user: {
+          firstName: row.u_firstName,
+          lastName: row.u_lastName,
+          email: row.u_email,
+        }
+      }));
+
+      res.json(bookings);
+    } catch (error) {
+      console.error("Get captain bookings error:", error);
+      res.status(500).json({ error: "Failed to get bookings" });
     }
   });
 

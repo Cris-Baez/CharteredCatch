@@ -21,60 +21,50 @@ import {
   Ship,
   AlertTriangle,
   ChevronRight,
+  Mail,
+  Clock,
 } from "lucide-react";
 
-/* ====== Tipos derivados del backend /api/captain/earnings ====== */
-type TxStatus = "pending" | "confirmed" | "completed" | "cancelled";
-type RecentTx = {
-  id: number;               // booking id
-  charterTitle: string;
+/* ====== Tipos derivados del backend /api/captain/bookings ====== */
+type BookingStatus = "pending" | "confirmed" | "completed" | "cancelled";
+type CaptainBooking = {
+  id: number;
+  userId: string;
+  charterId: number;
+  tripDate: string | null;
   guests: number;
-  status: TxStatus;
-  amount: number;
-  dateISO: string;
-};
-
-type EarningsResp = {
-  period: "7days" | "30days" | "90days" | "year";
-  nowISO: string;
-  fromISO: string;
-  totals: {
-    totalEarnings: number;
-    completedEarnings: number;
-    avgPerTrip: number;
-    tripsCount: number;
-    completedTrips: number;
-    pendingAmount: number;
-    pendingTrips: number;
-    changePct: number;
+  totalPrice: string;
+  status: BookingStatus;
+  message: string | null;
+  createdAt: string | null;
+  charter: {
+    title: string;
+    location: string;
+    duration: string;
   };
-  recentTransactions: RecentTx[];
+  user: {
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  };
 };
 
-const PERIODS = [
-  { key: "7days", label: "Last 7 days" },
-  { key: "30days", label: "Last 30 days" },
-  { key: "90days", label: "Last 90 days" },
-  { key: "year", label: "Year to date" },
-] as const;
-
-const STATUS: Array<"all" | TxStatus> = ["all", "pending", "confirmed", "completed", "cancelled"];
+const STATUS: Array<"all" | BookingStatus> = ["all", "pending", "confirmed", "completed", "cancelled"];
 
 /* ===========================
-   Página (solo frontend)
+   Página principal
 =========================== */
 export default function CaptainBookings() {
   const { user } = useAuth();
-  const [period, setPeriod] = useState<"7days" | "30days" | "90days" | "year">("30days");
-  const [status, setStatus] = useState<"all" | TxStatus>("all");
+  const [status, setStatus] = useState<"all" | BookingStatus>("all");
   const [q, setQ] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data, isLoading, isError, error, refetch } = useQuery<EarningsResp>({
-    queryKey: ["/api/captain/earnings", period],
+  const { data: bookings, isLoading, isError, error, refetch } = useQuery<CaptainBooking[]>({
+    queryKey: ["/api/captain/bookings"],
     queryFn: async () => {
-      const res = await fetch(`/api/captain/earnings?period=${period}`, {
+      const res = await fetch("/api/captain/bookings", {
         credentials: "include",
       });
       if (!res.ok) {
@@ -106,41 +96,57 @@ export default function CaptainBookings() {
     );
   }
 
-  const all = data?.recentTransactions ?? [];
+  const all = bookings ?? [];
 
   // Filtro por estado (frontend)
-  const byStatus = status === "all" ? all : all.filter((t) => t.status === status);
+  const byStatus = status === "all" ? all : all.filter((booking) => booking.status === status);
 
-  // Búsqueda por charterTitle
+  // Búsqueda por charter title
   const filtered = useMemo(() => {
     const text = q.trim().toLowerCase();
     if (!text) return byStatus;
-    return byStatus.filter((t) =>
-      [t.charterTitle].join(" ").toLowerCase().includes(text)
+    return byStatus.filter((booking) =>
+      [booking.charter.title, booking.user.firstName, booking.user.lastName, booking.user.email]
+        .join(" ").toLowerCase().includes(text)
     );
   }, [byStatus, q]);
 
-  // Agrupado por día bonito
+  // Agrupado por día de viaje
   const groups = useMemo(() => {
-    const fmtKey = (iso: string) =>
-      new Date(iso).toLocaleDateString(undefined, {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        year: "numeric",
+    const fmtKey = (iso: string | null) => {
+      if (!iso) return "No date scheduled";
+      const d = new Date(iso);
+      return d.toLocaleDateString("en-US", { 
+        weekday: "long", 
+        year: "numeric", 
+        month: "long", 
+        day: "numeric" 
       });
-    const map = new Map<string, RecentTx[]>();
-    for (const tx of filtered) {
-      const key = fmtKey(tx.dateISO);
-      const arr = map.get(key) || [];
-      arr.push(tx);
-      map.set(key, arr);
-    }
-    return Array.from(map.entries()).map(([key, items]) => ({ key, items }));
+    };
+
+    const grouped = new Map<string, CaptainBooking[]>();
+    filtered.forEach((booking) => {
+      const key = fmtKey(booking.tripDate);
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push(booking);
+    });
+
+    return Array.from(grouped.entries()).map(([date, bookings]) => ({
+      date,
+      bookings: bookings.sort((a, b) => 
+        new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+      ),
+    }));
   }, [filtered]);
 
-  const money = (n: number) =>
-    new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
+  const money = (n: string | number) => {
+    const num = typeof n === "string" ? parseFloat(n) : n;
+    return new Intl.NumberFormat(undefined, { 
+      style: "currency", 
+      currency: "USD", 
+      maximumFractionDigits: 0 
+    }).format(num);
+  };
 
   // Mutations para approve/reject bookings
   const approveMutation = useMutation({
@@ -156,7 +162,7 @@ export default function CaptainBookings() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/captain/earnings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/captain/bookings"] });
       toast({
         title: "Booking Approved",
         description: "The customer can now proceed with payment.",
@@ -184,7 +190,7 @@ export default function CaptainBookings() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/captain/earnings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/captain/bookings"] });
       toast({
         title: "Booking Rejected",
         description: "The booking has been cancelled.",
@@ -207,15 +213,15 @@ export default function CaptainBookings() {
     rejectMutation.mutate(bookingId);
   };
 
-  const statusBadge = (s: TxStatus) =>
+  const statusBadge = (s: BookingStatus) =>
     s === "confirmed" ? "default" : s === "pending" ? "secondary" : s === "completed" ? "outline" : "destructive";
 
   const counts = {
     all: all.length,
-    pending: all.filter((t) => t.status === "pending").length,
-    confirmed: all.filter((t) => t.status === "confirmed").length,
-    completed: all.filter((t) => t.status === "completed").length,
-    cancelled: all.filter((t) => t.status === "cancelled").length,
+    pending: all.filter((booking) => booking.status === "pending").length,
+    confirmed: all.filter((booking) => booking.status === "confirmed").length,
+    completed: all.filter((booking) => booking.status === "completed").length,
+    cancelled: all.filter((booking) => booking.status === "cancelled").length,
   };
 
   return (
@@ -225,7 +231,7 @@ export default function CaptainBookings() {
       {/* Barra sticky con filtros y KPIs rápidos */}
       <div className="sticky top-0 z-30 border-b bg-white/80 backdrop-blur">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {/* Título + periodo */}
+          {/* Título + total */}
           <div className="flex items-center gap-3">
             <h2 className="text-xl md:text-2xl font-bold">Bookings</h2>
             <Badge variant="secondary">{counts.all} total</Badge>
@@ -235,25 +241,12 @@ export default function CaptainBookings() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-storm-gray" size={18} />
               <Input
-                placeholder="Search by charter title…"
+                placeholder="Search by charter or customer..."
                 className="pl-10"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
               />
             </div>
-
-            <Select value={period} onValueChange={(v: any) => setPeriod(v)}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Period" />
-              </SelectTrigger>
-              <SelectContent>
-                {PERIODS.map((p) => (
-                  <SelectItem key={p.key} value={p.key}>
-                    {p.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           {/* Chips de estado */}
@@ -264,11 +257,11 @@ export default function CaptainBookings() {
                 size="sm"
                 variant={status === s ? "default" : "outline"}
                 onClick={() => setStatus(s)}
-                className="capitalize"
+                className="capitalize whitespace-nowrap"
               >
                 {s}
                 <Badge variant="secondary" className="ml-2">
-                  {counts[s]}
+                  {counts[s as keyof typeof counts]}
                 </Badge>
               </Button>
             ))}
@@ -277,184 +270,166 @@ export default function CaptainBookings() {
       </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* estado carga / error */}
+        {/* Estado carga / error */}
         {isLoading ? (
           <div className="space-y-4">
-            {[1, 2, 3, 4].map((i) => (
+            {[...Array(3)].map((_, i) => (
               <Card key={i} className="animate-pulse">
                 <CardContent className="p-6">
-                  <div className="space-y-3">
-                    <div className="h-4 bg-gray-200 rounded w-2/3" />
-                    <div className="h-3 bg-gray-200 rounded w-1/3" />
-                    <div className="h-3 bg-gray-200 rounded w-1/2" />
-                  </div>
+                  <div className="h-4 bg-gray-200 rounded w-1/4 mb-3" />
+                  <div className="h-3 bg-gray-200 rounded w-3/4 mb-2" />
+                  <div className="h-3 bg-gray-200 rounded w-1/2" />
                 </CardContent>
               </Card>
             ))}
           </div>
         ) : isError ? (
           <Card className="border-red-200 bg-red-50">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-red-700 flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5" />
-                Failed to load bookings
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex items-center justify-between gap-4">
-              <p className="text-sm text-red-700 break-all">{(error as Error)?.message}</p>
-              <Button variant="outline" onClick={() => refetch()}>
-                Try again
-              </Button>
+            <CardContent className="p-6 text-center">
+              <AlertTriangle className="mx-auto mb-4 text-red-500" size={48} />
+              <h3 className="text-lg font-semibold mb-2">Error Loading Bookings</h3>
+              <p className="text-storm-gray mb-4">{String(error)}</p>
+              <Button onClick={() => refetch()}>Try Again</Button>
             </CardContent>
           </Card>
-        ) : filtered.length > 0 ? (
-          <div className="space-y-8">
-            {groups.map((g) => (
-              <section key={g.key}>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-600">{g.key}</h3>
-                  <div className="h-0.5 bg-gradient-to-r from-gray-200 to-transparent flex-1 ml-4 rounded" />
-                </div>
-
-                <div className="grid grid-cols-1 gap-4">
-                  {g.items.map((b: RecentTx) => (
-                    <Card key={b.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-5">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-3 mb-1">
-                              <h4 className="font-semibold text-lg truncate">
-                                {b.charterTitle || "Charter"}
-                              </h4>
-                              <Badge variant={statusBadge(b.status)} className="capitalize">
-                                {b.status}
+        ) : groups.length === 0 ? (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <Ship className="mx-auto mb-4 text-gray-400" size={64} />
+              <h3 className="text-xl font-semibold mb-2">No Bookings Found</h3>
+              <p className="text-storm-gray mb-6">
+                {status === "all" 
+                  ? "You don't have any bookings yet."
+                  : `No bookings with status "${status}".`
+                }
+              </p>
+              {status !== "all" && (
+                <Button variant="outline" onClick={() => setStatus("all")}>
+                  Show All Bookings
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          /* Lista de bookings agrupados */
+          <div className="space-y-6">
+            {groups.map((group) => (
+              <div key={group.date}>
+                <h3 className="text-lg font-semibold mb-4 text-storm-gray">
+                  {group.date} ({group.bookings.length})
+                </h3>
+                
+                <div className="grid gap-4">
+                  {group.bookings.map((booking) => (
+                    <Card key={booking.id} className="hover:shadow-lg transition-shadow">
+                      <CardContent className="p-6">
+                        <div className="grid md:grid-cols-3 gap-4">
+                          {/* Info del charter y customer */}
+                          <div className="md:col-span-2">
+                            <div className="flex items-start justify-between mb-3">
+                              <div>
+                                <h4 className="font-semibold text-lg mb-1">{booking.charter.title}</h4>
+                                <p className="text-sm text-storm-gray mb-2">{booking.charter.location}</p>
+                                
+                                <div className="flex items-center gap-4 text-sm text-storm-gray">
+                                  <span className="flex items-center gap-1">
+                                    <Users size={16} />
+                                    {booking.guests} guests
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Clock size={16} />
+                                    {booking.charter.duration}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <DollarSign size={16} />
+                                    {money(booking.totalPrice)}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              <Badge variant={statusBadge(booking.status)} className="capitalize">
+                                {booking.status}
                               </Badge>
                             </div>
 
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-storm-gray">
-                              <div className="flex items-center min-w-0">
-                                <CalendarIcon className="w-4 h-4 mr-2 shrink-0" />
-                                <span className="truncate">
-                                  {new Date(b.dateISO).toLocaleDateString()}
+                            {/* Customer info */}
+                            <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Mail size={16} className="text-storm-gray" />
+                                <span className="font-medium">
+                                  {booking.user.firstName && booking.user.lastName
+                                    ? `${booking.user.firstName} ${booking.user.lastName}`
+                                    : "Customer"
+                                  }
                                 </span>
+                                <span className="text-sm text-storm-gray">({booking.user.email})</span>
                               </div>
-                              <div className="flex items-center min-w-0">
-                                <Users className="w-4 h-4 mr-2 shrink-0" />
-                                <span className="truncate">{b.guests} passengers</span>
-                              </div>
-                              <div className="flex items-center font-semibold text-ocean-blue min-w-0">
-                                <DollarSign className="w-4 h-4 mr-2 shrink-0" />
-                                <span className="truncate">{money(b.amount)}</span>
-                              </div>
+                              
+                              {booking.message && (
+                                <p className="text-sm text-storm-gray italic">
+                                  "{booking.message}"
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="text-xs text-storm-gray">
+                              Requested on {booking.createdAt ? new Date(booking.createdAt).toLocaleDateString() : "Unknown date"}
                             </div>
                           </div>
 
-                          <div className="flex flex-wrap gap-3 sm:gap-4">
-                            {b.status === "pending" && (
+                          {/* Acciones */}
+                          <div className="flex flex-col gap-2">
+                            {booking.status === "pending" && (
                               <>
-                                <Button 
-                                  size="sm" 
-                                  className="bg-green-600 hover:bg-green-700 text-white min-w-[80px]"
-                                  onClick={() => handleApproveBooking(b.id)}
-                                  data-testid={`button-approve-${b.id}`}
+                                <Button
+                                  onClick={() => handleApproveBooking(booking.id)}
+                                  disabled={approveMutation.isPending}
+                                  className="bg-green-600 hover:bg-green-700"
                                 >
-                                  Approve
+                                  ✅ Approve
                                 </Button>
-                                <Button 
-                                  variant="destructive" 
-                                  size="sm"
-                                  className="min-w-[70px]"
-                                  onClick={() => handleRejectBooking(b.id)}
-                                  data-testid={`button-reject-${b.id}`}
+                                <Button
+                                  variant="outline"
+                                  onClick={() => handleRejectBooking(booking.id)}
+                                  disabled={rejectMutation.isPending}
+                                  className="border-red-200 text-red-600 hover:bg-red-50"
                                 >
-                                  Reject
+                                  ❌ Reject
                                 </Button>
                               </>
                             )}
-                            <Button variant="ghost" size="sm" className="min-w-[70px]" asChild>
-                              <Link href={`/booking/${b.id}`}>
-                                <span className="inline-flex items-center">
-                                  Details
-                                  <ChevronRight className="w-4 h-4 ml-1" />
-                                </span>
-                              </Link>
-                            </Button>
+                            
+                            {booking.status === "confirmed" && (
+                              <div className="text-center p-4 bg-blue-50 rounded-lg">
+                                <p className="text-sm font-medium text-blue-800">
+                                  ✅ Approved - Waiting for payment
+                                </p>
+                              </div>
+                            )}
+
+                            {booking.status === "completed" && (
+                              <div className="text-center p-4 bg-green-50 rounded-lg">
+                                <p className="text-sm font-medium text-green-800">
+                                  🎉 Completed
+                                </p>
+                              </div>
+                            )}
+
+                            {booking.status === "cancelled" && (
+                              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                                <p className="text-sm font-medium text-gray-600">
+                                  ❌ Cancelled
+                                </p>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </CardContent>
                     </Card>
                   ))}
                 </div>
-              </section>
+              </div>
             ))}
-          </div>
-        ) : (
-          <Card className="text-center py-14">
-            <CardContent>
-              <CalendarIcon className="mx-auto mb-4 text-storm-gray" size={72} />
-              <h3 className="text-xl font-semibold mb-2">No bookings found</h3>
-              <p className="text-storm-gray mb-6">
-                New reservations will appear here as soon as guests book your charters.
-              </p>
-              <Button asChild>
-                <Link href="/captain/charters">View My Charters</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Summary cards (basados en /earnings.totals) */}
-        {data && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-10">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-storm-gray">Trips</CardTitle>
-              </CardHeader>
-              <CardContent className="pb-6">
-                <div className="text-2xl font-bold">{data.totals.tripsCount}</div>
-                <p className="text-xs text-storm-gray mt-1">
-                  Completed: {data.totals.completedTrips}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-storm-gray">Revenue</CardTitle>
-              </CardHeader>
-              <CardContent className="pb-6">
-                <div className="text-2xl font-bold">{money(data.totals.totalEarnings)}</div>
-                <p className="text-xs text-storm-gray mt-1">
-                  Completed: {money(data.totals.completedEarnings)}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-storm-gray">Avg per Trip</CardTitle>
-              </CardHeader>
-              <CardContent className="pb-6">
-                <div className="text-2xl font-bold">{money(data.totals.avgPerTrip)}</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-storm-gray">Change vs prev</CardTitle>
-              </CardHeader>
-              <CardContent className="pb-6">
-                <div
-                  className={
-                    "text-2xl font-bold " +
-                    (data.totals.changePct >= 0 ? "text-green-600" : "text-red-600")
-                  }
-                >
-                  {data.totals.changePct >= 0 ? "+" : ""}
-                  {Math.round(data.totals.changePct)}%
-                </div>
-              </CardContent>
-            </Card>
           </div>
         )}
       </main>
