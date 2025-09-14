@@ -2522,6 +2522,113 @@ Looking forward to an amazing day on the water! 🛥️`;
     }
   });
 
+  // CAPTAIN: Verificar payment proof
+  app.patch("/api/captain/bookings/:id/verify-payment", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const bookingId = Number(req.params.id);
+      if (!Number.isFinite(bookingId)) {
+        return res.status(400).json({ error: "Invalid booking ID" });
+      }
+
+      // Verificar que el booking pertenezca a un charter del captain logueado
+      const [captain] = await db.select({ id: captainsTable.id }).from(captainsTable).where(eq(captainsTable.userId, req.session.userId));
+      if (!captain) return res.status(403).json({ error: "Captain profile required" });
+
+      const [booking] = await db
+        .select({
+          id: bookingsTable.id,
+          paymentStatus: bookingsTable.paymentStatus,
+          charterId: bookingsTable.charterId,
+        })
+        .from(bookingsTable)
+        .leftJoin(chartersTable, eq(bookingsTable.charterId, chartersTable.id))
+        .where(and(eq(bookingsTable.id, bookingId), eq(chartersTable.captainId, captain.id)));
+
+      if (!booking) {
+        return res.status(404).json({ error: "Booking not found or not accessible" });
+      }
+
+      if (booking.paymentStatus !== "proof_submitted") {
+        return res.status(400).json({ error: "Only bookings with submitted payment proof can be verified" });
+      }
+
+      // Actualizar el booking para marcar payment como verified
+      const [updatedBooking] = await db
+        .update(bookingsTable)
+        .set({ paymentStatus: "verified" })
+        .where(eq(bookingsTable.id, bookingId))
+        .returning();
+
+      res.json({ 
+        message: "Payment proof verified successfully", 
+        booking: serializeBooking(updatedBooking) 
+      });
+    } catch (error) {
+      console.error("Verify payment error:", error);
+      return res.status(500).json({ error: "Failed to verify payment proof" });
+    }
+  });
+
+  // CAPTAIN: Rechazar payment proof
+  app.patch("/api/captain/bookings/:id/reject-payment", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const bookingId = Number(req.params.id);
+      if (!Number.isFinite(bookingId)) {
+        return res.status(400).json({ error: "Invalid booking ID" });
+      }
+
+      // Verificar que el booking pertenezca a un charter del captain logueado
+      const [captain] = await db.select({ id: captainsTable.id }).from(captainsTable).where(eq(captainsTable.userId, req.session.userId));
+      if (!captain) return res.status(403).json({ error: "Captain profile required" });
+
+      const [booking] = await db
+        .select({
+          id: bookingsTable.id,
+          paymentStatus: bookingsTable.paymentStatus,
+          charterId: bookingsTable.charterId,
+        })
+        .from(bookingsTable)
+        .leftJoin(chartersTable, eq(bookingsTable.charterId, chartersTable.id))
+        .where(and(eq(bookingsTable.id, bookingId), eq(chartersTable.captainId, captain.id)));
+
+      if (!booking) {
+        return res.status(404).json({ error: "Booking not found or not accessible" });
+      }
+
+      if (booking.paymentStatus !== "proof_submitted") {
+        return res.status(400).json({ error: "Only bookings with submitted payment proof can be rejected" });
+      }
+
+      // Actualizar el booking para marcar payment como rejected
+      const [updatedBooking] = await db
+        .update(bookingsTable)
+        .set({ 
+          paymentStatus: "rejected",
+          // Clear the payment proof URL so user can resubmit
+          paymentProofUrl: null,
+          paymentMethod: null
+        })
+        .where(eq(bookingsTable.id, bookingId))
+        .returning();
+
+      res.json({ 
+        message: "Payment proof rejected successfully", 
+        booking: serializeBooking(updatedBooking) 
+      });
+    } catch (error) {
+      console.error("Reject payment error:", error);
+      return res.status(500).json({ error: "Failed to reject payment proof" });
+    }
+  });
+
   // CAPTAIN: Ver todos sus bookings
   app.get("/api/captain/bookings", async (req: Request, res: Response) => {
     try {
@@ -2552,6 +2659,10 @@ Looking forward to an amazing day on the water! 🛥️`;
           b_status: bookingsTable.status,
           b_message: bookingsTable.message,
           b_createdAt: bookingsTable.createdAt,
+          // Payment info
+          b_paymentProofUrl: bookingsTable.paymentProofUrl,
+          b_paymentStatus: bookingsTable.paymentStatus,
+          b_paymentMethod: bookingsTable.paymentMethod,
           // Charter info
           c_title: chartersTable.title,
           c_location: chartersTable.location,
@@ -2578,6 +2689,10 @@ Looking forward to an amazing day on the water! 🛥️`;
         status: row.b_status,
         message: row.b_message,
         createdAt: row.b_createdAt?.toISOString() || null,
+        // Payment info
+        paymentProofUrl: row.b_paymentProofUrl,
+        paymentStatus: row.b_paymentStatus,
+        paymentMethod: row.b_paymentMethod,
         charter: {
           title: row.c_title,
           location: row.c_location,

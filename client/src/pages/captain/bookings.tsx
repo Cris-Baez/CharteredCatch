@@ -23,10 +23,16 @@ import {
   ChevronRight,
   Mail,
   Clock,
+  Image,
+  Check,
+  X,
+  Eye,
+  CreditCard,
 } from "lucide-react";
 
 /* ====== Tipos derivados del backend /api/captain/bookings ====== */
 type BookingStatus = "pending" | "confirmed" | "completed" | "cancelled";
+type PaymentStatus = "pending" | "proof_submitted" | "verified" | "rejected";
 type CaptainBooking = {
   id: number;
   userId: string;
@@ -37,6 +43,10 @@ type CaptainBooking = {
   status: BookingStatus;
   message: string | null;
   createdAt: string | null;
+  // Payment info
+  paymentProofUrl: string | null;
+  paymentStatus: PaymentStatus | null;
+  paymentMethod: string | null;
   charter: {
     title: string;
     location: string;
@@ -213,6 +223,73 @@ export default function CaptainBookings() {
     rejectMutation.mutate(bookingId);
   };
 
+  // Payment proof mutations
+  const approvePaymentMutation = useMutation({
+    mutationFn: async (bookingId: number) => {
+      const res = await fetch(`/api/captain/bookings/${bookingId}/verify-payment`, {
+        method: "PATCH",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`${res.status} ${res.statusText} — ${text}`);
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/captain/bookings"] });
+      toast({
+        title: "Payment Approved",
+        description: "Payment proof has been verified successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      console.error("Approve payment error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to approve payment proof",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const rejectPaymentMutation = useMutation({
+    mutationFn: async (bookingId: number) => {
+      const res = await fetch(`/api/captain/bookings/${bookingId}/reject-payment`, {
+        method: "PATCH",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`${res.status} ${res.statusText} — ${text}`);
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/captain/bookings"] });
+      toast({
+        title: "Payment Rejected",
+        description: "Payment proof has been rejected. Customer will be notified.",
+      });
+    },
+    onError: (error: Error) => {
+      console.error("Reject payment error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reject payment proof",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleApprovePayment = (bookingId: number) => {
+    approvePaymentMutation.mutate(bookingId);
+  };
+
+  const handleRejectPayment = (bookingId: number) => {
+    rejectPaymentMutation.mutate(bookingId);
+  };
+
   const statusBadge = (s: BookingStatus) =>
     s === "confirmed" ? "default" : s === "pending" ? "secondary" : s === "completed" ? "outline" : "destructive";
 
@@ -375,6 +452,95 @@ export default function CaptainBookings() {
                             <div className="text-xs text-storm-gray">
                               Requested on {booking.createdAt ? new Date(booking.createdAt).toLocaleDateString() : "Unknown date"}
                             </div>
+
+                            {/* Payment Proof Section */}
+                            {booking.status === "confirmed" && (
+                              <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <CreditCard size={16} className="text-blue-600" />
+                                  <span className="font-medium text-blue-800">Payment Status</span>
+                                </div>
+                                
+                                {booking.paymentStatus === "proof_submitted" && booking.paymentProofUrl ? (
+                                  <div className="space-y-3">
+                                    <div className="flex items-center gap-2">
+                                      <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                                        Payment Proof Submitted
+                                      </Badge>
+                                      {booking.paymentMethod && (
+                                        <span className="text-sm text-blue-700">
+                                          via {booking.paymentMethod}
+                                        </span>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="bg-white rounded-lg border p-3">
+                                      <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm font-medium text-gray-700">Payment Screenshot:</span>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => window.open(booking.paymentProofUrl!, '_blank')}
+                                          className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                                        >
+                                          <Eye size={14} className="mr-1" />
+                                          View Full Size
+                                        </Button>
+                                      </div>
+                                      <img 
+                                        src={booking.paymentProofUrl}
+                                        alt="Payment proof screenshot"
+                                        className="w-full max-w-[200px] h-auto rounded border cursor-pointer hover:shadow-lg transition-shadow"
+                                        onClick={() => window.open(booking.paymentProofUrl!, '_blank')}
+                                      />
+                                    </div>
+                                    
+                                    <div className="flex gap-2 pt-2">
+                                      <Button
+                                        onClick={() => handleApprovePayment(booking.id)}
+                                        disabled={approvePaymentMutation.isPending}
+                                        size="sm"
+                                        className="bg-green-600 hover:bg-green-700 text-white"
+                                      >
+                                        <Check size={14} className="mr-1" />
+                                        Approve Payment
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        onClick={() => handleRejectPayment(booking.id)}
+                                        disabled={rejectPaymentMutation.isPending}
+                                        size="sm"
+                                        className="border-red-200 text-red-600 hover:bg-red-50"
+                                      >
+                                        <X size={14} className="mr-1" />
+                                        Reject
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : booking.paymentStatus === "verified" ? (
+                                  <div className="flex items-center gap-2">
+                                    <Badge className="bg-green-100 text-green-800 border-green-300">
+                                      Payment Verified ✅
+                                    </Badge>
+                                    {booking.paymentMethod && (
+                                      <span className="text-sm text-blue-700">
+                                        via {booking.paymentMethod}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : booking.paymentStatus === "rejected" ? (
+                                  <div className="flex items-center gap-2">
+                                    <Badge className="bg-red-100 text-red-800 border-red-300">
+                                      Payment Rejected ❌
+                                    </Badge>
+                                  </div>
+                                ) : (
+                                  <div className="text-sm text-blue-700">
+                                    Waiting for customer to submit payment proof...
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
 
                           {/* Acciones */}
