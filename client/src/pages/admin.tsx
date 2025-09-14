@@ -255,7 +255,7 @@ export default function Admin() {
                   <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-2 rounded-lg mr-2 shadow-lg">
                     <Users className="w-4 h-4 text-white" />
                   </div>
-                  <span className="text-gray-800">Verificar Captains</span>
+                  <span className="text-gray-800">Verify Captains</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-3 sm:px-6">
