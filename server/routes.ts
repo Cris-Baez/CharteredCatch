@@ -2299,11 +2299,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [cap] = await db.select({ id: captainsTable.id }).from(captainsTable).where(eq(captainsTable.userId, req.session.userId));
       if (!cap) return res.status(403).json({ error: "Captain profile required" });
 
+      // Obtener datos completos del booking para enviar mensaje
       const [booking] = await db
         .select({
           id: bookingsTable.id,
           status: bookingsTable.status,
           charterId: bookingsTable.charterId,
+          userId: bookingsTable.userId,
+          totalPrice: bookingsTable.totalPrice,
+          tripDate: bookingsTable.tripDate,
+          guests: bookingsTable.guests,
+          charterTitle: chartersTable.title,
         })
         .from(bookingsTable)
         .leftJoin(chartersTable, eq(bookingsTable.charterId, chartersTable.id))
@@ -2322,6 +2328,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .set({ status: "confirmed" })
         .where(eq(bookingsTable.id, bookingId))
         .returning();
+
+      // Enviar mensaje automático al usuario sobre el pago
+      try {
+        const tripDateText = booking.tripDate 
+          ? new Date(booking.tripDate).toLocaleDateString("en-US", { 
+              weekday: "long", 
+              year: "numeric", 
+              month: "long", 
+              day: "numeric" 
+            })
+          : "your scheduled date";
+
+        const paymentMessage = `🎉 Great news! Your booking for "${booking.charterTitle}" has been approved!
+
+📅 Trip Date: ${tripDateText}
+👥 Guests: ${booking.guests}
+💰 Total: $${booking.totalPrice}
+
+To complete your booking, please proceed with payment in your "My Trips" section. You'll find a secure payment button next to your confirmed booking.
+
+If you have any questions about your trip or need to make changes, feel free to message me directly.
+
+Looking forward to an amazing day on the water! 🛥️`;
+
+        await db
+          .insert(messages)
+          .values({
+            senderId: req.session.userId, // Captain sending the message
+            receiverId: booking.userId,   // User who made the booking
+            charterId: booking.charterId,
+            content: paymentMessage,
+          });
+      } catch (messageError) {
+        // Log error but don't fail the approval - the booking is already approved
+        console.error("Failed to send approval message:", messageError);
+      }
 
       return res.json(serializeBooking(updated));
     } catch (error) {

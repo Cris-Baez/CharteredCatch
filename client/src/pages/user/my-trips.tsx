@@ -46,10 +46,12 @@ import {
   DollarSign,
   Info,
   ExternalLink,
+  CreditCard,
 } from "lucide-react";
 
 // Tipos (según /api/bookings/me + /api/charters/:id del backend)
 import type { CharterWithCaptain } from "@shared/schema";
+import BookingPayment from "@/components/BookingPayment";
 
 type BookingStatus = "pending" | "confirmed" | "cancelled" | "completed";
 
@@ -125,6 +127,10 @@ export default function MyTrips() {
   // Detalles (dialog)
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsBooking, setDetailsBooking] = useState<Booking | null>(null);
+
+  // Pago (dialog)
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentBooking, setPaymentBooking] = useState<Booking | null>(null);
 
   // Fechas con reserva (para marcar en calendario)
   const bookedDates = useMemo(() => {
@@ -258,6 +264,20 @@ export default function MyTrips() {
     setMsgOpen(true);
   };
 
+  const openPayment = (b: Booking) => {
+    setPaymentBooking(b);
+    setPaymentOpen(true);
+  };
+
+  const handlePaymentSuccess = () => {
+    // Refresh bookings after successful payment
+    refetch();
+    toast({
+      title: "Payment Successful",
+      description: "Your trip is fully booked! Check your email for confirmation.",
+    });
+  };
+
   const sendMessage = () => {
     if (!msgBooking) return;
     if (!msgContent.trim()) {
@@ -383,14 +403,26 @@ export default function MyTrips() {
                               >
                                 View details
                               </Button>
-                              <Button
-                                size="sm"
-                                className="bg-ocean-blue hover:bg-blue-800 text-white"
-                                onClick={() => openMessage(b)}
-                              >
-                                <MessageCircle className="w-4 h-4 mr-1" />
-                                Message
-                              </Button>
+                              <div className="flex gap-2">
+                                {b.status === "confirmed" && (
+                                  <Button
+                                    size="sm"
+                                    className="bg-green-600 hover:bg-green-700 text-white"
+                                    onClick={() => openPayment(b)}
+                                  >
+                                    <CreditCard className="w-4 h-4 mr-1" />
+                                    Pay
+                                  </Button>
+                                )}
+                                <Button
+                                  size="sm"
+                                  className="bg-ocean-blue hover:bg-blue-800 text-white"
+                                  onClick={() => openMessage(b)}
+                                >
+                                  <MessageCircle className="w-4 h-4 mr-1" />
+                                  Message
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         ))
@@ -458,6 +490,7 @@ export default function MyTrips() {
                             onViewDetails={() => openDetails(b)}
                             onMessage={() => openMessage(b)}
                             onRebook={() => rebook(b)}
+                            onPayment={() => openPayment(b)}
                           />
                         </motion.div>
                       ))}
@@ -507,6 +540,7 @@ export default function MyTrips() {
                         onViewDetails={() => openDetails(b)}
                         onMessage={() => openMessage(b)}
                         onRebook={() => rebook(b)}
+                        onPayment={() => openPayment(b)}
                       />
                     ))}
                   </div>
@@ -518,6 +552,18 @@ export default function MyTrips() {
       </main>
 
       <Footer />
+
+      {/* Dialog para pago de booking */}
+      {paymentBooking && (
+        <BookingPayment
+          bookingId={paymentBooking.id}
+          bookingTitle={paymentBooking.charter?.title || "Charter Trip"}
+          amount={paymentBooking.totalPrice}
+          isOpen={paymentOpen}
+          onClose={() => setPaymentOpen(false)}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
 
       {/* Dialog para enviar mensaje al capitán */}
       <Dialog open={msgOpen} onOpenChange={setMsgOpen}>
@@ -738,6 +784,7 @@ function TripCard({
   onViewDetails,
   onMessage,
   onRebook,
+  onPayment,
 }: {
   booking: Booking;
   canCancel: boolean;
@@ -745,6 +792,7 @@ function TripCard({
   onViewDetails: () => void;
   onMessage: () => void;
   onRebook: () => void;
+  onPayment?: () => void;
 }) {
   const d = parseISO(booking.tripDate);
   const charter = booking.charter;
@@ -840,6 +888,16 @@ function TripCard({
               >
                 View details <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
+
+              {booking.status === "confirmed" && onPayment && (
+                <Button 
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  onClick={onPayment}
+                >
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  Pay Now
+                </Button>
+              )}
 
               <Button variant="outline" onClick={onMessage}>
                 <MessageCircle className="w-4 h-4 mr-2" />
