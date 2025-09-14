@@ -189,7 +189,7 @@ export default function CaptainPayments() {
 
   // Guardar
   const saveMutation = useMutation({
-    mutationFn: async (payload: UpdatePaymentPayload) => apiRequest("/api/captain/payment-info", "POST", payload),
+    mutationFn: async (payload: UpdatePaymentPayload) => apiRequest("POST", "/api/captain/payment-info", payload),
     onSuccess: () => {
       toast({ title: "Saved", description: "Payment settings updated successfully." });
       queryClient.invalidateQueries({ queryKey: ["/api/captain/payment-info"] });
