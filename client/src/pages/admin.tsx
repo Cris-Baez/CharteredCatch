@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
@@ -34,24 +33,7 @@ export default function Admin() {
     enabled: !!user && user.role === 'admin', // Solo ejecuta si es admin
   });
 
-  // Check if user is admin - DESPUÉS de todos los hooks
-  if (!user || user.role !== 'admin') {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="p-8 text-center">
-            <Shield className="mx-auto mb-4 text-red-500" size={48} />
-            <h2 className="text-2xl font-bold mb-4">Access Denied</h2>
-            <p className="text-storm-gray mb-6">You don't have permission to access the admin panel</p>
-            <Button asChild>
-              <a href="/">Return Home</a>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
+  // ⚡ TODAS LAS MUTATIONS TAMBIÉN AL INICIO
   const updateCaptainMutation = useMutation({
     mutationFn: async ({ captainId, verified }: { captainId: number; verified: boolean }) => {
       return apiRequest(`/api/admin/captains/${captainId}`, "PATCH", { verified });
@@ -91,6 +73,24 @@ export default function Admin() {
       });
     },
   });
+
+  // Check if user is admin - DESPUÉS de TODOS los hooks
+  if (!user || user.role !== 'admin') {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardContent className="p-8 text-center">
+            <Shield className="mx-auto mb-4 text-red-500" size={48} />
+            <h2 className="text-2xl font-bold mb-4">Access Denied</h2>
+            <p className="text-storm-gray mb-6">You don't have permission to access the admin panel</p>
+            <Button asChild>
+              <a href="/">Return Home</a>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const handleCaptainToggle = (captainId: number, verified: boolean) => {
     updateCaptainMutation.mutate({ captainId, verified });
