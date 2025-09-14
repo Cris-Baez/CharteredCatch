@@ -20,8 +20,10 @@ import {
   messages,
   captainPaymentInfo as captainPaymentInfoTable,
   insertCaptainPaymentInfoSchema,
+  insertBookingSchema,
   type CaptainPaymentInfo,
 } from "@shared/schema";
+import { z } from "zod";
 import { and, eq, ilike, inArray, gte, lt, or, isNotNull } from "drizzle-orm";
 
 /**
@@ -96,16 +98,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // ✅ CORS con credenciales (debe ir ANTES de session)
+  const getAllowedOrigins = () => {
+    const origins = [
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+    ];
+
+    // Add specific Replit deployment URLs based on environment
+    if (process.env.REPLIT_DEPLOYMENT === "1") {
+      // Get the specific Replit app URL from environment
+      const replitUrl = process.env.REPL_SLUG ? 
+        `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.replit.app` : 
+        null;
+      
+      if (replitUrl) {
+        origins.push(replitUrl);
+      }
+      
+      // Fallback for common Replit patterns (but more restrictive)
+      if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
+        origins.push(`https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.replit.dev`);
+      }
+    }
+
+    // Allow additional origins from environment variable for flexibility
+    if (process.env.ALLOWED_ORIGINS) {
+      const envOrigins = process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim());
+      origins.push(...envOrigins);
+    }
+
+    return origins;
+  };
+
   app.use(
     cors({
-      origin: [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        // Dominios de Replit deployment
-        /^https:\/\/.*\.replit\.app$/,
-        /^https:\/\/.*\.replit\.dev$/,
-      ],
+      origin: getAllowedOrigins(),
       credentials: true,
+      // Additional security headers
+      optionsSuccessStatus: 200,
     })
   );
 
@@ -120,13 +150,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tableName: "sessions",
         createTableIfMissing: false,
       }),
-      secret: process.env.SESSION_SECRET || "dev_secret",
+      secret: process.env.SESSION_SECRET || "dev_secret_insecure_change_in_production",
       resave: false,
       saveUninitialized: false,
       cookie: {
         httpOnly: true,
-        secure: false,     // true solo si usas HTTPS
-        sameSite: "lax",   // necesario para que viaje cookie con fetch+credentials
+        // Secure cookies in production (HTTPS) or when NODE_ENV=production
+        secure: process.env.NODE_ENV === "production" || process.env.REPLIT_DEPLOYMENT === "1",
+        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
         maxAge: 7 * 24 * 60 * 60 * 1000, // 1 semana
       },
     })
@@ -1661,33 +1692,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(401).json({ message: "Unauthorized" });
         }
 
-        const { charterId, tripDate, guests, message } = req.body ?? {};
-        const charterNumeric = Number(charterId);
-        if (!Number.isFinite(charterNumeric) || !tripDate || !guests) {
-          return res.status(400).json({ message: "Invalid payload" });
+        // Enhanced Zod validation for booking creation
+        const bookingValidationSchema = insertBookingSchema.extend({
+          charterId: z.number().positive().int(),
+          tripDate: z.string().datetime().or(z.date()),
+          guests: z.number().positive().int().min(1).max(50),
+          message: z.string().max(1000).optional(),
+        }).omit({
+          userId: true, // Will be set from session
+          totalPrice: true, // Will be calculated server-side
+          status: true, // Will be set to 'pending'
+        });
+
+        const validationResult = bookingValidationSchema.safeParse(req.body);
+        if (!validationResult.success) {
+          return res.status(400).json({ 
+            message: "Invalid request data",
+            errors: validationResult.error.issues.map(issue => ({
+              field: issue.path.join('.'),
+              message: issue.message
+            }))
+          });
         }
 
-        // Traer charter para precio/validaciones
+        const { charterId, tripDate, guests, message } = validationResult.data;
+
+        // Enhanced charter validation with price integrity checks
         const [c] = await db
           .select({
             id: chartersTable.id,
             price: chartersTable.price,
             isListed: chartersTable.isListed,
+            maxGuests: chartersTable.maxGuests,
+            available: chartersTable.available,
+            captainId: chartersTable.captainId,
           })
           .from(chartersTable)
-          .where(eq(chartersTable.id, charterNumeric));
+          .where(eq(chartersTable.id, charterId));
 
-        if (!c || !c.isListed) {
-          return res.status(400).json({ message: "Charter not available" });
+        if (!c) {
+          return res.status(404).json({ message: "Charter not found" });
         }
 
-        const totalPrice = c.price;
+        if (!c.isListed || !c.available) {
+          return res.status(400).json({ message: "Charter not available for booking" });
+        }
+
+        // Validate guest count against charter capacity
+        if (guests > c.maxGuests) {
+          return res.status(400).json({ 
+            message: `Guests exceeds charter capacity. Maximum allowed: ${c.maxGuests}` 
+          });
+        }
+
+        // Server-side price calculation and validation
+        const charterPriceDecimal = Number(c.price);
+        if (!Number.isFinite(charterPriceDecimal) || charterPriceDecimal <= 0) {
+          return res.status(500).json({ message: "Invalid charter pricing configuration" });
+        }
+
+        // Calculate total price server-side (never trust client data for pricing)
+        // Future enhancement: add guest-based pricing, date-based pricing, etc.
+        const totalPrice = charterPriceDecimal;
 
         const [created] = await db
           .insert(bookingsTable)
           .values({
             userId: req.session.userId,
-            charterId: charterNumeric,
+            charterId: charterId,
             tripDate: new Date(tripDate),
             guests: Number(guests),
             totalPrice: totalPrice.toString(),
