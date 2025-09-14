@@ -18,7 +18,7 @@ export default function MapPopupCard({
 }: MapPopupCardProps) {
   const imgSrc =
     charter.images?.[0] ||
-    "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800&q=60&auto=format&fit=crop";
+    "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&q=80&auto=format&fit=crop";
 
   const rating =
     charter.captain?.rating != null
