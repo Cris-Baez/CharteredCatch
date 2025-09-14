@@ -180,7 +180,7 @@ export default function Admin() {
                           {captain.verified ? "Verified" : "Pending"}
                         </Badge>
                         <Switch
-                          checked={captain.verified}
+                          checked={captain.verified ?? false}
                           onCheckedChange={(checked) => handleCaptainToggle(captain.id, checked)}
                         />
                       </div>
@@ -216,7 +216,7 @@ export default function Admin() {
                           {charter.isListed ? "Listed" : "Hidden"}
                         </Badge>
                         <Switch
-                          checked={charter.isListed}
+                          checked={charter.isListed ?? false}
                           onCheckedChange={(checked) => handleCharterToggle(charter.id, checked)}
                         />
                       </div>
