@@ -18,7 +18,23 @@ export default function Admin() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Check if user is admin
+  // ⚡ HOOKS SIEMPRE PRIMERO - antes de cualquier return condicional
+  const { data: captains, isLoading: captainsLoading } = useQuery<(Captain & { user: any })[]>({
+    queryKey: ["/api/admin/captains"],
+    enabled: !!user && user.role === 'admin', // Solo ejecuta si es admin
+  });
+
+  const { data: charters, isLoading: chartersLoading } = useQuery<Charter[]>({
+    queryKey: ["/api/admin/charters"],
+    enabled: !!user && user.role === 'admin', // Solo ejecuta si es admin
+  });
+
+  const { data: subscriptions, isLoading: subscriptionsLoading } = useQuery<User[]>({
+    queryKey: ["/api/admin/subscriptions"],
+    enabled: !!user && user.role === 'admin', // Solo ejecuta si es admin
+  });
+
+  // Check if user is admin - DESPUÉS de todos los hooks
   if (!user || user.role !== 'admin') {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -35,18 +51,6 @@ export default function Admin() {
       </div>
     );
   }
-
-  const { data: captains, isLoading: captainsLoading } = useQuery<(Captain & { user: any })[]>({
-    queryKey: ["/api/admin/captains"],
-  });
-
-  const { data: charters, isLoading: chartersLoading } = useQuery<Charter[]>({
-    queryKey: ["/api/admin/charters"],
-  });
-
-  const { data: subscriptions, isLoading: subscriptionsLoading } = useQuery<User[]>({
-    queryKey: ["/api/admin/subscriptions"],
-  });
 
   const updateCaptainMutation = useMutation({
     mutationFn: async ({ captainId, verified }: { captainId: number; verified: boolean }) => {

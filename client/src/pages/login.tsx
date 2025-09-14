@@ -28,7 +28,9 @@ export default function Login() {
   // ✅ Redirige cuando ya está autenticado
   useEffect(() => {
     if (isAuthenticated && user) {
-      if (user.role === "captain") {
+      if (user.role === "admin") {
+        window.location.replace("/admin");
+      } else if (user.role === "captain") {
         window.location.replace("/captain/dashboard");
       } else if (user.role === "user") {
         window.location.replace("/user/home");
