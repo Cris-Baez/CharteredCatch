@@ -127,7 +127,7 @@ export default function ReviewsList({ charterId }: ReviewsListProps) {
   const averageRating = reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length;
 
   return (
-    <Card>
+    <Card data-testid="reviews-section">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>Reviews ({reviews.length})</span>

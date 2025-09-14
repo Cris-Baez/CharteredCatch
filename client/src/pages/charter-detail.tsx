@@ -334,8 +334,13 @@ export default function CharterDetail() {
           }
         }}
       >
-        <DialogContent>
-          <DialogHeader><DialogTitle>Book Your Charter</DialogTitle></DialogHeader>
+        <DialogContent aria-describedby="booking-description">
+          <DialogHeader>
+            <DialogTitle>Book Your Charter</DialogTitle>
+            <p id="booking-description" className="text-sm text-gray-600 mt-2">
+              Select your preferred date, number of guests, and add any special requests for your charter booking.
+            </p>
+          </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleBooking)} className="space-y-3">
               <FormField

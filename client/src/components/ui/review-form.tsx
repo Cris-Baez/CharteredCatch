@@ -40,8 +40,11 @@ export default function ReviewForm({ charterId, charterTitle, onSuccess }: Revie
       
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ["/api/reviews", charterId] });
+      queryClient.invalidateQueries({ queryKey: ["charter", String(charterId)] });
       queryClient.invalidateQueries({ queryKey: ["/api/charters"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/captain"] });
+      // Invalidate captain queries - we need to refresh captain profiles
+      queryClient.invalidateQueries({ queryKey: ["/api/captain/me"] });
+      queryClient.invalidateQueries({ queryKey: ["captain"] });
       
       onSuccess?.();
     },
