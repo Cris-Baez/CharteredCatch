@@ -2577,6 +2577,8 @@ Looking forward to an amazing day on the water! 🛥️`;
   });
 
   // USER: Crear payment intent para booking confirmado
+  // DISABLED: Booking payments now use direct payment to captains, not Stripe
+  /*
   app.post("/api/bookings/:id/create-payment-intent", async (req: Request, res: Response) => {
     try {
       if (!req.session.userId) {
@@ -2629,6 +2631,7 @@ Looking forward to an amazing day on the water! 🛥️`;
       res.status(500).json({ error: "Failed to create payment intent: " + error.message });
     }
   });
+  */
 
   // ==============================
   // CAPTAIN PAYMENT INFO

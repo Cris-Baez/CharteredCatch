@@ -138,7 +138,7 @@ export default function PaymentInstructions({
         });
         
         // Invalidate bookings cache to update UI with new payment status
-        queryClient.invalidateQueries({ queryKey: ["/api/bookings", "me"] });
+        queryClient.invalidateQueries({ queryKey: ["bookings", "me"] });
         
         onSuccess();
         onClose();

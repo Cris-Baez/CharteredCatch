@@ -30,8 +30,8 @@ import CharterDetailUser from "./pages/user/charter-detail-user";
 import UserProfile from "./pages/user/profileuser"
 import HelpUser from "./pages/user/helpuser"
 import Messages from "./pages/user/messages";
-import UserCheckout from "./pages/user/checkout";
-import StripeCheckout from "./pages/stripe-checkout";
+// import UserCheckout from "./pages/user/checkout";
+// import StripeCheckout from "./pages/stripe-checkout";
 
 // Capitán
 import CaptainDashboard from "./pages/captain/captain-dashboard";
@@ -82,8 +82,8 @@ function App() {
         <Route path="/user/charters/:id" component={CharterDetailUser} />
         <Route path="/user/helpuser" component={HelpUser} />
         <Route path="/user/messages" component={Messages} />
-        <Route path="/user/checkout" component={UserCheckout} />
-        <Route path="/stripe-checkout" component={StripeCheckout} />
+        {/* <Route path="/user/checkout" component={UserCheckout} />
+        <Route path="/stripe-checkout" component={StripeCheckout} /> */}
         {/* Capitán */}
         <Route path="/captain/dashboard" component={CaptainDashboard} />
         <Route path="/captain" component={CaptainOverview} />
