@@ -2315,6 +2315,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .leftJoin(chartersTable, eq(bookingsTable.charterId, chartersTable.id))
         .where(and(eq(bookingsTable.id, bookingId), eq(chartersTable.captainId, cap.id)));
 
+      // Obtener información de pago del capitán
+      const [paymentInfo] = await db
+        .select()
+        .from(captainPaymentInfoTable)
+        .where(eq(captainPaymentInfoTable.captainId, cap.id));
+
       if (!booking) {
         return res.status(404).json({ error: "Booking not found or not accessible" });
       }
@@ -2340,15 +2346,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
             })
           : "your scheduled date";
 
+        // Construir información de pago según método preferido del capitán
+        let paymentInstructions = "Please contact me directly for payment details.";
+        
+        if (paymentInfo) {
+          const method = paymentInfo.preferredMethod;
+          
+          switch (method) {
+            case "bank":
+              if (paymentInfo.bankName && paymentInfo.accountHolderName) {
+                paymentInstructions = `💳 Bank Transfer:
+• Bank: ${paymentInfo.bankName}
+• Account Holder: ${paymentInfo.accountHolderName}
+• Account Number: ${paymentInfo.accountNumber?.replace(/\d(?=\d{4})/g, "*") || "Contact me for details"}
+• Routing Number: ${paymentInfo.routingNumber?.replace(/\d(?=\d{4})/g, "*") || "Contact me for details"}`;
+              }
+              break;
+            case "paypal":
+              if (paymentInfo.paypalEmail) {
+                paymentInstructions = `💰 PayPal: Send payment to ${paymentInfo.paypalEmail}`;
+              }
+              break;
+            case "venmo":
+              if (paymentInfo.venmoUsername) {
+                paymentInstructions = `📱 Venmo: Send payment to ${paymentInfo.venmoUsername}`;
+              }
+              break;
+            case "zelle":
+              if (paymentInfo.zelleEmail) {
+                paymentInstructions = `🏦 Zelle: Send payment to ${paymentInfo.zelleEmail}`;
+              }
+              break;
+            case "cashapp":
+              if (paymentInfo.cashAppTag) {
+                paymentInstructions = `💵 Cash App: Send payment to ${paymentInfo.cashAppTag}`;
+              }
+              break;
+          }
+          
+          // Agregar instrucciones adicionales si las hay
+          if (paymentInfo.instructions) {
+            paymentInstructions += `\n\n📝 Additional Instructions:\n${paymentInfo.instructions}`;
+          }
+        }
+
         const paymentMessage = `🎉 Great news! Your booking for "${booking.charterTitle}" has been approved!
 
 📅 Trip Date: ${tripDateText}
 👥 Guests: ${booking.guests}
 💰 Total: $${booking.totalPrice}
 
-To complete your booking, please proceed with payment in your "My Trips" section. You'll find a secure payment button next to your confirmed booking.
+💳 PAYMENT INSTRUCTIONS:
+${paymentInstructions}
 
-If you have any questions about your trip or need to make changes, feel free to message me directly.
+📸 After payment, please upload a screenshot in your "My Trips" section to confirm payment was sent.
+
+If you have any questions about payment or your trip, feel free to message me directly.
 
 Looking forward to an amazing day on the water! 🛥️`;
 

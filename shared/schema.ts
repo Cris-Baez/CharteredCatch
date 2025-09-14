@@ -94,6 +94,9 @@ export const bookings = pgTable("bookings", {
   totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
   status: text("status").notNull(), // 'pending', 'confirmed', 'cancelled'
   message: text("message"),
+  paymentProofUrl: text("payment_proof_url"), // Screenshot of payment
+  paymentMethod: text("payment_method"), // Method used: 'bank', 'paypal', 'venmo', 'zelle', 'cashapp'
+  paymentStatus: text("payment_status").default("pending"), // 'pending', 'proof_submitted', 'verified'
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
