@@ -55,7 +55,7 @@ const uploadStorage = multer.diskStorage({
 const upload = multer({
   storage: uploadStorage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB max file size
+    fileSize: 100 * 1024 * 1024, // 100MB max file size
   },
   fileFilter: (req, file, cb) => {
     // Only allow image files
@@ -2761,7 +2761,7 @@ Looking forward to an amazing day on the water! 🛥️`;
       if (err instanceof multer.MulterError) {
         // Handle multer-specific errors
         if (err.code === "LIMIT_FILE_SIZE") {
-          return res.status(400).json({ error: "File size too large. Maximum size is 5MB." });
+          return res.status(400).json({ error: "File size too large. Maximum size is 100MB." });
         }
         if (err.code === "LIMIT_UNEXPECTED_FILE") {
           return res.status(400).json({ error: "Unexpected file field. Use 'paymentProof' field name." });
