@@ -101,132 +101,203 @@ export default function Admin() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Shield className="text-ocean-blue mr-3" size={32} />
-              <div>
-                <h1 className="text-xl font-bold">Admin Panel</h1>
-                <p className="text-sm text-storm-gray">Manage captains and charters</p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      {/* 📱 Mobile-Friendly Header */}
+      <header className="bg-white/80 backdrop-blur-md shadow-lg border-b border-blue-100 sticky top-0 z-50">
+        <div className="w-full px-3 sm:px-4 lg:px-6 max-w-7xl mx-auto">
+          <div className="flex justify-between items-center h-14 sm:h-16">
+            <div className="flex items-center min-w-0 flex-1">
+              <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-xl mr-2 sm:mr-3 shadow-lg">
+                <Shield className="text-white" size={20} />
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">Admin Panel</h1>
+                <p className="text-xs sm:text-sm text-gray-500 hidden sm:block">Gestión de la plataforma</p>
               </div>
             </div>
-            <Button variant="outline" asChild>
-              <a href="/">Back to Site</a>
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="ml-2 text-xs sm:text-sm bg-white/50 hover:bg-white/80 border-blue-200" 
+              asChild
+            >
+              <a href="/">← Inicio</a>
             </Button>
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Enhanced Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
+      <div className="w-full px-3 sm:px-4 lg:px-6 max-w-7xl mx-auto py-4 sm:py-6 lg:py-8">
+        {/* 🎨 Beautiful Stats Cards - Mobile Responsive */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+          <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+            <CardContent className="p-3 sm:p-4 lg:p-6">
               <div className="flex items-center">
-                <Users className="text-blue-500 mr-4" size={32} />
-                <div>
-                  <p className="text-sm font-medium text-storm-gray">Total Captains</p>
-                  <p className="text-2xl font-bold">{captains?.length || 0}</p>
+                <div className="bg-white/20 p-2 rounded-lg mr-2 sm:mr-3">
+                  <Users size={20} className="sm:w-6 sm:h-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm font-medium text-blue-100">Captains</p>
+                  <p className="text-xl sm:text-2xl font-bold truncate">{captains?.length || 0}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-6">
+          
+          <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+            <CardContent className="p-3 sm:p-4 lg:p-6">
               <div className="flex items-center">
-                <Shield className="text-green-500 mr-4" size={32} />
-                <div>
-                  <p className="text-sm font-medium text-storm-gray">Verified Captains</p>
-                  <p className="text-2xl font-bold">
+                <div className="bg-white/20 p-2 rounded-lg mr-2 sm:mr-3">
+                  <Shield size={20} className="sm:w-6 sm:h-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm font-medium text-green-100">Verified</p>
+                  <p className="text-xl sm:text-2xl font-bold truncate">
                     {captains?.filter(c => c.verified).length || 0}
                   </p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-6">
+          
+          <Card className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+            <CardContent className="p-3 sm:p-4 lg:p-6">
               <div className="flex items-center">
-                <Ship className="text-ocean-blue mr-4" size={32} />
-                <div>
-                  <p className="text-sm font-medium text-storm-gray">Active Charters</p>
-                  <p className="text-2xl font-bold">
+                <div className="bg-white/20 p-2 rounded-lg mr-2 sm:mr-3">
+                  <Ship size={20} className="sm:w-6 sm:h-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm font-medium text-cyan-100">Charters</p>
+                  <p className="text-xl sm:text-2xl font-bold truncate">
                     {charters?.filter(c => c.isListed).length || 0}
                   </p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-6">
+          
+          <Card className="bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+            <CardContent className="p-3 sm:p-4 lg:p-6">
               <div className="flex items-center">
-                <CreditCard className="text-purple-500 mr-4" size={32} />
-                <div>
-                  <p className="text-sm font-medium text-storm-gray">Subscriptions</p>
-                  <p className="text-2xl font-bold">{subscriptions?.length || 0}</p>
+                <div className="bg-white/20 p-2 rounded-lg mr-2 sm:mr-3">
+                  <CreditCard size={20} className="sm:w-6 sm:h-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm font-medium text-purple-100">Subs</p>
+                  <p className="text-xl sm:text-2xl font-bold truncate">{subscriptions?.length || 0}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Tab-based Admin Interface */}
+        {/* 📱 Mobile-Optimized Tabs */}
         <Tabs defaultValue="captains" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="captains" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Captains
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 bg-white/50 backdrop-blur-sm border border-blue-100 shadow-lg rounded-2xl p-1">
+            <TabsTrigger 
+              value="captains" 
+              className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm rounded-xl data-[state=active]:bg-blue-500 data-[state=active]:text-white transition-all duration-200"
+            >
+              <Users className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Captains</span>
+              <span className="sm:hidden">Cap</span>
             </TabsTrigger>
-            <TabsTrigger value="charters" className="flex items-center gap-2">
-              <Ship className="w-4 h-4" />
-              Charters
+            <TabsTrigger 
+              value="charters" 
+              className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm rounded-xl data-[state=active]:bg-cyan-500 data-[state=active]:text-white transition-all duration-200"
+            >
+              <Ship className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Charters</span>
+              <span className="sm:hidden">Boat</span>
             </TabsTrigger>
-            <TabsTrigger value="subscriptions" className="flex items-center gap-2">
-              <CreditCard className="w-4 h-4" />
-              Subscriptions
+            <TabsTrigger 
+              value="subscriptions" 
+              className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm rounded-xl data-[state=active]:bg-purple-500 data-[state=active]:text-white transition-all duration-200"
+            >
+              <CreditCard className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Subs</span>
+              <span className="sm:hidden">Pay</span>
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              Analytics
+            <TabsTrigger 
+              value="analytics" 
+              className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm rounded-xl data-[state=active]:bg-green-500 data-[state=active]:text-white transition-all duration-200"
+            >
+              <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Analytics</span>
+              <span className="sm:hidden">Data</span>
             </TabsTrigger>
           </TabsList>
 
-          {/* Captains Tab */}
-          <TabsContent value="captains" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Users className="w-5 h-5 mr-2" />
-                  Captain Verification Management
+          {/* 👨‍✈️ Captains Tab - Mobile Optimized */}
+          <TabsContent value="captains" className="mt-4 sm:mt-6">
+            <Card className="bg-white/70 backdrop-blur-sm border-blue-100 shadow-lg rounded-2xl">
+              <CardHeader className="pb-3 sm:pb-6">
+                <CardTitle className="flex items-center text-base sm:text-lg">
+                  <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-2 rounded-lg mr-2 shadow-lg">
+                    <Users className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-gray-800">Verificar Captains</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-3 sm:px-6">
                 {captainsLoading ? (
-                  <p>Loading captains...</p>
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                  </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4 max-h-96 overflow-y-auto">
                     {captains?.map((captain) => (
-                      <div key={captain.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex-1">
-                          <p className="font-semibold">
-                            {captain.user?.firstName} {captain.user?.lastName}
-                          </p>
-                          <p className="text-sm text-storm-gray">{captain.user?.email}</p>
-                          <p className="text-sm text-storm-gray">License: {captain.licenseNumber}</p>
-                          <p className="text-sm text-storm-gray">Location: {captain.location}</p>
-                          <p className="text-sm text-storm-gray">Rating: {captain.rating} ({captain.reviewCount} reviews)</p>
+                      <div key={captain.id} className="bg-gradient-to-r from-white to-blue-50 p-3 sm:p-4 border border-blue-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
+                        {/* Mobile Layout - Stacked */}
+                        <div className="sm:hidden">
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold text-gray-900 text-sm truncate">
+                                {captain.user?.firstName} {captain.user?.lastName}
+                              </p>
+                              <p className="text-xs text-gray-600 truncate">{captain.user?.email}</p>
+                            </div>
+                            <Switch
+                              checked={captain.verified ?? false}
+                              onCheckedChange={(checked) => handleCaptainToggle(captain.id, checked)}
+                              className="ml-2 flex-shrink-0"
+                            />
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <div className="text-xs text-gray-500 min-w-0 flex-1 truncate">
+                              📍 {captain.location}
+                            </div>
+                            <Badge 
+                              variant={captain.verified ? "default" : "secondary"} 
+                              className={`ml-2 flex-shrink-0 text-xs ${captain.verified ? 'bg-green-500' : 'bg-gray-400'}`}
+                            >
+                              {captain.verified ? "✓ Ver" : "Pend"}
+                            </Badge>
+                          </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge variant={captain.verified ? "default" : "secondary"}>
-                            {captain.verified ? "Verified" : "Pending"}
-                          </Badge>
-                          <Switch
-                            checked={captain.verified ?? false}
-                            onCheckedChange={(checked) => handleCaptainToggle(captain.id, checked)}
-                          />
+                        
+                        {/* Desktop Layout - Side by side */}
+                        <div className="hidden sm:flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900 truncate">
+                              {captain.user?.firstName} {captain.user?.lastName}
+                            </p>
+                            <p className="text-sm text-gray-600 truncate">{captain.user?.email}</p>
+                            <div className="flex gap-4 mt-1 text-xs text-gray-500">
+                              <span className="truncate">📍 {captain.location}</span>
+                              <span>📋 {captain.licenseNumber}</span>
+                              <span>⭐ {captain.rating} ({captain.reviewCount})</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-3 flex-shrink-0 ml-4">
+                            <Badge variant={captain.verified ? "default" : "secondary"} className={captain.verified ? 'bg-green-500' : ''}>
+                              {captain.verified ? "Verified" : "Pending"}
+                            </Badge>
+                            <Switch
+                              checked={captain.verified ?? false}
+                              onCheckedChange={(checked) => handleCaptainToggle(captain.id, checked)}
+                            />
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -236,36 +307,72 @@ export default function Admin() {
             </Card>
           </TabsContent>
 
-          {/* Charters Tab */}
-          <TabsContent value="charters" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Ship className="w-5 h-5 mr-2" />
-                  Charter Visibility Management
+          {/* 🚢 Charters Tab - Mobile Optimized */}
+          <TabsContent value="charters" className="mt-4 sm:mt-6">
+            <Card className="bg-white/70 backdrop-blur-sm border-cyan-100 shadow-lg rounded-2xl">
+              <CardHeader className="pb-3 sm:pb-6">
+                <CardTitle className="flex items-center text-base sm:text-lg">
+                  <div className="bg-gradient-to-r from-cyan-500 to-blue-500 p-2 rounded-lg mr-2 shadow-lg">
+                    <Ship className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-gray-800">Gestionar Charters</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-3 sm:px-6">
                 {chartersLoading ? (
-                  <p>Loading charters...</p>
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-500"></div>
+                  </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4 max-h-96 overflow-y-auto">
                     {charters?.map((charter) => (
-                      <div key={charter.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex-1">
-                          <p className="font-semibold">{charter.title}</p>
-                          <p className="text-sm text-storm-gray">{charter.location}</p>
-                          <p className="text-sm text-storm-gray">${charter.price}/trip • Max {charter.maxGuests} guests</p>
-                          <p className="text-sm text-storm-gray">Species: {charter.targetSpecies}</p>
+                      <div key={charter.id} className="bg-gradient-to-r from-white to-cyan-50 p-3 sm:p-4 border border-cyan-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
+                        {/* Mobile Layout */}
+                        <div className="sm:hidden">
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold text-gray-900 text-sm truncate">{charter.title}</p>
+                              <p className="text-xs text-gray-600 truncate">📍 {charter.location}</p>
+                            </div>
+                            <Switch
+                              checked={charter.isListed ?? false}
+                              onCheckedChange={(checked) => handleCharterToggle(charter.id, checked)}
+                              className="ml-2 flex-shrink-0"
+                            />
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <div className="text-xs text-gray-500 min-w-0 flex-1 truncate">
+                              💰 ${charter.price} • 👥 {charter.maxGuests}
+                            </div>
+                            <Badge 
+                              variant={charter.isListed ? "default" : "secondary"} 
+                              className={`ml-2 flex-shrink-0 text-xs ${charter.isListed ? 'bg-cyan-500' : 'bg-gray-400'}`}
+                            >
+                              {charter.isListed ? "✓ Live" : "Hide"}
+                            </Badge>
+                          </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge variant={charter.isListed ? "default" : "secondary"}>
-                            {charter.isListed ? "Listed" : "Hidden"}
-                          </Badge>
-                          <Switch
-                            checked={charter.isListed ?? false}
-                            onCheckedChange={(checked) => handleCharterToggle(charter.id, checked)}
-                          />
+                        
+                        {/* Desktop Layout */}
+                        <div className="hidden sm:flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900 truncate">{charter.title}</p>
+                            <p className="text-sm text-gray-600 truncate">📍 {charter.location}</p>
+                            <div className="flex gap-4 mt-1 text-xs text-gray-500">
+                              <span>💰 ${charter.price}/trip</span>
+                              <span>👥 Max {charter.maxGuests}</span>
+                              <span className="truncate">🎣 {charter.targetSpecies}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-3 flex-shrink-0 ml-4">
+                            <Badge variant={charter.isListed ? "default" : "secondary"} className={charter.isListed ? 'bg-cyan-500' : ''}>
+                              {charter.isListed ? "Listed" : "Hidden"}
+                            </Badge>
+                            <Switch
+                              checked={charter.isListed ?? false}
+                              onCheckedChange={(checked) => handleCharterToggle(charter.id, checked)}
+                            />
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -275,40 +382,80 @@ export default function Admin() {
             </Card>
           </TabsContent>
 
-          {/* Subscriptions Tab */}
-          <TabsContent value="subscriptions" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <CreditCard className="w-5 h-5 mr-2" />
-                  Subscription Management
+          {/* 💳 Subscriptions Tab - Mobile Optimized */}
+          <TabsContent value="subscriptions" className="mt-4 sm:mt-6">
+            <Card className="bg-white/70 backdrop-blur-sm border-purple-100 shadow-lg rounded-2xl">
+              <CardHeader className="pb-3 sm:pb-6">
+                <CardTitle className="flex items-center text-base sm:text-lg">
+                  <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-2 rounded-lg mr-2 shadow-lg">
+                    <CreditCard className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-gray-800">Suscripciones</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-3 sm:px-6">
                 {subscriptionsLoading ? (
-                  <p>Loading subscriptions...</p>
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
+                  </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4 max-h-96 overflow-y-auto">
                     {subscriptions?.length === 0 ? (
-                      <p className="text-center text-storm-gray py-8">No active subscriptions found</p>
+                      <div className="text-center py-12">
+                        <div className="bg-gradient-to-r from-gray-100 to-gray-200 p-6 rounded-2xl">
+                          <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                          <p className="text-gray-600 font-medium">No hay suscripciones activas</p>
+                          <p className="text-gray-500 text-sm mt-1">Los datos aparecerán cuando haya usuarios con Stripe</p>
+                        </div>
+                      </div>
                     ) : (
                       subscriptions?.map((user) => (
-                        <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
-                          <div className="flex-1">
-                            <p className="font-semibold">{user.firstName} {user.lastName}</p>
-                            <p className="text-sm text-storm-gray">{user.email}</p>
-                            <p className="text-sm text-storm-gray">Role: {user.role}</p>
-                            <p className="text-sm text-storm-gray">
-                              Joined: {user.createdAt ? format(new Date(user.createdAt), 'MMM dd, yyyy') : 'Unknown'}
-                            </p>
+                        <div key={user.id} className="bg-gradient-to-r from-white to-purple-50 p-3 sm:p-4 border border-purple-100 rounded-xl shadow-sm">
+                          {/* Mobile Layout */}
+                          <div className="sm:hidden">
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-semibold text-gray-900 text-sm truncate">
+                                  {user.firstName} {user.lastName}
+                                </p>
+                                <p className="text-xs text-gray-600 truncate">{user.email}</p>
+                              </div>
+                              <Badge 
+                                variant="outline"
+                                className={`ml-2 flex-shrink-0 text-xs ${user.stripeSubscriptionId ? 'bg-green-100 text-green-600 border-green-200' : 'bg-gray-100'}`}
+                              >
+                                {user.stripeSubscriptionId ? "✓ Act" : "Cust"}
+                              </Badge>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <div className="text-xs text-gray-500">
+                                👤 {user.role} • 📅 {user.createdAt ? format(new Date(user.createdAt), 'MMM dd, yyyy') : 'Unknown'}
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <Badge variant="outline">
-                              {user.stripeSubscriptionId ? "Active" : "Customer"}
-                            </Badge>
-                            {user.stripeCustomerId && (
-                              <Badge variant="secondary">Stripe ID: {user.stripeCustomerId.slice(-4)}</Badge>
-                            )}
+                          
+                          {/* Desktop Layout */}
+                          <div className="hidden sm:flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-gray-900 truncate">
+                                {user.firstName} {user.lastName}
+                              </p>
+                              <p className="text-sm text-gray-600 truncate">{user.email}</p>
+                              <div className="flex gap-4 mt-1 text-xs text-gray-500">
+                                <span>👤 {user.role}</span>
+                                <span>📅 {user.createdAt ? format(new Date(user.createdAt), 'MMM dd, yyyy') : 'Unknown'}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-3 flex-shrink-0 ml-4">
+                              <Badge variant="outline" className={user.stripeSubscriptionId ? 'bg-green-100 text-green-600 border-green-200' : ''}>
+                                {user.stripeSubscriptionId ? "Active" : "Customer"}
+                              </Badge>
+                              {user.stripeCustomerId && (
+                                <Badge variant="secondary" className="bg-purple-100 text-purple-600">
+                                  💳 {user.stripeCustomerId.slice(-4)}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))
@@ -319,48 +466,50 @@ export default function Admin() {
             </Card>
           </TabsContent>
 
-          {/* Analytics Tab */}
-          <TabsContent value="analytics" className="mt-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <BarChart3 className="w-5 h-5 mr-2" />
-                    Platform Overview
+          {/* 📊 Analytics Tab - Mobile Optimized */}
+          <TabsContent value="analytics" className="mt-4 sm:mt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+              <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-green-100 shadow-lg rounded-2xl">
+                <CardHeader className="pb-3 sm:pb-6">
+                  <CardTitle className="flex items-center text-base sm:text-lg">
+                    <div className="bg-gradient-to-r from-green-500 to-green-600 p-2 rounded-lg mr-2 shadow-lg">
+                      <BarChart3 className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-gray-800">Platform Stats</span>
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between">
-                      <span>Total Captains:</span>
-                      <span className="font-semibold">{captains?.length || 0}</span>
+                <CardContent className="px-3 sm:px-6">
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex justify-between items-center p-2 rounded-lg bg-white/50">
+                      <span className="text-sm font-medium text-gray-700">👨‍✈️ Total Captains:</span>
+                      <span className="font-bold text-lg text-blue-600">{captains?.length || 0}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Verified Captains:</span>
-                      <span className="font-semibold text-green-600">
+                    <div className="flex justify-between items-center p-2 rounded-lg bg-white/50">
+                      <span className="text-sm font-medium text-gray-700">✅ Verified:</span>
+                      <span className="font-bold text-lg text-green-600">
                         {captains?.filter(c => c.verified).length || 0}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Pending Verification:</span>
-                      <span className="font-semibold text-yellow-600">
+                    <div className="flex justify-between items-center p-2 rounded-lg bg-white/50">
+                      <span className="text-sm font-medium text-gray-700">⏳ Pending:</span>
+                      <span className="font-bold text-lg text-yellow-600">
                         {captains?.filter(c => !c.verified).length || 0}
                       </span>
                     </div>
-                    <hr className="my-4" />
-                    <div className="flex justify-between">
-                      <span>Total Charters:</span>
-                      <span className="font-semibold">{charters?.length || 0}</span>
+                    <hr className="border-gray-200" />
+                    <div className="flex justify-between items-center p-2 rounded-lg bg-white/50">
+                      <span className="text-sm font-medium text-gray-700">🚢 Total Charters:</span>
+                      <span className="font-bold text-lg text-cyan-600">{charters?.length || 0}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Listed Charters:</span>
-                      <span className="font-semibold text-blue-600">
+                    <div className="flex justify-between items-center p-2 rounded-lg bg-white/50">
+                      <span className="text-sm font-medium text-gray-700">👁️ Listed:</span>
+                      <span className="font-bold text-lg text-blue-600">
                         {charters?.filter(c => c.isListed).length || 0}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Hidden Charters:</span>
-                      <span className="font-semibold text-gray-600">
+                    <div className="flex justify-between items-center p-2 rounded-lg bg-white/50">
+                      <span className="text-sm font-medium text-gray-700">🙈 Hidden:</span>
+                      <span className="font-bold text-lg text-gray-500">
                         {charters?.filter(c => !c.isListed).length || 0}
                       </span>
                     </div>
@@ -368,35 +517,40 @@ export default function Admin() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <CreditCard className="w-5 h-5 mr-2" />
-                    Subscription Metrics
+              <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-100 shadow-lg rounded-2xl">
+                <CardHeader className="pb-3 sm:pb-6">
+                  <CardTitle className="flex items-center text-base sm:text-lg">
+                    <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-2 rounded-lg mr-2 shadow-lg">
+                      <CreditCard className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-gray-800">Payment Stats</span>
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between">
-                      <span>Total Stripe Customers:</span>
-                      <span className="font-semibold">{subscriptions?.length || 0}</span>
+                <CardContent className="px-3 sm:px-6">
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex justify-between items-center p-2 rounded-lg bg-white/50">
+                      <span className="text-sm font-medium text-gray-700">💳 Stripe Customers:</span>
+                      <span className="font-bold text-lg text-purple-600">{subscriptions?.length || 0}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Active Subscriptions:</span>
-                      <span className="font-semibold text-green-600">
+                    <div className="flex justify-between items-center p-2 rounded-lg bg-white/50">
+                      <span className="text-sm font-medium text-gray-700">🔄 Active Subs:</span>
+                      <span className="font-bold text-lg text-green-600">
                         {subscriptions?.filter(s => s.stripeSubscriptionId).length || 0}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Captain Subscribers:</span>
-                      <span className="font-semibold text-blue-600">
+                    <div className="flex justify-between items-center p-2 rounded-lg bg-white/50">
+                      <span className="text-sm font-medium text-gray-700">👨‍✈️ Captain Subs:</span>
+                      <span className="font-bold text-lg text-blue-600">
                         {subscriptions?.filter(s => s.role === 'captain').length || 0}
                       </span>
                     </div>
                     {subscriptions?.length === 0 && (
-                      <p className="text-center text-storm-gray py-4">
-                        No subscription data available yet
-                      </p>
+                      <div className="text-center py-8">
+                        <div className="bg-white/70 p-4 rounded-xl">
+                          <p className="text-gray-600 text-sm">📊 No subscription data yet</p>
+                          <p className="text-gray-500 text-xs mt-1">Data will appear when users subscribe</p>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </CardContent>
