@@ -417,6 +417,13 @@ export default function CaptainOverview() {
                 </Link>
               </Button>
 
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <Link href="/captain/payments">
+                  <DollarSign className="w-4 h-4 mr-2" />
+                  Payment Settings
+                </Link>
+              </Button>
+
               <Button variant="outline" className="w-full justify-start bg-gradient-to-r from-ocean-blue/5 to-seafoam-50 border-ocean-blue/20 hover:from-ocean-blue/10 hover:to-seafoam-100" asChild>
                 <Link href="/captain/subscribe">
                   <CreditCard className="w-4 h-4 mr-2 text-black" />
