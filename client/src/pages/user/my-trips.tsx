@@ -51,7 +51,7 @@ import {
 
 // Tipos (según /api/bookings/me + /api/charters/:id del backend)
 import type { CharterWithCaptain } from "@shared/schema";
-import BookingPayment from "@/components/BookingPayment";
+import PaymentInstructions from "@/components/PaymentInstructions";
 
 type BookingStatus = "pending" | "confirmed" | "cancelled" | "completed";
 
@@ -555,12 +555,13 @@ export default function MyTrips() {
 
       <Footer />
 
-      {/* Dialog para pago de booking */}
+      {/* Dialog para información de pago */}
       {paymentBooking && (
-        <BookingPayment
+        <PaymentInstructions
           bookingId={paymentBooking.id}
           bookingTitle={paymentBooking.charter?.title || "Charter Trip"}
           amount={paymentBooking.totalPrice}
+          captainId={paymentBooking.charter?.captainId || 0}
           isOpen={paymentOpen}
           onClose={() => setPaymentOpen(false)}
           onSuccess={handlePaymentSuccess}

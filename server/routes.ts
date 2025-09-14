@@ -8,6 +8,7 @@ import session from "express-session";
 import connectPg from "connect-pg-simple";
 import cors from "cors";
 import Stripe from "stripe"; // Stripe integration for subscriptions
+import multer from "multer";
 
 import { db } from "./db";
 import { storage } from "./storage";
@@ -37,6 +38,34 @@ declare module "express-session" {
 }
 
 const PgStore = connectPg(session);
+
+// Configure multer for file uploads
+const uploadStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(process.cwd(), "attached_assets"));
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename with timestamp and original extension
+    const uniqueName = `payment_proof_${Date.now()}_${Math.random().toString(36).slice(2, 9)}${path.extname(file.originalname)}`;
+    cb(null, uniqueName);
+  }
+});
+
+// Configure multer with file validation
+const upload = multer({
+  storage: uploadStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB max file size
+  },
+  fileFilter: (req, file, cb) => {
+    // Only allow image files
+    if (!file.mimetype.startsWith("image/")) {
+      cb(new Error("Only image files are allowed"));
+      return;
+    }
+    cb(null, true);
+  }
+});
 
 // Helper para componer condiciones dinámicas en Drizzle
 function andAll<T>(conds: (T | undefined)[]) {
@@ -2669,6 +2698,145 @@ Looking forward to an amazing day on the water! 🛥️`;
     } catch (error) {
       console.error("Save payment info error:", error);
       res.status(500).json({ error: "Failed to save payment information" });
+    }
+  });
+
+  // SECURED: Get captain payment info by ID (for users making payments)
+  app.get("/api/captain/:id/payment-info", async (req: Request, res: Response) => {
+    try {
+      const captainId = Number(req.params.id);
+      if (!Number.isFinite(captainId)) {
+        return res.status(400).json({ error: "Invalid captain ID" });
+      }
+
+      // SECURITY FIX: Require authentication
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized - login required" });
+      }
+
+      // Get payment info
+      const paymentInfo = await storage.getCaptainPaymentInfo(captainId);
+      if (!paymentInfo) {
+        return res.status(404).json({ error: "Payment information not found" });
+      }
+
+      // SECURITY FIX: Check if user has confirmed bookings with this captain
+      const [userBooking] = await db
+        .select()
+        .from(bookingsTable)
+        .leftJoin(chartersTable, eq(bookingsTable.charterId, chartersTable.id))
+        .where(
+          and(
+            eq(bookingsTable.userId, req.session.userId),
+            eq(chartersTable.captainId, captainId),
+            eq(bookingsTable.status, "confirmed")
+          )
+        );
+
+      if (!userBooking) {
+        // User has no confirmed bookings with this captain - return masked info only
+        const maskedPaymentInfo = maskSensitivePaymentData(paymentInfo);
+        return res.json(maskedPaymentInfo);
+      }
+
+      // User has confirmed booking - return unmasked payment info for actual payments
+      res.json(paymentInfo);
+    } catch (error) {
+      console.error("Get captain payment info error:", error);
+      res.status(500).json({ error: "Failed to get payment information" });
+    }
+  });
+
+  // ==============================
+  // PAYMENT PROOF UPLOAD
+  // ==============================
+
+  // Upload payment proof for booking - FIXED with multer
+  app.post("/api/bookings/:id/payment-proof", (req: Request, res: Response, next: any) => {
+    // Handle multer upload with error handling
+    upload.single("paymentProof")(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        // Handle multer-specific errors
+        if (err.code === "LIMIT_FILE_SIZE") {
+          return res.status(400).json({ error: "File size too large. Maximum size is 5MB." });
+        }
+        if (err.code === "LIMIT_UNEXPECTED_FILE") {
+          return res.status(400).json({ error: "Unexpected file field. Use 'paymentProof' field name." });
+        }
+        return res.status(400).json({ error: `Upload error: ${err.message}` });
+      } else if (err) {
+        // Handle custom validation errors (like file type)
+        if (err.message === "Only image files are allowed") {
+          return res.status(400).json({ error: "Only image files (JPG, PNG, GIF, etc.) are allowed." });
+        }
+        return res.status(400).json({ error: err.message });
+      }
+      // No errors, proceed with the handler
+      next();
+    });
+  }, async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const bookingId = Number(req.params.id);
+      if (!Number.isFinite(bookingId)) {
+        return res.status(400).json({ error: "Invalid booking ID" });
+      }
+
+      // Check if file was uploaded
+      if (!req.file) {
+        return res.status(400).json({ error: "No payment proof file uploaded" });
+      }
+
+      // Verify booking belongs to the user
+      const [booking] = await db
+        .select()
+        .from(bookingsTable)
+        .where(eq(bookingsTable.id, bookingId));
+
+      if (!booking) {
+        return res.status(404).json({ error: "Booking not found" });
+      }
+
+      if (booking.userId !== req.session.userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      if (booking.status !== "confirmed") {
+        return res.status(400).json({ error: "Can only upload payment proof for confirmed bookings" });
+      }
+
+      // Get payment method from form data
+      const paymentMethod = req.body.paymentMethod || "unknown";
+      
+      // Use the uploaded file path
+      const paymentProofUrl = `/attached_assets/${req.file.filename}`;
+
+      // Update booking with payment proof
+      const [updatedBooking] = await db
+        .update(bookingsTable)
+        .set({
+          paymentProofUrl,
+          paymentMethod,
+          paymentStatus: "proof_submitted"
+        })
+        .where(eq(bookingsTable.id, bookingId))
+        .returning();
+
+      res.json({ 
+        message: "Payment proof uploaded successfully",
+        booking: serializeBooking(updatedBooking),
+        uploadedFile: {
+          filename: req.file.filename,
+          size: req.file.size,
+          mimetype: req.file.mimetype
+        }
+      });
+    } catch (error) {
+      console.error("Upload payment proof error:", error);
+      res.status(500).json({ error: "Failed to upload payment proof" });
     }
   });
 
