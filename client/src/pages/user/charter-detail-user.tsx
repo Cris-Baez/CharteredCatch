@@ -115,6 +115,17 @@ export default function CharterDetailUser() {
     enabled: !!id && !authError,
   });
 
+  // 3) Reviews
+  const { data: reviews = [] } = useQuery({
+    queryKey: ["reviews", id],
+    queryFn: async () => {
+      const res = await fetch(`/api/reviews/${id}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch reviews");
+      return res.json();
+    },
+    enabled: !!id && !authError,
+  });
+
   // 3) Form
   const form = useForm<BookingForm>({
     resolver: zodResolver(bookingSchema),
@@ -410,18 +421,29 @@ export default function CharterDetailUser() {
             {/* Reviews */}
             <Card className="rounded-xl shadow-sm">
               <CardHeader>
-                <CardTitle className="text-base">Reviews</CardTitle>
+                <CardTitle className="text-base">Reviews ({reviews.length})</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
-                {charter.reviews?.length ? (
-                  charter.reviews.map((rev) => (
-                    <div key={rev.id} className="border-b last:border-0 pb-2">
-                      <div className="flex items-center text-yellow-500">
-                        {Array.from({ length: rev.rating }).map((_, i) => (
-                          <Star key={i} className="w-4 h-4 fill-current" />
-                        ))}
+                {reviews.length ? (
+                  reviews.map((review: any) => (
+                    <div key={review.id} className="border-b last:border-0 pb-3 last:pb-0">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center text-yellow-500">
+                          {Array.from({ length: review.rating }).map((_, i) => (
+                            <Star key={i} className="w-4 h-4 fill-current" />
+                          ))}
+                          <span className="ml-2 text-gray-700 font-medium">
+                            {review.user.firstName && review.user.lastName 
+                              ? `${review.user.firstName} ${review.user.lastName}`
+                              : review.user.firstName || "Anonymous"
+                            }
+                          </span>
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          {new Date(review.createdAt).toLocaleDateString()}
+                        </span>
                       </div>
-                      <p className="text-gray-700">{rev.comment}</p>
+                      <p className="text-gray-700">{review.comment}</p>
                     </div>
                   ))
                 ) : (
@@ -567,7 +589,7 @@ export default function CharterDetailUser() {
               charterTitle={charter.title}
               onSuccess={() => {
                 setIsReviewModalOpen(false);
-                // Refresh the page data after successful review submission
+                // Refresh reviews data
                 window.location.reload();
               }}
             />

@@ -26,7 +26,21 @@ export default function ReviewForm({ charterId, charterTitle, onSuccess }: Revie
 
   const submitReviewMutation = useMutation({
     mutationFn: async (reviewData: { charterId: number; rating: number; comment: string }) => {
-      return apiRequest("POST", "/api/reviews", reviewData);
+      const response = await fetch("/api/reviews", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(reviewData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+      
+      return response.json();
     },
     onSuccess: (response) => {
       toast({
@@ -39,12 +53,9 @@ export default function ReviewForm({ charterId, charterTitle, onSuccess }: Revie
       setComment("");
       
       // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ["/api/reviews", charterId] });
+      queryClient.invalidateQueries({ queryKey: ["reviews", charterId] });
       queryClient.invalidateQueries({ queryKey: ["charter", String(charterId)] });
-      queryClient.invalidateQueries({ queryKey: ["/api/charters"] });
-      // Invalidate captain queries - we need to refresh captain profiles
-      queryClient.invalidateQueries({ queryKey: ["/api/captain/me"] });
-      queryClient.invalidateQueries({ queryKey: ["captain"] });
+      queryClient.invalidateQueries({ queryKey: ["charters"] });
       
       onSuccess?.();
     },
