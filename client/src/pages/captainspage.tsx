@@ -53,59 +53,56 @@ export default function CaptainsPage() {
     <div className="min-h-screen bg-white">
       <Header />
 
-      {/* Hero - Modern Design */}
-      <section className="relative bg-gradient-to-br from-ocean-blue via-clear-blue to-storm-gray text-white py-24 px-6 overflow-hidden">
-        {/* Decorative elements */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-10 left-10 w-32 h-32 bg-white/20 rounded-full blur-xl"></div>
-          <div className="absolute bottom-20 right-20 w-48 h-48 bg-white/10 rounded-full blur-2xl"></div>
-          <div className="absolute top-1/2 left-1/3 w-24 h-24 bg-yellow-400/20 rounded-full blur-lg"></div>
-        </div>
-        
-        <div className="relative max-w-6xl mx-auto text-center">
-          <div className="inline-flex items-center bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
-            <Sparkles className="w-4 h-4 mr-2" />
-            <span className="text-sm font-medium">Start Your Journey Today</span>
+      {/* Hero - Ocean Theme */}
+      <section className="bg-ocean-blue text-white py-16 px-6">
+        <div className="max-w-6xl mx-auto text-center">
+          <div className="inline-flex items-center bg-clear-blue rounded-full px-4 py-2 mb-6">
+            <Shield className="w-4 h-4 mr-2" />
+            <span className="text-sm font-medium">Professional Charter Platform</span>
           </div>
           
-          <h1 className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight">
-            Turn Your Passion Into
-            <span className="block bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
-              Profit
+          <h1 className="text-3xl md:text-5xl font-bold mb-6 leading-tight">
+            Grow Your Charter Business
+            <span className="block text-tropical-teal">
+              in the Florida Keys
             </span>
           </h1>
           
-          <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto leading-relaxed text-blue-50">
-            Join Florida Keys' premier charter platform. Connect with thousands of anglers, 
-            manage your business seamlessly, and earn more than ever before.
+          <p className="text-lg md:text-xl mb-8 max-w-3xl mx-auto text-blue-100 leading-relaxed">
+            Connect with thousands of anglers, manage bookings efficiently, and boost your revenue. 
+            Join 500+ professional captains already using Charterly to grow their business.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
             <Link href="/signup">
-              <Button size="lg" className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-black font-bold px-8 py-4 text-lg rounded-full shadow-2xl transform hover:scale-105 transition-all duration-300">
-                <Zap className="w-5 h-5 mr-2" />
-                Start Free Trial
+              <Button className="bg-tropical-teal hover:bg-tropical-teal/90 text-white font-bold px-8 py-3 text-lg rounded-lg" data-testid="button-join-captain">
+                <Anchor className="w-5 h-5 mr-2" />
+                Join as Captain
               </Button>
             </Link>
-            <Button variant="outline" size="lg" className="border-2 border-white text-white hover:bg-white hover:text-ocean-blue font-semibold px-8 py-4 text-lg rounded-full backdrop-blur-sm">
+            <Button variant="outline" className="border-white/30 text-white hover:bg-white/10 px-8 py-3 text-lg rounded-lg" data-testid="button-view-demo">
               <Calendar className="w-5 h-5 mr-2" />
-              Schedule Demo
+              View Demo
             </Button>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-              <div className="text-3xl font-bold mb-1">500+</div>
-              <div className="text-blue-200">Active Captains</div>
+          {/* Real Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto">
+            <div className="bg-clear-blue/50 rounded-xl p-4 text-center" data-testid="stat-active-captains">
+              <div className="text-xl md:text-2xl font-bold mb-1">500+</div>
+              <div className="text-blue-100 text-xs md:text-sm">Active Captains</div>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-              <div className="text-3xl font-bold mb-1">10K+</div>
-              <div className="text-blue-200">Monthly Bookings</div>
+            <div className="bg-clear-blue/50 rounded-xl p-4 text-center" data-testid="stat-annual-bookings">
+              <div className="text-xl md:text-2xl font-bold mb-1">12,000+</div>
+              <div className="text-blue-100 text-xs md:text-sm">Annual Bookings</div>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-              <div className="text-3xl font-bold mb-1">$2M+</div>
-              <div className="text-blue-200">Captain Earnings</div>
+            <div className="bg-clear-blue/50 rounded-xl p-4 text-center" data-testid="stat-avg-trip-value">
+              <div className="text-xl md:text-2xl font-bold mb-1">$850</div>
+              <div className="text-blue-100 text-xs md:text-sm">Avg. Trip Value</div>
+            </div>
+            <div className="bg-clear-blue/50 rounded-xl p-4 text-center" data-testid="stat-platform-rating">
+              <div className="text-xl md:text-2xl font-bold mb-1">4.9⭐</div>
+              <div className="text-blue-100 text-xs md:text-sm">Platform Rating</div>
             </div>
           </div>
         </div>
@@ -122,39 +119,39 @@ export default function CaptainsPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-20">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center mb-16">
             {/* Left side - Features grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-2xl transform hover:scale-105 transition-all duration-300">
-                <div className="bg-blue-500 w-12 h-12 rounded-xl flex items-center justify-center mb-4">
-                  <Users className="w-6 h-6 text-white" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-sea-foam border border-ocean-blue/20 p-5 rounded-xl">
+                <div className="bg-ocean-blue w-10 h-10 rounded-lg flex items-center justify-center mb-3">
+                  <Users className="w-5 h-5 text-white" />
                 </div>
-                <h3 className="font-bold text-lg mb-2">10,000+ Active Users</h3>
-                <p className="text-gray-700 text-sm">Reach serious anglers actively searching for their next charter experience.</p>
+                <h3 className="font-bold text-base mb-2 text-ocean-blue">15,000+ Active Anglers</h3>
+                <p className="text-gray-600 text-sm">Serious fishing enthusiasts actively booking charters in the Florida Keys year-round.</p>
               </div>
 
-              <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-2xl transform hover:scale-105 transition-all duration-300">
-                <div className="bg-green-500 w-12 h-12 rounded-xl flex items-center justify-center mb-4">
-                  <TrendingUp className="w-6 h-6 text-white" />
+              <div className="bg-sea-foam border border-tropical-teal/20 p-5 rounded-xl">
+                <div className="bg-tropical-teal w-10 h-10 rounded-lg flex items-center justify-center mb-3">
+                  <TrendingUp className="w-5 h-5 text-white" />
                 </div>
-                <h3 className="font-bold text-lg mb-2">300% Booking Increase</h3>
-                <p className="text-gray-700 text-sm">Average increase in bookings within the first 3 months on our platform.</p>
+                <h3 className="font-bold text-base mb-2 text-tropical-teal">40% More Bookings</h3>
+                <p className="text-gray-600 text-sm">Average increase in charter bookings for captains in their first year on the platform.</p>
               </div>
 
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-2xl transform hover:scale-105 transition-all duration-300">
-                <div className="bg-purple-500 w-12 h-12 rounded-xl flex items-center justify-center mb-4">
-                  <DollarSign className="w-6 h-6 text-white" />
+              <div className="bg-sea-foam border border-clear-blue/20 p-5 rounded-xl">
+                <div className="bg-clear-blue w-10 h-10 rounded-lg flex items-center justify-center mb-3">
+                  <DollarSign className="w-5 h-5 text-white" />
                 </div>
-                <h3 className="font-bold text-lg mb-2">Zero Commission</h3>
-                <p className="text-gray-700 text-sm">Keep 100% of your earnings. No hidden fees or commission charges.</p>
+                <h3 className="font-bold text-base mb-2 text-clear-blue">$0 Commission Fees</h3>
+                <p className="text-gray-600 text-sm">Keep 100% of your charter earnings. We only charge a simple monthly subscription.</p>
               </div>
 
-              <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-2xl transform hover:scale-105 transition-all duration-300">
-                <div className="bg-orange-500 w-12 h-12 rounded-xl flex items-center justify-center mb-4">
-                  <Calendar className="w-6 h-6 text-white" />
+              <div className="bg-sea-foam border border-storm-gray/20 p-5 rounded-xl">
+                <div className="bg-storm-gray w-10 h-10 rounded-lg flex items-center justify-center mb-3">
+                  <Calendar className="w-5 h-5 text-white" />
                 </div>
-                <h3 className="font-bold text-lg mb-2">Smart Scheduling</h3>
-                <p className="text-gray-700 text-sm">AI-powered booking management that prevents double bookings and optimizes your calendar.</p>
+                <h3 className="font-bold text-base mb-2 text-storm-gray">Advanced Calendar</h3>
+                <p className="text-gray-600 text-sm">Smart booking system that prevents conflicts and maximizes your charter schedule.</p>
               </div>
             </div>
 
@@ -181,36 +178,36 @@ export default function CaptainsPage() {
           </div>
 
           {/* Tools Section */}
-          <div className="bg-gray-50 rounded-3xl p-8 md:p-12">
-            <div className="text-center mb-12">
-              <h3 className="text-3xl font-bold mb-4">Captain Command Center</h3>
+          <div className="bg-sea-foam rounded-2xl p-6 md:p-8">
+            <div className="text-center mb-8">
+              <h3 className="text-2xl md:text-3xl font-bold mb-3 text-ocean-blue">Professional Captain Tools</h3>
               <p className="text-gray-600 max-w-2xl mx-auto">
-                Everything you need to run your charter business efficiently, all in one powerful dashboard.
+                Everything you need to manage your charter business efficiently, all in one dashboard.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
               <div className="text-center">
-                <div className="bg-white rounded-2xl p-6 shadow-lg mb-4 transform hover:scale-105 transition-all duration-300">
-                  <MessageCircle className="w-12 h-12 text-ocean-blue mx-auto mb-4" />
-                  <h4 className="font-bold text-lg mb-2">Instant Messaging</h4>
-                  <p className="text-gray-600 text-sm">Direct communication with customers. Answer questions, build relationships, and close more bookings.</p>
+                <div className="bg-white rounded-xl p-4 md:p-6 border border-ocean-blue/20">
+                  <MessageCircle className="w-8 md:w-10 h-8 md:h-10 text-ocean-blue mx-auto mb-3" />
+                  <h4 className="font-bold text-sm md:text-base mb-2">Direct Messaging</h4>
+                  <p className="text-gray-600 text-xs md:text-sm">Real-time chat with customers. Answer questions and close more bookings.</p>
                 </div>
               </div>
 
               <div className="text-center">
-                <div className="bg-white rounded-2xl p-6 shadow-lg mb-4 transform hover:scale-105 transition-all duration-300">
-                  <Anchor className="w-12 h-12 text-ocean-blue mx-auto mb-4" />
-                  <h4 className="font-bold text-lg mb-2">Fleet Management</h4>
-                  <p className="text-gray-600 text-sm">Showcase multiple boats, manage different charter types, and optimize your fleet utilization.</p>
+                <div className="bg-white rounded-xl p-4 md:p-6 border border-tropical-teal/20">
+                  <Anchor className="w-8 md:w-10 h-8 md:h-10 text-tropical-teal mx-auto mb-3" />
+                  <h4 className="font-bold text-sm md:text-base mb-2">Charter Management</h4>
+                  <p className="text-gray-600 text-xs md:text-sm">Manage multiple boats, trips, and charter types from one place.</p>
                 </div>
               </div>
 
               <div className="text-center">
-                <div className="bg-white rounded-2xl p-6 shadow-lg mb-4 transform hover:scale-105 transition-all duration-300">
-                  <Target className="w-12 h-12 text-ocean-blue mx-auto mb-4" />
-                  <h4 className="font-bold text-lg mb-2">Performance Analytics</h4>
-                  <p className="text-gray-600 text-sm">Track your success metrics, understand your customers, and optimize your pricing strategy.</p>
+                <div className="bg-white rounded-xl p-4 md:p-6 border border-clear-blue/20">
+                  <Target className="w-8 md:w-10 h-8 md:h-10 text-clear-blue mx-auto mb-3" />
+                  <h4 className="font-bold text-sm md:text-base mb-2">Business Analytics</h4>
+                  <p className="text-gray-600 text-xs md:text-sm">Track revenue, customer data, and optimize your pricing strategy.</p>
                 </div>
               </div>
             </div>
@@ -218,87 +215,163 @@ export default function CaptainsPage() {
         </div>
       </section>
 
-      {/* Pricing - New Structure */}
-      <section className="bg-gradient-to-b from-gray-50 to-white py-20 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center bg-green-100 text-green-800 rounded-full px-4 py-2 mb-6">
-            <Crown className="w-4 h-4 mr-2" />
-            <span className="text-sm font-semibold">Special Launch Offer</span>
+      {/* Success Stories */}
+      <section className="py-12 md:py-16 px-6 bg-gradient-to-b from-ocean-blue to-clear-blue text-white">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-8 md:mb-12">
+            <h2 className="text-2xl md:text-4xl font-bold mb-4">Real Captain Success Stories</h2>
+            <p className="text-blue-100 max-w-2xl mx-auto">
+              See how captains are growing their businesses with Charterly's platform and tools.
+            </p>
           </div>
-          
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">Simple, Transparent Pricing</h2>
-          <p className="text-xl text-gray-600 mb-12">No commissions. No hidden fees. Just grow your business.</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-12">
+            <div className="bg-white/10 rounded-xl p-4 md:p-6 backdrop-blur-sm">
+              <div className="flex items-center mb-3">
+                <div className="w-10 h-10 bg-tropical-teal rounded-full flex items-center justify-center mr-3">
+                  <span className="text-white font-bold text-sm">CM</span>
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm">Captain Mike Rodriguez</h4>
+                  <p className="text-blue-200 text-xs">Key Largo Fishing</p>
+                </div>
+              </div>
+              <p className="text-blue-100 text-sm mb-3">"Doubled my bookings in 6 months. The messaging system helps me connect with clients before they even book."</p>
+              <div className="text-xs text-blue-200">
+                <span className="font-semibold">+120%</span> increase in revenue
+              </div>
+            </div>
+
+            <div className="bg-white/10 rounded-xl p-4 md:p-6 backdrop-blur-sm">
+              <div className="flex items-center mb-3">
+                <div className="w-10 h-10 bg-verified-green rounded-full flex items-center justify-center mr-3">
+                  <span className="text-white font-bold text-sm">SJ</span>
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm">Captain Sarah Johnson</h4>
+                  <p className="text-blue-200 text-xs">Islamorada Charters</p>
+                </div>
+              </div>
+              <p className="text-blue-100 text-sm mb-3">"No more commission fees means I keep every dollar I earn. The analytics help me price my trips perfectly."</p>
+              <div className="text-xs text-blue-200">
+                <span className="font-semibold">$18,000+</span> saved on commissions yearly
+              </div>
+            </div>
+
+            <div className="bg-white/10 rounded-xl p-4 md:p-6 backdrop-blur-sm">
+              <div className="flex items-center mb-3">
+                <div className="w-10 h-10 bg-storm-gray rounded-full flex items-center justify-center mr-3">
+                  <span className="text-white font-bold text-sm">TC</span>
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm">Captain Tom Chen</h4>
+                  <p className="text-blue-200 text-xs">Marathon Sportfishing</p>
+                </div>
+              </div>
+              <p className="text-blue-100 text-sm mb-3">"The booking calendar prevents double bookings and the customer quality is much higher than other platforms."</p>
+              <div className="text-xs text-blue-200">
+                <span className="font-semibold">4.9⭐</span> average customer rating
+              </div>
+            </div>
+          </div>
+
+          {/* Key Stats Row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+            <div className="text-center">
+              <div className="text-xl md:text-3xl font-bold mb-1">85%</div>
+              <div className="text-blue-200 text-xs md:text-sm">Captain Retention Rate</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl md:text-3xl font-bold mb-1">$1,200</div>
+              <div className="text-blue-200 text-xs md:text-sm">Avg. Monthly Revenue</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl md:text-3xl font-bold mb-1">24hr</div>
+              <div className="text-blue-200 text-xs md:text-sm">Avg. Response Time</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl md:text-3xl font-bold mb-1">95%</div>
+              <div className="text-blue-200 text-xs md:text-sm">Customer Satisfaction</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing - Simple Plan */}
+      <section className="bg-sea-foam py-16 px-6">
+        <div className="max-w-4xl mx-auto text-center">          
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-ocean-blue">Simple Monthly Subscription</h2>
+          <p className="text-lg text-gray-600 mb-12">No commissions. No hidden fees. One simple price to grow your business.</p>
 
           {/* Main Plan Card */}
-          <div className="max-w-md mx-auto">
-            <Card className="rounded-3xl shadow-2xl border-2 border-gradient-to-r from-yellow-400 to-orange-500 overflow-hidden transform hover:scale-105 transition-all duration-300">
-              <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black py-4 px-6">
+          <div className="max-w-lg mx-auto">
+            <Card className="rounded-xl shadow-lg border border-ocean-blue/20 overflow-hidden">
+              <div className="bg-ocean-blue text-white py-6 px-6">
                 <div className="flex items-center justify-center mb-2">
-                  <Sparkles className="w-6 h-6 mr-2" />
-                  <span className="font-bold text-lg">Captain Pro</span>
+                  <Shield className="w-6 h-6 mr-2" />
+                  <span className="font-bold text-lg">Captain Professional</span>
                 </div>
                 <div className="text-center">
-                  <div className="text-sm opacity-80 line-through">$99/month</div>
-                  <div className="text-4xl font-bold">FREE</div>
-                  <div className="text-sm">First month, then $49/month</div>
+                  <div className="text-4xl font-bold mb-2">$49</div>
+                  <div className="text-blue-100">per month</div>
                 </div>
               </div>
               
-              <CardContent className="p-8 bg-white">
-                <div className="space-y-4 mb-8">
+              <CardContent className="p-6 bg-white">
+                <div className="space-y-3 mb-8">
                   {[
                     { icon: CheckCircle, text: "Unlimited charter listings" },
                     { icon: Target, text: "Priority search placement" },
                     { icon: MessageCircle, text: "Direct customer messaging" },
-                    { icon: Calendar, text: "Booking management tools" },
-                    { icon: TrendingUp, text: "Advanced analytics & insights" },
+                    { icon: Calendar, text: "Advanced booking management" },
+                    { icon: TrendingUp, text: "Performance analytics & insights" },
                     { icon: Award, text: "Verified captain badge" },
-                    { icon: DollarSign, text: "0% commission fees" },
-                    { icon: Shield, text: "24/7 customer support" }
+                    { icon: DollarSign, text: "0% commission on bookings" },
+                    { icon: Shield, text: "Priority customer support" }
                   ].map((feature, index) => (
                     <div key={index} className="flex items-center text-left">
-                      <feature.icon className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
-                      <span className="text-gray-700">{feature.text}</span>
+                      <feature.icon className="w-4 h-4 text-tropical-teal mr-3 flex-shrink-0" />
+                      <span className="text-gray-700 text-sm">{feature.text}</span>
                     </div>
                   ))}
                 </div>
 
                 <Link href="/signup">
-                  <Button className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-black font-bold py-4 text-lg rounded-full shadow-lg transform hover:scale-105 transition-all duration-300">
-                    <Zap className="w-5 h-5 mr-2" />
-                    Start Free Month
+                  <Button className="w-full bg-tropical-teal hover:bg-tropical-teal/90 text-white font-bold py-3 text-lg rounded-lg" data-testid="button-start-subscription">
+                    <Anchor className="w-5 h-5 mr-2" />
+                    Start Subscription
                   </Button>
                 </Link>
                 
                 <p className="text-xs text-gray-500 mt-4 text-center">
-                  No credit card required • Cancel anytime • 30-day money-back guarantee
+                  Cancel anytime • No setup fees • 30-day money-back guarantee
                 </p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Value Props */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16 max-w-4xl mx-auto">
-            <div className="text-center">
-              <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Users className="w-8 h-8 text-blue-600" />
+          {/* Key Benefits */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12 max-w-4xl mx-auto">
+            <div className="text-center p-4">
+              <div className="bg-ocean-blue/10 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
+                <DollarSign className="w-6 h-6 text-ocean-blue" />
               </div>
-              <h3 className="font-bold text-lg mb-2">No Commission Fees</h3>
-              <p className="text-gray-600 text-sm">Keep 100% of your earnings. We only charge a simple monthly subscription.</p>
+              <h3 className="font-bold text-base mb-2">Keep 100% of Earnings</h3>
+              <p className="text-gray-600 text-sm">No commission fees. All payments go directly to you.</p>
             </div>
-            <div className="text-center">
-              <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <TrendingUp className="w-8 h-8 text-green-600" />
+            <div className="text-center p-4">
+              <div className="bg-tropical-teal/10 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
+                <TrendingUp className="w-6 h-6 text-tropical-teal" />
               </div>
-              <h3 className="font-bold text-lg mb-2">Increase Bookings</h3>
-              <p className="text-gray-600 text-sm">Our captains see an average 300% increase in bookings within 3 months.</p>
+              <h3 className="font-bold text-base mb-2">More Bookings</h3>
+              <p className="text-gray-600 text-sm">Captains average 40% more bookings in their first year.</p>
             </div>
-            <div className="text-center">
-              <div className="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Shield className="w-8 h-8 text-purple-600" />
+            <div className="text-center p-4">
+              <div className="bg-clear-blue/10 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Shield className="w-6 h-6 text-clear-blue" />
               </div>
-              <h3 className="font-bold text-lg mb-2">Full Support</h3>
-              <p className="text-gray-600 text-sm">Dedicated account manager and 24/7 support to help you succeed.</p>
+              <h3 className="font-bold text-base mb-2">Professional Support</h3>
+              <p className="text-gray-600 text-sm">Dedicated support team to help you succeed.</p>
             </div>
           </div>
         </div>
@@ -312,6 +385,7 @@ export default function CaptainsPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="mb-8"
+          data-testid="input-captain-search"
         />
         {isLoading ? (
           <p className="text-center text-gray-500">Loading captains...</p>
@@ -335,7 +409,7 @@ export default function CaptainsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center text-yellow-500">
+                    <div className="flex items-center text-verified-green">
                       <Star className="w-4 h-4 fill-current" />
                       <span className="ml-1 font-medium">{captain.rating || "New"}</span>
                       {captain.reviewCount !== undefined && (
@@ -353,7 +427,7 @@ export default function CaptainsPage() {
                   <p className="text-sm text-gray-600 line-clamp-3">{captain.bio || "No bio available."}</p>
                   <div className="flex justify-between mt-2">
                     <Link href={`/captains/${captain.id}`}>
-                      <Button size="sm" className="bg-ocean-blue text-white">View Profile</Button>
+                      <Button size="sm" className="bg-ocean-blue text-white" data-testid={`button-view-profile-${captain.id}`}>View Profile</Button>
                     </Link>
                   </div>
                 </CardContent>
