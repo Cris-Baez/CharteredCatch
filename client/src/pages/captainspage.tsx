@@ -8,7 +8,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { MapPin, Shield, Star, Briefcase, Anchor, DollarSign, Users } from "lucide-react";
+import { 
+  MapPin, Shield, Star, Briefcase, Anchor, DollarSign, Users, 
+  TrendingUp, Calendar, MessageCircle, Award, Zap, Target,
+  CheckCircle, Crown, Sparkles
+} from "lucide-react";
 import { Link } from "wouter";
 interface Captain {
   id: number;
@@ -49,18 +53,62 @@ export default function CaptainsPage() {
     <div className="min-h-screen bg-white">
       <Header />
 
-      {/* Hero */}
-      <section className="relative bg-clear-blue text-white py-20 px-6 text-center">
-        <h1 className="text-4xl md:text-5xl font-bold mb-4">Become a Charter Captain</h1>
-        <p className="text-lg md:text-xl mb-6 max-w-2xl mx-auto">
-          Join our growing network of professional captains, showcase your charters, 
-          and get more bookings with ease.
-        </p>
-        <Link href="/signup">
-          <Button size="lg" className="bg-white text-ocean-blue font-semibold hover:bg-gray-100">
-            Get Started
-          </Button>
-        </Link>
+      {/* Hero - Modern Design */}
+      <section className="relative bg-gradient-to-br from-ocean-blue via-clear-blue to-storm-gray text-white py-24 px-6 overflow-hidden">
+        {/* Decorative elements */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-10 left-10 w-32 h-32 bg-white/20 rounded-full blur-xl"></div>
+          <div className="absolute bottom-20 right-20 w-48 h-48 bg-white/10 rounded-full blur-2xl"></div>
+          <div className="absolute top-1/2 left-1/3 w-24 h-24 bg-yellow-400/20 rounded-full blur-lg"></div>
+        </div>
+        
+        <div className="relative max-w-6xl mx-auto text-center">
+          <div className="inline-flex items-center bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
+            <Sparkles className="w-4 h-4 mr-2" />
+            <span className="text-sm font-medium">Start Your Journey Today</span>
+          </div>
+          
+          <h1 className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight">
+            Turn Your Passion Into
+            <span className="block bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
+              Profit
+            </span>
+          </h1>
+          
+          <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto leading-relaxed text-blue-50">
+            Join Florida Keys' premier charter platform. Connect with thousands of anglers, 
+            manage your business seamlessly, and earn more than ever before.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
+            <Link href="/signup">
+              <Button size="lg" className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-black font-bold px-8 py-4 text-lg rounded-full shadow-2xl transform hover:scale-105 transition-all duration-300">
+                <Zap className="w-5 h-5 mr-2" />
+                Start Free Trial
+              </Button>
+            </Link>
+            <Button variant="outline" size="lg" className="border-2 border-white text-white hover:bg-white hover:text-ocean-blue font-semibold px-8 py-4 text-lg rounded-full backdrop-blur-sm">
+              <Calendar className="w-5 h-5 mr-2" />
+              Schedule Demo
+            </Button>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+              <div className="text-3xl font-bold mb-1">500+</div>
+              <div className="text-blue-200">Active Captains</div>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+              <div className="text-3xl font-bold mb-1">10K+</div>
+              <div className="text-blue-200">Monthly Bookings</div>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+              <div className="text-3xl font-bold mb-1">$2M+</div>
+              <div className="text-blue-200">Captain Earnings</div>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Benefits */}
