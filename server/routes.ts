@@ -91,6 +91,27 @@ function maskSensitivePaymentData(paymentInfo: CaptainPaymentInfo): CaptainPayme
   };
 }
 
+// Helper para verificar si la información de pago está completa
+function isPaymentInfoComplete(paymentInfo: CaptainPaymentInfo): boolean {
+  const method = paymentInfo.preferredMethod;
+  
+  switch (method) {
+    case "bank":
+      return !!(paymentInfo.bankName && paymentInfo.accountNumber && 
+                paymentInfo.routingNumber && paymentInfo.accountHolderName);
+    case "paypal":
+      return !!paymentInfo.paypalEmail;
+    case "venmo":
+      return !!paymentInfo.venmoUsername;
+    case "zelle":
+      return !!paymentInfo.zelleEmail;
+    case "cashapp":
+      return !!paymentInfo.cashAppTag;
+    default:
+      return false;
+  }
+}
+
 // Serializador para charters
 function serializeCharter(row: any) {
   return {
@@ -2720,7 +2741,12 @@ Looking forward to an amazing day on the water! 🛥️`;
       // Get payment info
       const paymentInfo = await storage.getCaptainPaymentInfo(captainId);
       if (!paymentInfo) {
-        return res.status(404).json({ error: "Payment information not found" });
+        // Return empty payment info object instead of error
+        return res.json({
+          isEmpty: true,
+          preferredMethod: null,
+          message: "Captain has not configured payment information yet. Please contact them directly."
+        });
       }
 
       // SECURITY FIX: Check if user has confirmed bookings with this captain
@@ -2739,11 +2765,21 @@ Looking forward to an amazing day on the water! 🛥️`;
       if (!userBooking) {
         // User has no confirmed bookings with this captain - return masked info only
         const maskedPaymentInfo = maskSensitivePaymentData(paymentInfo);
-        return res.json(maskedPaymentInfo);
+        const isComplete = isPaymentInfoComplete(paymentInfo);
+        return res.json({
+          ...maskedPaymentInfo,
+          isIncomplete: !isComplete,
+          message: !isComplete ? "Payment information is incomplete. Please contact the captain directly." : undefined
+        });
       }
 
       // User has confirmed booking - return unmasked payment info for actual payments
-      res.json(paymentInfo);
+      const isComplete = isPaymentInfoComplete(paymentInfo);
+      res.json({
+        ...paymentInfo,
+        isIncomplete: !isComplete,
+        message: !isComplete ? "Payment information is incomplete. Please contact the captain directly." : undefined
+      });
     } catch (error) {
       console.error("Get captain payment info error:", error);
       res.status(500).json({ error: "Failed to get payment information" });

@@ -9,8 +9,8 @@ import { Upload, DollarSign, CreditCard, Building2, X } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface PaymentInfo {
-  id: number;
-  captainId: number;
+  id?: number;
+  captainId?: number;
   bankName: string | null;
   accountNumber: string | null;
   routingNumber: string | null;
@@ -20,7 +20,10 @@ interface PaymentInfo {
   zelleEmail: string | null;
   cashAppTag: string | null;
   instructions: string | null;
-  preferredMethod: string;
+  preferredMethod: string | null;
+  isEmpty?: boolean;
+  isIncomplete?: boolean;
+  message?: string;
 }
 
 interface PaymentInstructionsProps {
@@ -65,11 +68,20 @@ export default function PaymentInstructions({
         const data = await response.json();
         setPaymentInfo(data);
       } else {
-        toast({
-          title: "Error",
-          description: "Could not load payment information",
-          variant: "destructive",
-        });
+        // Handle specific error cases
+        if (response.status === 401) {
+          toast({
+            title: "Authentication Required",
+            description: "Please log in to view payment information",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "Could not load payment information",
+            variant: "destructive",
+          });
+        }
       }
     } catch (error) {
       toast({
@@ -158,6 +170,32 @@ export default function PaymentInstructions({
 
   const renderPaymentMethod = () => {
     if (!paymentInfo) return null;
+
+    // Handle empty or incomplete payment information
+    if (paymentInfo.isEmpty || paymentInfo.isIncomplete) {
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-600">
+              <Building2 className="w-5 h-5" />
+              Payment Information Not Available
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+              <p className="text-sm text-orange-800 font-medium">
+                {paymentInfo.message || "Payment information is not available."}
+              </p>
+            </div>
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-800">
+                <strong>What to do:</strong> Please contact the captain directly to arrange payment and get their preferred payment method.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
 
     const method = paymentInfo.preferredMethod;
 
@@ -310,9 +348,10 @@ export default function PaymentInstructions({
           )}
 
           {/* Upload Payment Proof */}
-          <div className="space-y-4">
-            <h4 className="font-semibold">Upload Payment Proof</h4>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+          {paymentInfo && !paymentInfo.isEmpty && !paymentInfo.isIncomplete && (
+            <div className="space-y-4">
+              <h4 className="font-semibold">Upload Payment Proof</h4>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
               <div className="text-center">
                 <Upload className="mx-auto h-12 w-12 text-gray-400" />
                 <div className="mt-4">
@@ -372,14 +411,15 @@ export default function PaymentInstructions({
                 </>
               )}
             </Button>
+            
+            <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-md">
+              <p>
+                📝 <strong>Important:</strong> Please ensure your payment screenshot clearly shows:
+                the amount paid, the recipient information, and the transaction confirmation.
+              </p>
+            </div>
           </div>
-
-          <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-md">
-            <p>
-              📝 <strong>Important:</strong> Please ensure your payment screenshot clearly shows:
-              the amount paid, the recipient information, and the transaction confirmation.
-            </p>
-          </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
