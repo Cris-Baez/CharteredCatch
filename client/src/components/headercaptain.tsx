@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Menu,
   LogOut,
@@ -35,7 +36,8 @@ export default function HeaderCaptain({
   nav?: NavItem[];
   logoSrc?: string;
 }) {
-  const [pathname] = useLocation();
+  const [pathname, setLocation] = useLocation();
+  const queryClient = useQueryClient();
 
   const isActive = (href: string) => {
     if (href === "/captain/overview") return pathname === "/captain/overview";
@@ -44,9 +46,18 @@ export default function HeaderCaptain({
 
   async function handleLogout() {
     try {
-      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-    } finally {
-      window.location.href = "/login";
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (response.ok) {
+        await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        setLocation("/login");
+      }
+    } catch (error) {
+      console.error("Logout failed:", error);
+      // Still redirect even if there was an error
+      setLocation("/login");
     }
   }
 

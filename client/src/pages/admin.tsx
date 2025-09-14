@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +17,7 @@ export default function Admin() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
 
   // ⚡ HOOKS SIEMPRE PRIMERO - INCONDICIONALES
   const { data: captains, isLoading: captainsLoading } = useQuery<(Captain & { user: any })[]>({
@@ -128,11 +130,15 @@ export default function Admin() {
                 size="sm"
                 onClick={async () => {
                   try {
-                    await fetch("/api/logout", { method: "POST", credentials: "include" });
-                    queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-                    window.location.href = "/";
+                    const response = await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+                    if (response.ok) {
+                      await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+                      setLocation("/");
+                    }
                   } catch (error) {
                     console.error("Logout failed:", error);
+                    // Still redirect even if there was an error
+                    setLocation("/");
                   }
                 }}
                 className="text-xs sm:text-sm bg-red-500 hover:bg-red-600 text-white border-0"
