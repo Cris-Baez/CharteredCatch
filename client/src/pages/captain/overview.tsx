@@ -26,6 +26,9 @@ import {
   Eye,
   Pencil,
   CreditCard,
+  Users,
+  DollarSign,
+  Clock,
 } from "lucide-react";
 
 /* ========= Tipos compatibles con tu backend ========= */
@@ -61,6 +64,141 @@ type Charter = {
     reviewCount?: number | null;
   };
 };
+
+type BookingStatus = "pending" | "confirmed" | "completed" | "cancelled";
+type CaptainBooking = {
+  id: number;
+  userId: string;
+  charterId: number;
+  tripDate: string | null;
+  guests: number;
+  totalPrice: string;
+  status: BookingStatus;
+  message: string | null;
+  createdAt: string | null;
+  charter: {
+    title: string;
+    location: string;
+    duration: string;
+  };
+  user: {
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  };
+};
+
+// Componente para mostrar bookings recientes
+function RecentBookingsContent() {
+  const { user } = useAuth();
+  
+  const { data: bookings, isLoading } = useQuery<CaptainBooking[]>({
+    queryKey: ["/api/captain/bookings"],
+    queryFn: async () => {
+      const res = await fetch("/api/captain/bookings", {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        throw new Error("Failed to fetch bookings");
+      }
+      return res.json();
+    },
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+
+  const money = (n: string | number) => {
+    const num = typeof n === "string" ? parseFloat(n) : n;
+    return new Intl.NumberFormat(undefined, { 
+      style: "currency", 
+      currency: "USD", 
+      maximumFractionDigits: 0 
+    }).format(num);
+  };
+
+  const statusBadge = (status: BookingStatus) =>
+    status === "confirmed" ? "default" : status === "pending" ? "secondary" : status === "completed" ? "outline" : "destructive";
+
+  const recentBookings = bookings?.slice(0, 3) || [];
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="p-3 border rounded-lg animate-pulse">
+            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+            <div className="h-3 bg-gray-200 rounded w-1/2" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (recentBookings.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-sm text-gray-600 mb-4">
+          No recent bookings. New booking requests will appear here.
+        </p>
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/captain/bookings">View All Bookings</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {recentBookings.map((booking) => (
+        <div key={booking.id} className="p-3 border rounded-lg hover:shadow-sm transition">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-1">
+                <h4 className="font-medium text-sm">{booking.charter.title}</h4>
+                <Badge variant={statusBadge(booking.status)} className="text-xs capitalize">
+                  {booking.status}
+                </Badge>
+              </div>
+              
+              <div className="flex items-center gap-3 text-xs text-gray-600 mb-2">
+                <span className="flex items-center gap-1">
+                  <Users size={12} />
+                  {booking.guests} guests
+                </span>
+                <span className="flex items-center gap-1">
+                  <DollarSign size={12} />
+                  {money(booking.totalPrice)}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Clock size={12} />
+                  {booking.charter.duration}
+                </span>
+              </div>
+
+              <div className="text-xs text-gray-500">
+                Customer: {booking.user.firstName && booking.user.lastName 
+                  ? `${booking.user.firstName} ${booking.user.lastName}` 
+                  : booking.user.email}
+                {booking.tripDate && (
+                  <span className="ml-2">• Trip: {new Date(booking.tripDate).toLocaleDateString()}</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+      
+      <div className="pt-2 border-t">
+        <Button variant="ghost" className="w-full text-sm" asChild>
+          <Link href="/captain/bookings">
+            View All Bookings
+            <MessageSquare className="w-4 h-4 ml-2" />
+          </Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export default function CaptainOverview() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -293,12 +431,7 @@ export default function CaptainOverview() {
               <CardTitle className="text-base lg:text-lg">Recent Bookings</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-gray-600">
-                Connect your bookings page to see recent activity here.
-              </p>
-              <Button variant="ghost" className="w-full mt-4 text-sm" asChild>
-                <Link href="/captain/bookings">View All Bookings</Link>
-              </Button>
+              <RecentBookingsContent />
             </CardContent>
           </Card>
         </div>
