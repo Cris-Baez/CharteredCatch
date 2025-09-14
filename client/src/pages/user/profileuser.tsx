@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import ProfileImageUpload from "@/components/ui/profile-image-upload";
 
 import {
   User as UserIcon,
@@ -28,6 +29,7 @@ type User = {
   lastName: string | null;
   // avatar opcional si lo agregas luego
   avatar?: string | null;
+  profileImageUrl?: string | null;
 };
 
 type Booking = {
@@ -234,7 +236,7 @@ export default function UserProfilePage() {
           <Card className="overflow-hidden shadow-sm">
             <CardContent className="p-6 flex flex-col items-center text-center">
               <Avatar className="w-20 h-20 mb-3">
-                <AvatarImage src={user.avatar || ""} />
+                <AvatarImage src={user.profileImageUrl || user.avatar || ""} />
                 <AvatarFallback>
                   {(user.firstName?.[0] || "U") + (user.lastName?.[0] || "")}
                 </AvatarFallback>
@@ -273,6 +275,15 @@ export default function UserProfilePage() {
                   <label className="text-sm text-gray-500">Email</label>
                   <div className="mt-1 font-medium">{user.email}</div>
                 </div>
+
+                {/* Profile Image Upload */}
+                <ProfileImageUpload
+                  currentImageUrl={user.profileImageUrl}
+                  onSuccess={(newImageUrl) => {
+                    // Update user object with new image
+                    setUser(prev => prev ? { ...prev, profileImageUrl: newImageUrl } : null);
+                  }}
+                />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>

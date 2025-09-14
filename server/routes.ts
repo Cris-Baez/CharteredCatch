@@ -19,13 +19,15 @@ import {
   bookings as bookingsTable,
   availability as availabilityTable,
   messages,
+  reviews as reviewsTable,
   captainPaymentInfo as captainPaymentInfoTable,
   insertCaptainPaymentInfoSchema,
   insertBookingSchema,
+  insertReviewSchema,
   type CaptainPaymentInfo,
 } from "@shared/schema";
 import { z } from "zod";
-import { and, eq, ilike, inArray, gte, lt, or, isNotNull, desc } from "drizzle-orm";
+import { and, eq, ilike, inArray, gte, lt, or, isNotNull, desc, sql } from "drizzle-orm";
 
 /**
  * SessionData: solo guardamos userId para evitar conflictos de tipos
@@ -3231,6 +3233,263 @@ Looking forward to an amazing day on the water! 🛥️`;
       res.status(500).json({ error: "Failed to get subscriptions" });
     }
   });
+
+  // ==============================
+  // REVIEWS ENDPOINTS
+  // ==============================
+
+  // GET: Obtener reviews de un charter
+  app.get("/api/reviews/:charterId", async (req: Request, res: Response) => {
+    try {
+      const charterId = Number(req.params.charterId);
+      if (!Number.isFinite(charterId)) {
+        return res.status(400).json({ error: "Invalid charter ID" });
+      }
+
+      const reviewsData = await db
+        .select({
+          id: reviewsTable.id,
+          userId: reviewsTable.userId,
+          rating: reviewsTable.rating,
+          comment: reviewsTable.comment,
+          createdAt: reviewsTable.createdAt,
+          // User info
+          userFirstName: usersTable.firstName,
+          userLastName: usersTable.lastName,
+          userAvatar: usersTable.profileImageUrl,
+        })
+        .from(reviewsTable)
+        .leftJoin(usersTable, eq(reviewsTable.userId, usersTable.id))
+        .where(eq(reviewsTable.charterId, charterId))
+        .orderBy(desc(reviewsTable.createdAt));
+
+      const reviews = reviewsData.map((r) => ({
+        id: r.id,
+        userId: r.userId,
+        rating: r.rating,
+        comment: r.comment,
+        createdAt: r.createdAt?.toISOString(),
+        user: {
+          firstName: r.userFirstName,
+          lastName: r.userLastName,
+          avatar: r.userAvatar,
+        },
+      }));
+
+      res.json(reviews);
+    } catch (error) {
+      console.error("Get reviews error:", error);
+      res.status(500).json({ error: "Failed to get reviews" });
+    }
+  });
+
+  // POST: Crear nuevo review (solo después de 5h del viaje)
+  app.post("/api/reviews", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      // Validar el request body usando drizzle-zod
+      const validation = insertReviewSchema.extend({
+        comment: z.string().min(10, "Comment must be at least 10 characters"),
+      }).safeParse(req.body);
+
+      if (!validation.success) {
+        return res.status(400).json({ 
+          error: "Invalid request data",
+          details: validation.error.issues.map(issue => ({
+            field: issue.path.join('.'),
+            message: issue.message
+          }))
+        });
+      }
+
+      const { charterId, rating, comment } = validation.data;
+
+      // Verificar que el usuario tiene un booking completado para este charter
+      const [booking] = await db
+        .select({
+          id: bookingsTable.id,
+          tripDate: bookingsTable.tripDate,
+          status: bookingsTable.status,
+          charterId: bookingsTable.charterId,
+        })
+        .from(bookingsTable)
+        .where(and(
+          eq(bookingsTable.userId, req.session.userId),
+          eq(bookingsTable.charterId, charterId),
+          eq(bookingsTable.status, "completed")
+        ));
+
+      if (!booking) {
+        return res.status(403).json({ 
+          error: "You can only review charters you have completed" 
+        });
+      }
+
+      // Verificar que han pasado al menos 5 horas desde el viaje
+      const tripDate = new Date(booking.tripDate);
+      const fiveHoursLater = new Date(tripDate.getTime() + (5 * 60 * 60 * 1000));
+      const now = new Date();
+
+      if (now < fiveHoursLater) {
+        const hoursLeft = Math.ceil((fiveHoursLater.getTime() - now.getTime()) / (60 * 60 * 1000));
+        return res.status(403).json({
+          error: `You can review this charter in ${hoursLeft} hours after the trip ends`
+        });
+      }
+
+      // Verificar que no haya review duplicado
+      const [existingReview] = await db
+        .select({ id: reviewsTable.id })
+        .from(reviewsTable)
+        .where(and(
+          eq(reviewsTable.userId, req.session.userId),
+          eq(reviewsTable.charterId, charterId)
+        ));
+
+      if (existingReview) {
+        return res.status(409).json({ error: "You have already reviewed this charter" });
+      }
+
+      // Obtener info del captain para el review
+      const [charter] = await db
+        .select({
+          captainId: chartersTable.captainId,
+          title: chartersTable.title
+        })
+        .from(chartersTable)
+        .where(eq(chartersTable.id, charterId));
+
+      if (!charter) {
+        return res.status(404).json({ error: "Charter not found" });
+      }
+
+      // Crear el review
+      const [newReview] = await db
+        .insert(reviewsTable)
+        .values({
+          userId: req.session.userId,
+          captainId: charter.captainId,
+          charterId,
+          rating,
+          comment: comment.trim(),
+        })
+        .returning();
+
+      // Actualizar rating promedio del captain
+      await updateCaptainRating(charter.captainId);
+
+      res.json({
+        message: "Review submitted successfully",
+        review: {
+          id: newReview.id,
+          rating: newReview.rating,
+          comment: newReview.comment,
+          createdAt: newReview.createdAt?.toISOString(),
+        }
+      });
+    } catch (error) {
+      console.error("Create review error:", error);
+      res.status(500).json({ error: "Failed to create review" });
+    }
+  });
+
+  // Helper function para actualizar rating del captain
+  async function updateCaptainRating(captainId: number) {
+    try {
+      const reviewStats = await db
+        .select({
+          avgRating: sql<number>`ROUND(AVG(${reviewsTable.rating}::numeric), 2)`,
+          count: sql<number>`COUNT(*)::integer`,
+        })
+        .from(reviewsTable)
+        .where(eq(reviewsTable.captainId, captainId));
+
+      const stats = reviewStats[0];
+      if (stats && stats.count > 0) {
+        await db
+          .update(captainsTable)
+          .set({
+            rating: String(stats.avgRating),
+            reviewCount: stats.count,
+          })
+          .where(eq(captainsTable.id, captainId));
+      }
+    } catch (error) {
+      console.error("Update captain rating error:", error);
+    }
+  }
+
+  // ==============================
+  // PROFILE IMAGE UPLOAD
+  // ==============================
+
+  // Upload profile image for user
+  app.post("/api/user/profile-image", (req: Request, res: Response, next: any) => {
+    // Handle multer upload with error handling
+    upload.single("profileImage")(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        // Handle multer-specific errors
+        if (err.code === "LIMIT_FILE_SIZE") {
+          return res.status(400).json({ error: "File size too large. Maximum size is 100MB." });
+        }
+        if (err.code === "LIMIT_UNEXPECTED_FILE") {
+          return res.status(400).json({ error: "Unexpected file field. Use 'profileImage' field name." });
+        }
+        return res.status(400).json({ error: `Upload error: ${err.message}` });
+      } else if (err) {
+        // Handle custom validation errors (like file type)
+        if (err.message === "Only image files are allowed") {
+          return res.status(400).json({ error: "Only image files (JPG, PNG, GIF, etc.) are allowed." });
+        }
+        return res.status(400).json({ error: err.message });
+      }
+      // No errors, proceed with the handler
+      handleProfileImageUpload(req, res);
+    });
+  });
+
+  async function handleProfileImageUpload(req: Request, res: Response) {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: "No image file provided" });
+      }
+
+      // Use the uploaded file path
+      const profileImageUrl = `/attached_assets/${req.file.filename}`;
+
+      // Update user with new profile image
+      const [updatedUser] = await db
+        .update(usersTable)
+        .set({
+          profileImageUrl,
+        })
+        .where(eq(usersTable.id, req.session.userId))
+        .returning();
+
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json({
+        message: "Profile image uploaded successfully",
+        profileImageUrl,
+        user: {
+          id: updatedUser.id,
+          profileImageUrl: updatedUser.profileImageUrl,
+        },
+      });
+    } catch (error) {
+      console.error("Profile image upload error:", error);
+      return res.status(500).json({ error: "Failed to upload profile image" });
+    }
+  }
 
     // ==============================
     // HTTP SERVER

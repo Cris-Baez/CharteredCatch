@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { User } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Message {
   id?: number;               // puede no venir en el optimista
@@ -33,6 +35,7 @@ export default function MessageThread({
   onSendMessage,
   isLoading,
 }: Props) {
+  const { user } = useAuth();
   const [newMessage, setNewMessage] = useState("");
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -69,8 +72,24 @@ export default function MessageThread({
             return (
               <div
                 key={msg.id ?? `optimistic-${idx}`}
-                className={`flex ${isMine ? "justify-end" : "justify-start"}`}
+                className={`flex items-end space-x-2 ${isMine ? "justify-end flex-row-reverse space-x-reverse" : "justify-start"}`}
               >
+                {/* Avatar */}
+                {!isMine && (
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-ocean-blue/10 flex items-center justify-center overflow-hidden">
+                    {participant.avatar || participant.profileImageUrl ? (
+                      <img
+                        src={participant.avatar || participant.profileImageUrl || ""}
+                        alt={participant.firstName || "User"}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <User size={16} className="text-ocean-blue" />
+                    )}
+                  </div>
+                )}
+                
+                {/* Message Bubble */}
                 <div
                   className={`max-w-xs px-4 py-2 rounded-lg ${
                     isMine
@@ -86,6 +105,21 @@ export default function MessageThread({
                     {msg._optimistic ? " • sending…" : ""}
                   </span>
                 </div>
+                
+                {/* My Avatar (for sent messages) */}
+                {isMine && (
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
+                    {user?.profileImageUrl ? (
+                      <img
+                        src={user.profileImageUrl}
+                        alt={user.firstName || "Me"}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <User size={16} className="text-blue-600" />
+                    )}
+                  </div>
+                )}
               </div>
             );
           })

@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import ProfileImageUpload from "@/components/ui/profile-image-upload";
 import {
   Save,
   Camera,
@@ -302,49 +303,26 @@ export default function CaptainProfile() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           {/* LEFT: Avatar + Summary */}
           <section className="lg:col-span-1 space-y-6">
+            <ProfileImageUpload
+              currentImageUrl={user?.profileImageUrl || captain?.avatar}
+              onSuccess={() => {
+                // Invalidate both queries to refresh profile data
+                queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/captain/me"] });
+              }}
+              variant="compact"
+            />
+
             <Card className="overflow-hidden">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">Profile Photo</CardTitle>
+                <CardTitle className="text-base">Captain Summary</CardTitle>
               </CardHeader>
               <CardContent className="pb-6">
-                <div className="flex flex-col items-center">
-                  <div className="relative">
-                    <Avatar className="w-28 h-28 ring-2 ring-white shadow">
-                      <AvatarImage src={captain?.avatar || ""} useDefaultForCaptain />
-                      <AvatarFallback className="text-xl">
-                        {user?.firstName?.[0] || "C"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="absolute -bottom-2 -right-2 rounded-full h-9 w-9 p-0 bg-ocean-blue hover:bg-blue-800"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploadingAvatar}
-                    >
-                      {uploadingAvatar ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Camera className="w-4 h-4" />
-                      )}
-                    </Button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) handleAvatarUpload(f);
-                      }}
-                    />
+                <div className="text-center">
+                  <div className="text-lg font-semibold">{fullName}</div>
+                  <div className="text-sm text-gray-500 break-all">
+                    {user?.email || "—"}
                   </div>
-
-                  <div className="mt-4 text-center">
-                    <div className="text-lg font-semibold">{fullName}</div>
-                    <div className="text-sm text-gray-500 break-all">
-                      {user?.email || "—"}
-                    </div>
 
                     <div className="mt-3 flex items-center justify-center gap-3 text-sm">
                       <span className="inline-flex items-center text-yellow-600">
@@ -363,7 +341,6 @@ export default function CaptainProfile() {
                       </span>
                     ) : null}
                   </div>
-                </div>
               </CardContent>
             </Card>
 
