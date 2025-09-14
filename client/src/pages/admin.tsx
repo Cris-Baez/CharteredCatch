@@ -428,8 +428,8 @@ export default function Admin() {
                       <div className="text-center py-12">
                         <div className="bg-gradient-to-r from-gray-100 to-gray-200 p-6 rounded-2xl">
                           <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                          <p className="text-gray-600 font-medium">No hay suscripciones activas</p>
-                          <p className="text-gray-500 text-sm mt-1">Los datos aparecerán cuando haya usuarios con Stripe</p>
+                          <p className="text-gray-600 font-medium">No active subscriptions</p>
+                          <p className="text-gray-500 text-sm mt-1">Data will appear when users subscribe with Stripe</p>
                         </div>
                       </div>
                     ) : (
