@@ -1,3 +1,4 @@
+
 import { useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import HeaderCaptain from "@/components/headercaptain";
@@ -87,77 +88,6 @@ export default function CaptainBookings() {
     staleTime: 30_000,
   });
 
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="p-8 text-center">
-            <Ship className="mx-auto mb-4 text-ocean-blue" size={64} />
-            <h2 className="text-2xl font-bold mb-4">Captain Portal</h2>
-            <p className="text-storm-gray mb-6">
-              Please log in to access your captain dashboard
-            </p>
-            <Button asChild>
-              <Link href="/login">Log In</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const all = bookings ?? [];
-
-  // Filtro por estado (frontend)
-  const byStatus = status === "all" ? all : all.filter((booking) => booking.status === status);
-
-  // Búsqueda por charter title
-  const filtered = useMemo(() => {
-    const text = q.trim().toLowerCase();
-    if (!text) return byStatus;
-    return byStatus.filter((booking) =>
-      [booking.charter.title, booking.user.firstName, booking.user.lastName, booking.user.email]
-        .join(" ").toLowerCase().includes(text)
-    );
-  }, [byStatus, q]);
-
-  // Agrupado por día de viaje
-  const groups = useMemo(() => {
-    const fmtKey = (iso: string | null) => {
-      if (!iso) return "No date scheduled";
-      const d = new Date(iso);
-      return d.toLocaleDateString("en-US", { 
-        weekday: "long", 
-        year: "numeric", 
-        month: "long", 
-        day: "numeric" 
-      });
-    };
-
-    const grouped = new Map<string, CaptainBooking[]>();
-    filtered.forEach((booking) => {
-      const key = fmtKey(booking.tripDate);
-      if (!grouped.has(key)) grouped.set(key, []);
-      grouped.get(key)!.push(booking);
-    });
-
-    return Array.from(grouped.entries()).map(([date, bookings]) => ({
-      date,
-      bookings: bookings.sort((a, b) => 
-        new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-      ),
-    }));
-  }, [filtered]);
-
-  const money = (n: string | number) => {
-    const num = typeof n === "string" ? parseFloat(n) : n;
-    return new Intl.NumberFormat(undefined, { 
-      style: "currency", 
-      currency: "USD", 
-      maximumFractionDigits: 0 
-    }).format(num);
-  };
-
   // Mutations para approve/reject bookings
   const approveMutation = useMutation({
     mutationFn: async (bookingId: number) => {
@@ -214,14 +144,6 @@ export default function CaptainBookings() {
       });
     },
   });
-
-  const handleApproveBooking = (bookingId: number) => {
-    approveMutation.mutate(bookingId);
-  };
-
-  const handleRejectBooking = (bookingId: number) => {
-    rejectMutation.mutate(bookingId);
-  };
 
   // Payment proof mutations
   const approvePaymentMutation = useMutation({
@@ -282,6 +204,88 @@ export default function CaptainBookings() {
     },
   });
 
+  // Early return for unauthenticated users
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardContent className="p-8 text-center">
+            <Ship className="mx-auto mb-4 text-ocean-blue" size={64} />
+            <h2 className="text-2xl font-bold mb-4">Captain Portal</h2>
+            <p className="text-storm-gray mb-6">
+              Please log in to access your captain dashboard
+            </p>
+            <Button asChild>
+              <Link href="/login">Log In</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const all = bookings ?? [];
+
+  // Filtro por estado (frontend)
+  const byStatus = useMemo(() => {
+    return status === "all" ? all : all.filter((booking) => booking.status === status);
+  }, [status, all]);
+
+  // Búsqueda por charter title
+  const filtered = useMemo(() => {
+    const text = q.trim().toLowerCase();
+    if (!text) return byStatus;
+    return byStatus.filter((booking) =>
+      [booking.charter.title, booking.user.firstName, booking.user.lastName, booking.user.email]
+        .join(" ").toLowerCase().includes(text)
+    );
+  }, [byStatus, q]);
+
+  // Agrupado por día de viaje
+  const groups = useMemo(() => {
+    const fmtKey = (iso: string | null) => {
+      if (!iso) return "No date scheduled";
+      const d = new Date(iso);
+      return d.toLocaleDateString("en-US", { 
+        weekday: "long", 
+        year: "numeric", 
+        month: "long", 
+        day: "numeric" 
+      });
+    };
+
+    const grouped = new Map<string, CaptainBooking[]>();
+    filtered.forEach((booking) => {
+      const key = fmtKey(booking.tripDate);
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push(booking);
+    });
+
+    return Array.from(grouped.entries()).map(([date, bookings]) => ({
+      date,
+      bookings: bookings.sort((a, b) => 
+        new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+      ),
+    }));
+  }, [filtered]);
+
+  const money = (n: string | number) => {
+    const num = typeof n === "string" ? parseFloat(n) : n;
+    return new Intl.NumberFormat(undefined, { 
+      style: "currency", 
+      currency: "USD", 
+      maximumFractionDigits: 0 
+    }).format(num);
+  };
+
+  const handleApproveBooking = (bookingId: number) => {
+    approveMutation.mutate(bookingId);
+  };
+
+  const handleRejectBooking = (bookingId: number) => {
+    rejectMutation.mutate(bookingId);
+  };
+
   const handleApprovePayment = (bookingId: number) => {
     approvePaymentMutation.mutate(bookingId);
   };
@@ -293,13 +297,13 @@ export default function CaptainBookings() {
   const statusBadge = (s: BookingStatus) =>
     s === "confirmed" ? "default" : s === "pending" ? "secondary" : s === "completed" ? "outline" : "destructive";
 
-  const counts = {
+  const counts = useMemo(() => ({
     all: all.length,
     pending: all.filter((booking) => booking.status === "pending").length,
     confirmed: all.filter((booking) => booking.status === "confirmed").length,
     completed: all.filter((booking) => booking.status === "completed").length,
     cancelled: all.filter((booking) => booking.status === "cancelled").length,
-  };
+  }), [all]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
