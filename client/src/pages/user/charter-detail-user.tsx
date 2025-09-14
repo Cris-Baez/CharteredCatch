@@ -81,6 +81,7 @@ export default function CharterDetailUser() {
   const [, setLocation] = useLocation();
 
   const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [active, setActive] = useState(0);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const { toast } = useToast();
@@ -429,15 +430,17 @@ export default function CharterDetailUser() {
               </CardContent>
             </Card>
 
-            {/* Review Form */}
-            <ReviewForm 
-              charterId={charter.id}
-              charterTitle={charter.title}
-              onSuccess={() => {
-                // Refresh the page data after successful review submission
-                window.location.reload();
-              }}
-            />
+            {/* Subtle Review Button */}
+            <div className="flex justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-gray-500 hover:text-gray-700 text-xs"
+                onClick={() => setIsReviewModalOpen(true)}
+              >
+                Write a review
+              </Button>
+            </div>
           </div>
 
           {/* Sidebar de reserva (sticky debajo del header) */}
@@ -548,6 +551,26 @@ export default function CharterDetailUser() {
                 </Button>
               </form>
             </Form>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Review Modal */}
+      <Dialog open={isReviewModalOpen} onOpenChange={setIsReviewModalOpen}>
+        <DialogContent className="w-[96vw] sm:max-w-lg max-w-2xl max-h-[85vh] overflow-y-auto p-0">
+          <DialogHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
+            <DialogTitle>Write a Review</DialogTitle>
+          </DialogHeader>
+          <div className="px-4 pb-4 sm:px-6 sm:pb-6">
+            <ReviewForm 
+              charterId={charter.id}
+              charterTitle={charter.title}
+              onSuccess={() => {
+                setIsReviewModalOpen(false);
+                // Refresh the page data after successful review submission
+                window.location.reload();
+              }}
+            />
           </div>
         </DialogContent>
       </Dialog>
