@@ -17,23 +17,22 @@ export default function Admin() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // ⚡ HOOKS SIEMPRE PRIMERO - antes de cualquier return condicional
+  // ⚡ HOOKS SIEMPRE PRIMERO - INCONDICIONALES
   const { data: captains, isLoading: captainsLoading } = useQuery<(Captain & { user: any })[]>({
     queryKey: ["/api/admin/captains"],
-    enabled: !!user && user.role === 'admin', // Solo ejecuta si es admin
+    enabled: !!user && user.role === 'admin',
   });
 
   const { data: charters, isLoading: chartersLoading } = useQuery<Charter[]>({
     queryKey: ["/api/admin/charters"],
-    enabled: !!user && user.role === 'admin', // Solo ejecuta si es admin
+    enabled: !!user && user.role === 'admin',
   });
 
   const { data: subscriptions, isLoading: subscriptionsLoading } = useQuery<User[]>({
     queryKey: ["/api/admin/subscriptions"],
-    enabled: !!user && user.role === 'admin', // Solo ejecuta si es admin
+    enabled: !!user && user.role === 'admin',
   });
 
-  // ⚡ TODAS LAS MUTATIONS TAMBIÉN AL INICIO
   const updateCaptainMutation = useMutation({
     mutationFn: async ({ captainId, verified }: { captainId: number; verified: boolean }) => {
       return apiRequest("PATCH", `/api/admin/captains/${captainId}`, { verified });
@@ -122,7 +121,7 @@ export default function Admin() {
                 className="text-xs sm:text-sm bg-white/50 hover:bg-white/80 border-blue-200" 
                 asChild
               >
-                <a href="/">← Inicio</a>
+                <a href="/">← Home</a>
               </Button>
               <Button 
                 variant="destructive" 
@@ -139,7 +138,7 @@ export default function Admin() {
                 className="text-xs sm:text-sm bg-red-500 hover:bg-red-600 text-white border-0"
                 data-testid="button-logout"
               >
-                🚪 Salir
+                🚪 Logout
               </Button>
             </div>
           </div>
