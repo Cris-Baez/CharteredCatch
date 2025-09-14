@@ -205,6 +205,7 @@ export const insertAvailabilitySchema = createInsertSchema(availability).omit({
 
 export const insertCaptainPaymentInfoSchema = createInsertSchema(captainPaymentInfo).omit({
   id: true,
+  captainId: true,
   createdAt: true,
   updatedAt: true,
 });
