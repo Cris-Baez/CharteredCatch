@@ -1398,6 +1398,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             b_totalPrice: bookingsTable.totalPrice,
             b_status: bookingsTable.status,
             b_guests: bookingsTable.guests,
+            b_createdAt: bookingsTable.createdAt,
             // charter
             c_title: chartersTable.title,
             c_captainId: chartersTable.captainId,
@@ -1432,17 +1433,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return { from, prevFrom, prevTo };
         })();
 
+        // Para earnings, usamos una lógica híbrida: si el booking es muy reciente (últimas 24h)
+        // y está confirmado, asumimos que se confirmó ahora. Esto simula tener un campo confirmedAt.
+        // Idealmente deberíamos agregar un campo confirmedAt al schema para una solución más robusta.
         const inRange = rows.filter((r) => {
-          const d = r.b_tripDate instanceof Date ? r.b_tripDate : new Date(r.b_tripDate as any);
-          return d >= from && d <= now;
+          // Solo incluir bookings confirmed/completed para earnings
+          if (r.b_status !== "confirmed" && r.b_status !== "completed") {
+            return false;
+          }
+          
+          const createdAt = r.b_createdAt instanceof Date ? r.b_createdAt : new Date(r.b_createdAt as any);
+          const is24hOld = (now.getTime() - createdAt.getTime()) > (24 * 60 * 60 * 1000);
+          
+          // Si es confirmed y es muy reciente, probablemente se confirmó ahora
+          if (r.b_status === "confirmed" && !is24hOld) {
+            return now >= from && now <= now; // Usar fecha actual para confirmed recientes
+          }
+          
+          // Para completed o confirmed antiguos, usar createdAt
+          return createdAt >= from && createdAt <= now;
         });
 
         const inPrevRange = rows.filter((r) => {
-          const d = r.b_tripDate instanceof Date ? r.b_tripDate : new Date(r.b_tripDate as any);
-          return d >= prevFrom && d < prevTo;
+          // Solo incluir bookings confirmed/completed para earnings
+          if (r.b_status !== "confirmed" && r.b_status !== "completed") {
+            return false;
+          }
+          
+          const createdAt = r.b_createdAt instanceof Date ? r.b_createdAt : new Date(r.b_createdAt as any);
+          const prevNow = prevTo;
+          const is24hOldPrev = (prevNow.getTime() - createdAt.getTime()) > (24 * 60 * 60 * 1000);
+          
+          // Si era confirmed y era reciente en el periodo anterior
+          if (r.b_status === "confirmed" && !is24hOldPrev) {
+            return prevNow >= prevFrom && prevNow < prevTo;
+          }
+          
+          return createdAt >= prevFrom && createdAt < prevTo;
         });
 
-        // 4) métricas
+        // 4) métricas - simplificadas porque ya filtramos por status
         const sum = (arr: typeof inRange, predicate: (r: any) => boolean) =>
           arr.reduce((acc, r) => (predicate(r) ? acc + Number(r.b_totalPrice || 0) : acc), 0);
 
@@ -1451,25 +1481,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const isCompleted = (r: any) => r.b_status === "completed";
         const isConfirmed = (r: any) => r.b_status === "confirmed";
-        const isPending = (r: any) => r.b_status === "pending";
 
-        const totalEarnings = sum(inRange, (r) => isCompleted(r) || isConfirmed(r));
+        // Como ya filtramos por confirmed/completed, todos los inRange son earnings válidos
+        const totalEarnings = inRange.reduce((acc, r) => acc + Number(r.b_totalPrice || 0), 0);
         const completedEarnings = sum(inRange, isCompleted);
         const tripsCount = inRange.length;
         const completedTrips = count(inRange, isCompleted);
-        const avgPerTrip = completedTrips > 0 ? completedEarnings / completedTrips : 0;
-        const pendingAmount = sum(inRange, isPending);
-        const pendingTrips = count(inRange, isPending);
+        const avgPerTrip = tripsCount > 0 ? totalEarnings / tripsCount : 0;
+        
+        // Para pending, necesitamos buscar en todos los bookings (no solo inRange)
+        const allPendingInRange = rows.filter((r) => {
+          if (r.b_status !== "pending") return false;
+          const d = r.b_createdAt instanceof Date ? r.b_createdAt : new Date(r.b_createdAt as any);
+          return d >= from && d <= now;
+        });
+        const pendingAmount = allPendingInRange.reduce((acc, r) => acc + Number(r.b_totalPrice || 0), 0);
+        const pendingTrips = allPendingInRange.length;
 
-        const prevTotal = sum(inPrevRange, (r) => isCompleted(r) || isConfirmed(r));
+        const prevTotal = inPrevRange.reduce((acc, r) => acc + Number(r.b_totalPrice || 0), 0);
         const changePct = prevTotal === 0 ? (totalEarnings > 0 ? 100 : 0) : ((totalEarnings - prevTotal) / prevTotal) * 100;
 
-        // 5) transacciones recientes en el periodo
+        // 5) transacciones recientes en el periodo (ordenadas por fecha de booking)
         const recentTransactions = inRange
           .slice()
           .sort((a, b) => {
-            const da = a.b_tripDate instanceof Date ? a.b_tripDate : new Date(a.b_tripDate as any);
-            const db = b.b_tripDate instanceof Date ? b.b_tripDate : new Date(b.b_tripDate as any);
+            const da = a.b_createdAt instanceof Date ? a.b_createdAt : new Date(a.b_createdAt as any);
+            const db = b.b_createdAt instanceof Date ? b.b_createdAt : new Date(b.b_createdAt as any);
             return db.getTime() - da.getTime();
           })
           .slice(0, 12)
@@ -1479,7 +1516,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             guests: Number(r.b_guests || 0),
             status: r.b_status as any,
             amount: Number(r.b_totalPrice || 0),
-            dateISO: (r.b_tripDate instanceof Date ? r.b_tripDate : new Date(r.b_tripDate as any)).toISOString(),
+            dateISO: (r.b_createdAt instanceof Date ? r.b_createdAt : new Date(r.b_createdAt as any)).toISOString(),
           }));
 
         return res.json({
