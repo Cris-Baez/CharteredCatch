@@ -26,17 +26,24 @@ export default function ReviewForm({ charterId, charterTitle, onSuccess }: Revie
 
   const submitReviewMutation = useMutation({
     mutationFn: async (reviewData: { charterId: number; rating: number; comment: string }) => {
+      console.log("Submitting review data:", reviewData); // Debug log
+      
       const response = await fetch("/api/reviews", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify(reviewData),
+        body: JSON.stringify({
+          charterId: Number(reviewData.charterId),
+          rating: Number(reviewData.rating),
+          comment: String(reviewData.comment).trim(),
+        }),
       });
       
       if (!response.ok) {
         const errorData = await response.json();
+        console.error("Review submission error:", errorData); // Debug log
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
       
@@ -100,11 +107,16 @@ export default function ReviewForm({ charterId, charterTitle, onSuccess }: Revie
       return;
     }
 
-    submitReviewMutation.mutate({
-      charterId,
-      rating,
+    // Validate data before submitting
+    const reviewData = {
+      charterId: Number(charterId),
+      rating: Number(rating),
       comment: comment.trim(),
-    });
+    };
+
+    console.log("Preparing to submit review:", reviewData); // Debug log
+
+    submitReviewMutation.mutate(reviewData);
   };
 
   if (!user) {

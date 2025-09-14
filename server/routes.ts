@@ -3292,10 +3292,18 @@ Looking forward to an amazing day on the water! 🛥️`;
 
       // Validar el request body usando drizzle-zod
       const validation = insertReviewSchema.extend({
-        comment: z.string().min(10, "Comment must be at least 10 characters"),
-      }).safeParse(req.body);
+        charterId: z.number().positive().int(),
+        rating: z.number().min(1).max(5).int(),
+        comment: z.string().min(10, "Comment must be at least 10 characters").max(1000),
+      }).safeParse({
+        ...req.body,
+        charterId: Number(req.body.charterId),
+        rating: Number(req.body.rating),
+        comment: String(req.body.comment || "").trim(),
+      });
 
       if (!validation.success) {
+        console.error("Review validation failed:", validation.error.issues);
         return res.status(400).json({ 
           error: "Invalid request data",
           details: validation.error.issues.map(issue => ({
