@@ -115,21 +115,40 @@ export default function Admin() {
                 <p className="text-xs sm:text-sm text-gray-500 hidden sm:block">Gestión de la plataforma</p>
               </div>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="ml-2 text-xs sm:text-sm bg-white/50 hover:bg-white/80 border-blue-200" 
-              asChild
-            >
-              <a href="/">← Inicio</a>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="text-xs sm:text-sm bg-white/50 hover:bg-white/80 border-blue-200" 
+                asChild
+              >
+                <a href="/">← Inicio</a>
+              </Button>
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={async () => {
+                  try {
+                    await fetch("/api/logout", { method: "POST", credentials: "include" });
+                    queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+                    window.location.href = "/";
+                  } catch (error) {
+                    console.error("Logout failed:", error);
+                  }
+                }}
+                className="text-xs sm:text-sm bg-red-500 hover:bg-red-600 text-white border-0"
+                data-testid="button-logout"
+              >
+                🚪 Salir
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="w-full px-3 sm:px-4 lg:px-6 max-w-7xl mx-auto py-4 sm:py-6 lg:py-8">
+      <div className="w-full px-3 sm:px-4 lg:px-6 max-w-7xl mx-auto py-6 sm:py-8 lg:py-10">
         {/* 🎨 Beautiful Stats Cards - Mobile Responsive */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-8 sm:mb-10 mt-4 sm:mt-6">
           <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
             <CardContent className="p-3 sm:p-4 lg:p-6">
               <div className="flex items-center">
@@ -193,7 +212,7 @@ export default function Admin() {
 
         {/* 📱 Mobile-Optimized Tabs */}
         <Tabs defaultValue="captains" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 bg-white/50 backdrop-blur-sm border border-blue-100 shadow-lg rounded-2xl p-1">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 bg-white/50 backdrop-blur-sm border border-blue-100 shadow-lg rounded-2xl p-1 mb-6 sm:mb-8">
             <TabsTrigger 
               value="captains" 
               className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm rounded-xl data-[state=active]:bg-blue-500 data-[state=active]:text-white transition-all duration-200"
@@ -229,7 +248,7 @@ export default function Admin() {
           </TabsList>
 
           {/* 👨‍✈️ Captains Tab - Mobile Optimized */}
-          <TabsContent value="captains" className="mt-4 sm:mt-6">
+          <TabsContent value="captains" className="mt-6 sm:mt-8">
             <Card className="bg-white/70 backdrop-blur-sm border-blue-100 shadow-lg rounded-2xl">
               <CardHeader className="pb-3 sm:pb-6">
                 <CardTitle className="flex items-center text-base sm:text-lg">
@@ -308,7 +327,7 @@ export default function Admin() {
           </TabsContent>
 
           {/* 🚢 Charters Tab - Mobile Optimized */}
-          <TabsContent value="charters" className="mt-4 sm:mt-6">
+          <TabsContent value="charters" className="mt-6 sm:mt-8">
             <Card className="bg-white/70 backdrop-blur-sm border-cyan-100 shadow-lg rounded-2xl">
               <CardHeader className="pb-3 sm:pb-6">
                 <CardTitle className="flex items-center text-base sm:text-lg">
@@ -383,7 +402,7 @@ export default function Admin() {
           </TabsContent>
 
           {/* 💳 Subscriptions Tab - Mobile Optimized */}
-          <TabsContent value="subscriptions" className="mt-4 sm:mt-6">
+          <TabsContent value="subscriptions" className="mt-6 sm:mt-8">
             <Card className="bg-white/70 backdrop-blur-sm border-purple-100 shadow-lg rounded-2xl">
               <CardHeader className="pb-3 sm:pb-6">
                 <CardTitle className="flex items-center text-base sm:text-lg">
@@ -467,7 +486,7 @@ export default function Admin() {
           </TabsContent>
 
           {/* 📊 Analytics Tab - Mobile Optimized */}
-          <TabsContent value="analytics" className="mt-4 sm:mt-6">
+          <TabsContent value="analytics" className="mt-6 sm:mt-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-green-100 shadow-lg rounded-2xl">
                 <CardHeader className="pb-3 sm:pb-6">
