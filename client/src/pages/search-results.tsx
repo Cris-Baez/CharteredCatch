@@ -290,7 +290,10 @@ export default function SearchResults() {
                       <MapPopupCard
                         charter={selectedCharter}
                         onClose={() => setSelectedCharterId(null)}
-                        onViewDetails={() => (window.location.href = `/charters/${selectedCharter.id}`)}
+                        onViewDetails={() => {
+                          setSelectedCharterId(null);
+                          setLocation(`/charters/${selectedCharter.id}`);
+                        }}
                       />
                     </Popup>
                   )}
@@ -354,7 +357,11 @@ export default function SearchResults() {
                       <MapPopupCard
                         charter={selectedCharter}
                         onClose={() => setSelectedCharterId(null)}
-                        onViewDetails={() => (window.location.href = `/charters/${selectedCharter.id}`)}
+                        onViewDetails={() => {
+                          setSelectedCharterId(null);
+                          setMobileMapOpen(false);
+                          setLocation(`/charters/${selectedCharter.id}`);
+                        }}
                       />
                     </Popup>
                   )}
