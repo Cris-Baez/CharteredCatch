@@ -51,6 +51,8 @@ import {
   ChevronRight,
 } from "lucide-react";
 
+import ReviewForm from "@/components/ui/review-form";
+
 import type { CharterWithCaptain } from "@shared/schema";
 
 /* ===========================
@@ -426,6 +428,16 @@ export default function CharterDetailUser() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Review Form */}
+            <ReviewForm 
+              charterId={charter.id}
+              charterTitle={charter.title}
+              onSuccess={() => {
+                // Refresh the page data after successful review submission
+                window.location.reload();
+              }}
+            />
           </div>
 
           {/* Sidebar de reserva (sticky debajo del header) */}
