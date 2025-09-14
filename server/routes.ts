@@ -22,7 +22,7 @@ import {
   insertCaptainPaymentInfoSchema,
   type CaptainPaymentInfo,
 } from "@shared/schema";
-import { and, eq, ilike, inArray, gte, lt } from "drizzle-orm";
+import { and, eq, ilike, inArray, gte, lt, or, isNotNull } from "drizzle-orm";
 
 /**
  * SessionData: solo guardamos userId para evitar conflictos de tipos
@@ -2427,6 +2427,207 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Save payment info error:", error);
       res.status(500).json({ error: "Failed to save payment information" });
+    }
+  });
+
+  // ==============================
+  // ADMIN ENDPOINTS
+  // ==============================
+
+  // Helper function to check if user is admin
+  const isAdmin = async (userId: string): Promise<boolean> => {
+    try {
+      const user = await storage.getUser(userId);
+      return user?.role === 'admin';
+    } catch {
+      return false;
+    }
+  };
+
+  // ADMIN: Get all captains with user data
+  app.get("/api/admin/captains", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const admin = await isAdmin(req.session.userId);
+      if (!admin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+
+      // Get all captains with user data
+      const captainsWithUsers = await db
+        .select({
+          id: captainsTable.id,
+          userId: captainsTable.userId,
+          name: captainsTable.name,
+          bio: captainsTable.bio,
+          experience: captainsTable.experience,
+          licenseNumber: captainsTable.licenseNumber,
+          location: captainsTable.location,
+          avatar: captainsTable.avatar,
+          verified: captainsTable.verified,
+          rating: captainsTable.rating,
+          reviewCount: captainsTable.reviewCount,
+          user: {
+            id: usersTable.id,
+            email: usersTable.email,
+            firstName: usersTable.firstName,
+            lastName: usersTable.lastName,
+            role: usersTable.role,
+            createdAt: usersTable.createdAt,
+          }
+        })
+        .from(captainsTable)
+        .leftJoin(usersTable, eq(captainsTable.userId, usersTable.id))
+        .orderBy(captainsTable.id);
+
+      res.json(captainsWithUsers);
+    } catch (error) {
+      console.error("Admin get captains error:", error);
+      res.status(500).json({ error: "Failed to get captains" });
+    }
+  });
+
+  // ADMIN: Update captain verification status
+  app.patch("/api/admin/captains/:id", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const admin = await isAdmin(req.session.userId);
+      if (!admin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+
+      const captainId = Number(req.params.id);
+      const { verified } = req.body;
+
+      if (!Number.isFinite(captainId)) {
+        return res.status(400).json({ error: "Invalid captain ID" });
+      }
+
+      if (typeof verified !== "boolean") {
+        return res.status(400).json({ error: "Verified must be boolean" });
+      }
+
+      const [updatedCaptain] = await db
+        .update(captainsTable)
+        .set({ verified })
+        .where(eq(captainsTable.id, captainId))
+        .returning();
+
+      if (!updatedCaptain) {
+        return res.status(404).json({ error: "Captain not found" });
+      }
+
+      res.json(updatedCaptain);
+    } catch (error) {
+      console.error("Admin update captain error:", error);
+      res.status(500).json({ error: "Failed to update captain" });
+    }
+  });
+
+  // ADMIN: Get all charters
+  app.get("/api/admin/charters", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const admin = await isAdmin(req.session.userId);
+      if (!admin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+
+      const charters = await db
+        .select()
+        .from(chartersTable)
+        .orderBy(chartersTable.id);
+
+      res.json(charters);
+    } catch (error) {
+      console.error("Admin get charters error:", error);
+      res.status(500).json({ error: "Failed to get charters" });
+    }
+  });
+
+  // ADMIN: Update charter visibility
+  app.patch("/api/admin/charters/:id", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const admin = await isAdmin(req.session.userId);
+      if (!admin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+
+      const charterId = Number(req.params.id);
+      const { isListed } = req.body;
+
+      if (!Number.isFinite(charterId)) {
+        return res.status(400).json({ error: "Invalid charter ID" });
+      }
+
+      if (typeof isListed !== "boolean") {
+        return res.status(400).json({ error: "isListed must be boolean" });
+      }
+
+      const [updatedCharter] = await db
+        .update(chartersTable)
+        .set({ isListed })
+        .where(eq(chartersTable.id, charterId))
+        .returning();
+
+      if (!updatedCharter) {
+        return res.status(404).json({ error: "Charter not found" });
+      }
+
+      res.json(updatedCharter);
+    } catch (error) {
+      console.error("Admin update charter error:", error);
+      res.status(500).json({ error: "Failed to update charter" });
+    }
+  });
+
+  // ADMIN: Get subscription overview
+  app.get("/api/admin/subscriptions", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const admin = await isAdmin(req.session.userId);
+      if (!admin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+
+      const subscriptions = await db
+        .select({
+          userId: usersTable.id,
+          email: usersTable.email,
+          firstName: usersTable.firstName,
+          lastName: usersTable.lastName,
+          role: usersTable.role,
+          stripeCustomerId: usersTable.stripeCustomerId,
+          stripeSubscriptionId: usersTable.stripeSubscriptionId,
+          createdAt: usersTable.createdAt,
+        })
+        .from(usersTable)
+        .where(or(
+          isNotNull(usersTable.stripeCustomerId),
+          isNotNull(usersTable.stripeSubscriptionId)
+        ))
+        .orderBy(usersTable.createdAt);
+
+      res.json(subscriptions);
+    } catch (error) {
+      console.error("Admin get subscriptions error:", error);
+      res.status(500).json({ error: "Failed to get subscriptions" });
     }
   });
 
