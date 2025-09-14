@@ -22,6 +22,7 @@ export default function ReviewForm({ charterId, charterTitle, onSuccess }: Revie
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [comment, setComment] = useState("");
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
   const submitReviewMutation = useMutation({
     mutationFn: async (reviewData: { charterId: number; rating: number; comment: string }) => {
@@ -95,11 +96,35 @@ export default function ReviewForm({ charterId, charterTitle, onSuccess }: Revie
   if (!user) {
     return (
       <Card>
-        <CardContent className="p-6 text-center">
-          <p className="text-storm-gray mb-4">Please log in to write a review</p>
-          <Button variant="outline" onClick={() => window.location.href = "/login"}>
-            Log In
-          </Button>
+        <CardContent className="p-4">
+          <div className="text-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-storm-gray hover:text-gray-700"
+              onClick={() => setShowLoginPrompt(!showLoginPrompt)}
+            >
+              <span className="text-sm">Write a review</span>
+              <svg
+                className={`ml-2 h-4 w-4 transition-transform ${
+                  showLoginPrompt ? 'rotate-180' : ''
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </Button>
+            {showLoginPrompt && (
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
+                <p className="text-storm-gray mb-3">Please log in to write a review</p>
+                <Button variant="outline" size="sm" onClick={() => window.location.href = "/login"}>
+                  Log In
+                </Button>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     );
