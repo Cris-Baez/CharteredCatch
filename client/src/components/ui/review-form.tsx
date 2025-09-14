@@ -25,8 +25,20 @@ export default function ReviewForm({ charterId, charterTitle, onSuccess }: Revie
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
   const submitReviewMutation = useMutation({
-    mutationFn: async (reviewData: { charterId: number; rating: number; comment: string }) => {
+    mutationFn: async (reviewData: { charterId: number; rating: number; comment: string; captainId?: number }) => {
       console.log("Submitting review data:", reviewData); // Debug log
+      
+      // Get charter details to find captainId if not provided
+      let captainId = reviewData.captainId;
+      if (!captainId) {
+        const charterResponse = await fetch(`/api/charters/${reviewData.charterId}`, {
+          credentials: "include",
+        });
+        if (charterResponse.ok) {
+          const charter = await charterResponse.json();
+          captainId = charter.captainId;
+        }
+      }
       
       const response = await fetch("/api/reviews", {
         method: "POST",
@@ -36,6 +48,7 @@ export default function ReviewForm({ charterId, charterTitle, onSuccess }: Revie
         credentials: "include",
         body: JSON.stringify({
           charterId: Number(reviewData.charterId),
+          captainId: Number(captainId),
           rating: Number(reviewData.rating),
           comment: String(reviewData.comment).trim(),
         }),
