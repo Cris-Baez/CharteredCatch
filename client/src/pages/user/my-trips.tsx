@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -90,9 +90,11 @@ export default function MyTrips() {
   const { toast } = useToast();
 
   // Redirección si no está logueado
-  if (!authLoading && !isAuthenticated) {
-    setLocation("/login");
-  }
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      setLocation("/login");
+    }
+  }, [authLoading, isAuthenticated, setLocation]);
 
   // =========================
   // FETCH BOOKINGS DEL USUARIO
