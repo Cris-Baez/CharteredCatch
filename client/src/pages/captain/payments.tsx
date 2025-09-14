@@ -115,7 +115,7 @@ export default function CaptainPayments() {
   // Save mutation
   const saveMutation = useMutation({
     mutationFn: async (payload: UpdatePaymentPayload) => {
-      return apiRequest("/api/captain/payment-info", "POST", payload);
+      return apiRequest("POST", "/api/captain/payment-info", payload);
     },
     onSuccess: () => {
       toast({
