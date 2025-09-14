@@ -208,7 +208,7 @@ export default function CaptainPayments() {
   // Preview lines for customer view
   const previewLines = useMemo(() => {
     const lines = [`💳 Payment method: ${preferredMethod?.toUpperCase()}`];
-    
+
     switch (preferredMethod) {
       case "bank":
         if (bankName) lines.push(`🏦 Bank: ${bankName}`);
@@ -229,7 +229,7 @@ export default function CaptainPayments() {
         if (cashAppTag) lines.push(`💰 Cash App: ${cashAppTag}`);
         break;
     }
-    
+
     if (instructions) lines.push(`📝 ${instructions}`);
     return lines;
   }, [preferredMethod, bankName, accountHolderName, routingNumber, accountNumber, paymentInfo?.routingNumber, paymentInfo?.accountNumber, paypalEmail, venmoUsername, zelleEmail, cashAppTag, instructions]);
@@ -259,7 +259,7 @@ export default function CaptainPayments() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
       <HeaderCaptain />
-      
+
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -279,7 +279,7 @@ export default function CaptainPayments() {
                 <p className="text-gray-600">Configure how customers can pay you for charters</p>
               </div>
             </div>
-            
+
             {/* Status badges */}
             <div className="flex gap-2 flex-wrap">
               <Badge variant={methodIsComplete ? "default" : "secondary"} className="gap-1">
@@ -315,7 +315,7 @@ export default function CaptainPayments() {
                     <h3 className="font-semibold text-blue-900 mb-2">Secure Payment Information</h3>
                     <p className="text-sm text-blue-800 mb-3">
                       Your payment information is encrypted and secure. This information will be shown to customers 
-                      only after you confirm their booking requests.
+                      only after you confirm your booking requests.
                     </p>
                     <div className="flex items-center gap-2 text-xs text-blue-700">
                       <Info className="w-4 h-4" />
@@ -543,40 +543,55 @@ export default function CaptainPayments() {
             </TabsContent>
           </Tabs>
 
-          {/* Sticky save bar */}
-          <motion.div
-            className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50"
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: hasChanges ? 1 : 0, y: hasChanges ? 0 : 50 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Card className="shadow-xl border-0 bg-white/95 backdrop-blur">
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <AlertCircle className="w-4 h-4" />
-                  You have unsaved changes
-                </div>
-                <Button
-                  onClick={handleSave}
-                  disabled={saveMutation.isPending || !methodIsComplete}
-                  className="gap-2 bg-blue-600 hover:bg-blue-700"
-                  data-testid="button-save-payment-settings"
-                >
-                  {saveMutation.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4" />
-                      Save Payment Settings
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          </motion.div>
+          {/* Save bar at bottom */}
+          <AnimatePresence>
+            {hasChanges && (
+              <motion.div
+                className="mt-8"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card className="shadow-lg border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                  <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <AlertCircle className="w-4 h-4 text-orange-600" />
+                      You have unsaved changes
+                    </div>
+                    <div className="flex gap-3">
+                      <Button
+                        variant="outline"
+                        onClick={() => window.location.reload()}
+                        className="gap-2"
+                      >
+                        Reset
+                      </Button>
+                      <Button
+                        onClick={handleSave}
+                        disabled={saveMutation.isPending || !methodIsComplete}
+                        className="gap-2 bg-blue-600 hover:bg-blue-700"
+                        data-testid="button-save-payment-settings"
+                      >
+                        {saveMutation.isPending ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" />
+                            Save Payment Settings
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
         </motion.div>
       </main>
     </div>
