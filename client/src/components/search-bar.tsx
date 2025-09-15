@@ -146,14 +146,14 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
     <>
       {/* MOBILE - Stack vertically */}
       <div className="md:hidden" data-testid="mobile-search-bar">
-        <Card className="bg-white rounded-lg shadow-sm p-2">
-          <div className="space-y-2">
+        <Card className="bg-white rounded-2xl shadow-sm p-1.5 ring-1 ring-gray-200">
+          <div className="space-y-1.5">
             {/* Destination - Full width */}
             <div className="relative" ref={mobileDropdownRef}>
-              <div className="flex items-center gap-2 p-2 border border-gray-200 rounded-md hover:border-gray-300 focus-within:border-gray-400 transition-colors">
+              <div className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 focus-within:ring-1 focus-within:ring-gray-300 transition-all">
                 <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                 <div className="flex-1">
-                  <div className="text-[11px] font-medium text-gray-800 mb-0.5">Where</div>
+                  <div className="text-[11px] font-medium text-gray-800 mb-0">Where</div>
                   <Input
                     type="text"
                     placeholder="Search destinations"
@@ -177,11 +177,11 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
               </div>
               
               {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-xl shadow-lg z-20 max-h-60 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border rounded-2xl shadow-xl z-20 max-h-60 overflow-y-auto">
                   {suggestions.map((s) => (
                     <button
                       key={s.place_id}
-                      className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 transition-colors first:rounded-t-xl last:rounded-b-xl"
+                      className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 transition-colors first:rounded-t-2xl last:rounded-b-2xl"
                       onClick={() => {
                         setLocationValue(s.display_name);
                         setShowSuggestions(false);
@@ -199,10 +199,10 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
             </div>
 
             {/* Date - Full width */}
-            <div className="flex items-center gap-2 p-2 border border-gray-200 rounded-md hover:border-gray-300 focus-within:border-gray-400 transition-colors">
+            <div className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 focus-within:ring-1 focus-within:ring-gray-300 transition-all">
               <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
               <div className="flex-1">
-                <div className="text-[11px] font-medium text-gray-800 mb-0.5">When</div>
+                <div className="text-[11px] font-medium text-gray-800 mb-0">When</div>
                 <Input
                   type="date"
                   value={date}
@@ -227,17 +227,17 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
             <Popover open={showGuestPicker} onOpenChange={setShowGuestPicker}>
               <PopoverTrigger asChild>
                 <button 
-                  className="w-full flex items-center gap-2 p-2 border border-gray-200 rounded-md hover:border-gray-300 transition-colors text-left"
+                  className="w-full flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 focus-within:ring-1 focus-within:ring-gray-300 transition-all text-left"
                   data-testid="button-guests"
                 >
                   <Users className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                   <div className="flex-1">
-                    <div className="text-[11px] font-medium text-gray-800 mb-0.5">Who</div>
+                    <div className="text-[11px] font-medium text-gray-800 mb-0">Who</div>
                     <div className="text-xs text-gray-700">{formatGuestText(guests)}</div>
                   </div>
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-48 p-2" align="start">
+              <PopoverContent className="w-48 p-3 rounded-2xl shadow-xl" align="start">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="font-semibold text-xs">Guests</div>
@@ -269,7 +269,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
             {/* Search Button */}
             <Button 
               onClick={handleSearch} 
-              className="w-full h-10 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-all hover:shadow-lg"
+              className="w-full h-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs flex items-center justify-center gap-1 transition-all hover:shadow-lg"
               data-testid="button-search"
             >
               <Search className="w-3.5 h-3.5" />
@@ -312,7 +312,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                   {suggestions.map((s) => (
                     <button
                       key={s.place_id}
-                      className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 transition-colors first:rounded-t-xl last:rounded-b-xl"
+                      className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 transition-colors first:rounded-t-2xl last:rounded-b-2xl"
                       onClick={() => {
                         setLocationValue(s.display_name);
                         setShowSuggestions(false);
