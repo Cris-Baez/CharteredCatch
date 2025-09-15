@@ -1837,6 +1837,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           verified: captainsTable.verified,
           rating: captainsTable.rating,
           reviewCount: captainsTable.reviewCount,
+          // Campos de documentos para el onboarding
+          licenseDocument: captainsTable.licenseDocument,
+          boatDocumentation: captainsTable.boatDocumentation,
+          insuranceDocument: captainsTable.insuranceDocument,
+          identificationPhoto: captainsTable.identificationPhoto,
+          localPermit: captainsTable.localPermit,
+          cprCertification: captainsTable.cprCertification,
+          drugTestingResults: captainsTable.drugTestingResults,
+          onboardingCompleted: captainsTable.onboardingCompleted,
         })
         .from(captainsTable)
         .where(eq(captainsTable.userId, req.session.userId));
