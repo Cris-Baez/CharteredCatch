@@ -304,8 +304,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   // Middleware: proteger rutas de capitanes hasta que completen onboarding
+  // Middleware para captain routes - con excepción correcta para onboarding
   app.use("/api/captain", async (req, res, next) => {
     try {
+      // SIEMPRE verificar autenticación y rol primero
       if (!req.session.userId) {
         return res.status(401).json({ error: "Not authenticated" });
       }
@@ -318,19 +320,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Forbidden" });
       }
 
-      // buscar perfil del capitán
+      // Rutas que pueden acceder DURANTE onboarding (paths relativos)
+      const onboardingRoutes = new Set(['/me', '/documents', '/subscribe', '/subscription']);
+      
+      if (onboardingRoutes.has(req.path)) {
+        return next(); // Skip solo la verificación de onboardingCompleted
+      }
+
+      // Para todas las demás rutas, verificar onboarding completado
       const captain = await db.query.captains.findFirst({
         where: eq(captainsTable.userId, req.session.userId),
       });
 
-      // si no completó el onboarding, bloquear acceso
       if (!captain || !captain.onboardingCompleted) {
         return res.status(403).json({ redirect: "/captain/onboarding" });
       }
 
       next();
     } catch (err) {
-      console.error("Onboarding check error:", err);
+      console.error("Captain middleware error:", err);
       return res.status(500).json({ error: "Server error" });
     }
   });
