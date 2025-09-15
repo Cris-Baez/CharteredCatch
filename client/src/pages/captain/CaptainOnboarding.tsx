@@ -356,7 +356,7 @@ export default function CaptainOnboarding() {
                     </div>
                   </div>
 
-                  
+
                 </CardContent>
               </Card>
             </motion.div>
@@ -489,10 +489,16 @@ export default function CaptainOnboarding() {
                                 const f = e.target.files?.[0];
                                 if (!f) return;
                                 try {
+                                  toast({ title: "Uploading...", description: `Uploading ${doc.name}` });
                                   const url = await uploadToCloudinary(f);
                                   await saveDocument.mutateAsync({ key: doc.key, url });
-                                } catch {
-                                  toast({ title: "Upload error", description: "Try again", variant: "destructive" });
+                                } catch (error: any) {
+                                  console.error("Upload error:", error);
+                                  toast({
+                                    title: "Upload error",
+                                    description: error?.message || "Try again",
+                                    variant: "destructive"
+                                  });
                                 }
                               }}
                             />
@@ -515,10 +521,16 @@ export default function CaptainOnboarding() {
                                     const file = (input.files && input.files[0]) || null;
                                     if (!file) return;
                                     try {
+                                      toast({ title: "Uploading...", description: `Uploading ${doc.name}` });
                                       const newUrl = await uploadToCloudinary(file);
                                       await saveDocument.mutateAsync({ key: doc.key, url: newUrl });
-                                    } catch {
-                                      toast({ title: "Upload error", description: "Try again", variant: "destructive" });
+                                    } catch (error: any) {
+                                      console.error("Upload error:", error);
+                                      toast({
+                                        title: "Upload error",
+                                        description: error?.message || "Try again",
+                                        variant: "destructive"
+                                      });
                                     }
                                   };
                                   input.click();
@@ -682,8 +694,8 @@ export default function CaptainOnboarding() {
                 setStep((s) => (s + 1) as any);
               }}
               title={
-                step === 0 && !canGoFromStep0 
-                  ? "Verify your email to continue" 
+                step === 0 && !canGoFromStep0
+                  ? "Verify your email to continue"
                   : step === 1 && !canGoFromStep1
                   ? "Complete profile and all required docs"
                   : undefined

@@ -1860,16 +1860,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Captain profile not found" });
       }
 
-      const { bio, licenseNumber, location, experience } = req.body ?? {};
+      const { 
+        bio, 
+        licenseNumber, 
+        location, 
+        experience,
+        name,
+        avatar,
+        // Document fields
+        licenseDocument,
+        boatDocumentation,
+        insuranceDocument,
+        identificationPhoto,
+        localPermit,
+        cprCertification,
+        drugTestingResults
+      } = req.body ?? {};
+
+      // Build update object with only provided fields
+      const updateData: any = {};
+      
+      if (typeof bio === "string") updateData.bio = bio;
+      if (typeof licenseNumber === "string") updateData.licenseNumber = licenseNumber;
+      if (typeof location === "string") updateData.location = location;
+      if (typeof experience === "string") updateData.experience = experience;
+      if (typeof name === "string") updateData.name = name;
+      if (typeof avatar === "string") updateData.avatar = avatar;
+      
+      // Handle document uploads
+      if (typeof licenseDocument === "string") updateData.licenseDocument = licenseDocument;
+      if (typeof boatDocumentation === "string") updateData.boatDocumentation = boatDocumentation;
+      if (typeof insuranceDocument === "string") updateData.insuranceDocument = insuranceDocument;
+      if (typeof identificationPhoto === "string") updateData.identificationPhoto = identificationPhoto;
+      if (typeof localPermit === "string") updateData.localPermit = localPermit;
+      if (typeof cprCertification === "string") updateData.cprCertification = cprCertification;
+      if (typeof drugTestingResults === "string") updateData.drugTestingResults = drugTestingResults;
 
       const [updated] = await db
         .update(captainsTable)
-        .set({
-          bio: typeof bio === "string" ? bio : captain.bio,
-          licenseNumber: typeof licenseNumber === "string" ? licenseNumber : captain.licenseNumber,
-          location: typeof location === "string" ? location : captain.location,
-          experience: typeof experience === "string" ? experience : captain.experience,
-        })
+        .set(updateData)
         .where(eq(captainsTable.userId, req.session.userId))
         .returning();
 
