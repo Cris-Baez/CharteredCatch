@@ -781,10 +781,10 @@ function CardPaymentBlock({ onSuccess }: { onSuccess: () => void }) {
     (async () => {
       try {
         // endpoint sugerido: /api/billing/create-setup-intent → debe devolver { clientSecret }
-        const r = await fetch("/api/billing/create-setup-intent", { method: "POST" });
+        const r = await fetch("/api/captain/setup-intent", { method: "POST" });
         if (r.ok) {
           const data = await r.json();
-          setClientSecret(data.clientSecret);
+          setClientSecret(data.client_secret || data.clientSecret);
           return;
         }
         // fallback: algunos setups devuelven clientSecret desde create subscription

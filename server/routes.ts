@@ -321,7 +321,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Rutas que pueden acceder DURANTE onboarding (paths relativos)
-      const onboardingRoutes = new Set(['/me', '/documents', '/subscribe', '/subscription']);
+      const onboardingRoutes = new Set(['/me', '/documents', '/subscribe', '/subscription', '/subscription/create', '/setup-intent']);
       
       if (onboardingRoutes.has(req.path)) {
         return next(); // Skip solo la verificación de onboardingCompleted
@@ -2592,6 +2592,202 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // CAPTAIN: Crear SetupIntent para Stripe (Opción A)
+  app.post("/api/captain/setup-intent", async (req, res) => {
+    try {
+      if (!process.env.STRIPE_SECRET_KEY) {
+        return res.status(503).json({ error: 'Stripe not configured' });
+      }
+      
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+        apiVersion: "2024-11-20",
+      });
+
+      // Buscar usuario
+      const user = await db.query.users.findFirst({
+        where: eq(usersTable.id, req.session.userId!),
+      });
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Crear o obtener Stripe customer
+      let customer;
+      if (user.stripeCustomerId) {
+        customer = await stripe.customers.retrieve(user.stripeCustomerId);
+      } else {
+        customer = await stripe.customers.create({
+          email: user.email || "",
+          name: [user.firstName, user.lastName].filter(Boolean).join(" ") || undefined,
+        });
+
+        // Actualizar usuario con customer ID
+        await db
+          .update(usersTable)
+          .set({ stripeCustomerId: customer.id })
+          .where(eq(usersTable.id, user.id));
+      }
+
+      // Crear SetupIntent
+      const setupIntent = await stripe.setupIntents.create({
+        customer: customer.id,
+        payment_method_types: ['card'],
+        usage: 'off_session',
+      });
+
+      res.json({ 
+        client_secret: setupIntent.client_secret,
+        customer_id: customer.id
+      });
+    } catch (error: any) {
+      console.error("Setup intent error:", error);
+      res.status(500).json({ error: "Failed to create setup intent" });
+    }
+  });
+
+  // CAPTAIN: Crear suscripción (para "Do it later" option)
+  app.post("/api/captain/subscription/create", async (req, res) => {
+    try {
+      // La autenticación y verificación ya la hizo el middleware
+      const user = await db.query.users.findFirst({
+        where: eq(usersTable.id, req.session.userId!),
+      });
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Verificar si ya tiene suscripción activa
+      const existingSub = await db.query.subscriptions.findFirst({
+        where: eq(subscriptionsTable.userId, req.session.userId!),
+      });
+      
+      if (existingSub && existingSub.status === "active") {
+        return res.json({ success: true, subscription: existingSub });
+      }
+
+      // Crear suscripción en estado "pending" (Do it later option)
+      const subscription = await db.insert(subscriptionsTable).values({
+        userId: req.session.userId!,
+        status: "pending", // "pending" = usuario seleccionó "Do it later"
+        planType: "captain_monthly",
+        trialStartDate: new Date(),
+        trialEndDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30), // 30 days trial
+      }).returning();
+
+      res.json({ success: true, subscription: subscription[0] });
+    } catch (error: any) {
+      console.error("Create subscription error:", error);
+      res.status(500).json({ error: "Failed to create subscription" });
+    }
+  });
+
+  // CAPTAIN: Crear suscripción con método de pago (Stripe CardElement flow)
+  app.post("/api/captain/subscription/create-with-payment", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      if (!process.env.STRIPE_SECRET_KEY) {
+        return res.status(503).json({ error: 'Stripe not configured' });
+      }
+
+      const { payment_method_id } = req.body;
+      if (!payment_method_id) {
+        return res.status(400).json({ error: "Payment method required" });
+      }
+
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+        apiVersion: "2025-08-27.basil",
+      });
+
+      const user = await db.query.users.findFirst({
+        where: eq(usersTable.id, req.session.userId),
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Verificar si ya tiene suscripción activa
+      const existingSub = await db.query.subscriptions.findFirst({
+        where: eq(subscriptionsTable.userId, req.session.userId),
+      });
+      
+      if (existingSub && (existingSub.status === "active" || existingSub.status === "trialing")) {
+        return res.json({ success: true, subscription: existingSub });
+      }
+
+      // Crear o obtener customer de Stripe
+      let customer;
+      if (user.stripeCustomerId) {
+        customer = await stripe.customers.retrieve(user.stripeCustomerId);
+      } else {
+        customer = await stripe.customers.create({
+          email: user.email || "",
+          name: [user.firstName, user.lastName].filter(Boolean).join(" ") || undefined,
+        });
+
+        // Actualizar usuario con customer ID
+        await db
+          .update(usersTable)
+          .set({ stripeCustomerId: customer.id })
+          .where(eq(usersTable.id, user.id));
+      }
+
+      // Adjuntar el método de pago al customer
+      await stripe.paymentMethods.attach(payment_method_id, {
+        customer: customer.id,
+      });
+
+      // Crear suscripción de Stripe con trial y método de pago
+      const stripeSubscription = await stripe.subscriptions.create({
+        customer: customer.id,
+        items: [{
+          price_data: {
+            currency: 'usd',
+            unit_amount: 4900, // $49.00
+            recurring: {
+              interval: 'month',
+            },
+            product_data: {
+              name: 'Captain Professional Plan',
+              description: 'Full access to charter management platform',
+            },
+          },
+        }],
+        default_payment_method: payment_method_id,
+        trial_period_days: 30,
+        expand: ['latest_invoice.payment_intent'],
+      });
+
+      // Crear suscripción en nuestra base de datos
+      const subscription = await db.insert(subscriptionsTable).values({
+        userId: req.session.userId,
+        stripeSubscriptionId: stripeSubscription.id,
+        stripeCustomerId: customer.id,
+        status: "trialing", // Stripe status for trial period
+        planType: "captain_monthly",
+        trialStartDate: new Date(),
+        trialEndDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30), // 30 days
+        currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
+        currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
+        cancelAtPeriodEnd: false,
+      }).returning();
+
+      // Actualizar usuario con subscription ID
+      await db
+        .update(usersTable)
+        .set({ stripeSubscriptionId: stripeSubscription.id })
+        .where(eq(usersTable.id, user.id));
+
+      res.json({ success: true, subscription: subscription[0] });
+    } catch (error: any) {
+      console.error("Create subscription with payment error:", error);
+      res.status(500).json({ error: "Failed to create subscription with payment" });
+    }
+  });
+
   // CAPTAIN: Aprobar/rechazar booking
   app.patch("/api/captain/bookings/:id/approve", async (req: Request, res: Response) => {
     try {
@@ -3969,29 +4165,6 @@ Looking forward to an amazing day on the water! 🛥️`;
   });
 
 
-  // POST /api/captain/subscription/create → activar free trial
-  app.post("/api/captain/subscription/create", async (req, res) => {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-
-    const user = await db.query.users.findFirst({
-      where: eq(schema.users.id, req.session.userId),
-    });
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    await db.insert(schema.subscriptions).values({
-      userId: req.session.userId,
-      status: "trialing",
-      planType: "captain_monthly",
-      trialStartDate: new Date(),
-      trialEndDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30), // 30 days
-    });
-
-    res.json({ success: true });
-  });
 
 
     // ==============================
