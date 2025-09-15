@@ -51,6 +51,7 @@ import EditCharter from "./pages/captain/edit-charter";
 
 // Admin
 import Admin from "./pages/admin";
+import AppOverview from "./pages/app-overview";
 
 // Componente para hacer scroll al top en cada cambio de ruta
 function ScrollToTop() {
@@ -87,6 +88,7 @@ function App() {
         <Route path="/support" component={Support} />
         <Route path="/captains" component={CaptainsPage} />
         <Route path="/captains/:id" component={CaptainDetail}/>
+        <Route path="/app-overview" component={AppOverview} />
         {/* Usuario normal */}
         <Route path="/user/home" component={HomeUser} />
         <Route path="/user/search" component={SearchResultsUser} />
@@ -115,6 +117,7 @@ function App() {
 
         {/* Admin */}
         <Route path="/admin" component={Admin} />
+        <Route path="/app-overview" component={AppOverview} />
 
         {/* Not Found */}
         <Route component={NotFound} />
