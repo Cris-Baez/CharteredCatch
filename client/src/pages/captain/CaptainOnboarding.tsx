@@ -674,12 +674,20 @@ export default function CaptainOnboarding() {
           </div>
           {step < 3 && (
             <Button
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+              disabled={(step === 0 && !canGoFromStep0) || (step === 1 && !canGoFromStep1)}
               onClick={() => {
                 if (step === 0 && !canGoFromStep0) return;
                 if (step === 1 && !canGoFromStep1) return;
                 setStep((s) => (s + 1) as any);
               }}
+              title={
+                step === 0 && !canGoFromStep0 
+                  ? "Verify your email to continue" 
+                  : step === 1 && !canGoFromStep1
+                  ? "Complete profile and all required docs"
+                  : undefined
+              }
             >
               Next
             </Button>
