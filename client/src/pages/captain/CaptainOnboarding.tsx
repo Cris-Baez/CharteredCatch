@@ -344,11 +344,24 @@ export default function CaptainOnboarding() {
                           onChange={async (e) => {
                             const f = e.target.files?.[0];
                             if (!f) return;
+
+                            // Validate file type
+                            if (!f.type.startsWith("image/")) {
+                              toast({ title: "Invalid file type", description: "Please select an image file (JPG, PNG, etc.)", variant: "destructive" });
+                              return;
+                            }
+
+                            // Validate file size (10MB max)
+                            if (f.size > 10 * 1024 * 1024) {
+                              toast({ title: "File too large", description: "Please select an image smaller than 10MB", variant: "destructive" });
+                              return;
+                            }
+
                             try {
                               const url = await uploadToCloudinary(f);
                               await saveAvatar.mutateAsync(url);
-                            } catch {
-                              toast({ title: "Upload error", description: "Try again", variant: "destructive" });
+                            } catch (error: any) {
+                              toast({ title: "Upload failed", description: error?.message || "Failed to upload avatar. Please try again.", variant: "destructive" });
                             }
                           }}
                         />
@@ -488,6 +501,20 @@ export default function CaptainOnboarding() {
                               onChange={async (e) => {
                                 const f = e.target.files?.[0];
                                 if (!f) return;
+
+                                // Validate file type
+                                const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+                                if (!allowedTypes.includes(f.type)) {
+                                  toast({ title: "Invalid file type", description: "Please select a JPG, PNG, or PDF file", variant: "destructive" });
+                                  return;
+                                }
+
+                                // Validate file size (10MB max)
+                                if (f.size > 10 * 1024 * 1024) {
+                                  toast({ title: "File too large", description: "Please select a file smaller than 10MB", variant: "destructive" });
+                                  return;
+                                }
+
                                 try {
                                   toast({ title: "Uploading...", description: `Uploading ${doc.name}` });
                                   const url = await uploadToCloudinary(f);
@@ -495,8 +522,8 @@ export default function CaptainOnboarding() {
                                 } catch (error: any) {
                                   console.error("Upload error:", error);
                                   toast({
-                                    title: "Upload error",
-                                    description: error?.message || "Try again",
+                                    title: "Upload failed",
+                                    description: error?.message || `Failed to upload ${doc.name}. Please try again.`,
                                     variant: "destructive"
                                   });
                                 }
@@ -520,17 +547,26 @@ export default function CaptainOnboarding() {
                                   input.onchange = async () => {
                                     const file = (input.files && input.files[0]) || null;
                                     if (!file) return;
+
+                                    // Validate file type
+                                    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+                                    if (!allowedTypes.includes(file.type)) {
+                                      toast({ title: "Invalid file type", description: "Please select a JPG, PNG, or PDF file", variant: "destructive" });
+                                      return;
+                                    }
+
+                                    // Validate file size (10MB max)
+                                    if (file.size > 10 * 1024 * 1024) {
+                                      toast({ title: "File too large", description: "Please select a file smaller than 10MB", variant: "destructive" });
+                                      return;
+                                    }
+
                                     try {
-                                      toast({ title: "Uploading...", description: `Uploading ${doc.name}` });
                                       const newUrl = await uploadToCloudinary(file);
                                       await saveDocument.mutateAsync({ key: doc.key, url: newUrl });
                                     } catch (error: any) {
                                       console.error("Upload error:", error);
-                                      toast({
-                                        title: "Upload error",
-                                        description: error?.message || "Try again",
-                                        variant: "destructive"
-                                      });
+                                      toast({ title: "Upload failed", description: error?.message || `Failed to replace ${doc.name}. Please try again.`, variant: "destructive" });
                                     }
                                   };
                                   input.click();
