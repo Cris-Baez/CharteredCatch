@@ -3851,7 +3851,7 @@ Looking forward to an amazing day on the water! 🛥️`;
     res.json({ success: true });
   });
 
-  // PUT /api/captain/documents → subir documento
+  // PUT /api/captain/documents → subir documento (funciona durante onboarding)
   app.put("/api/captain/documents", async (req, res) => {
     if (!req.session.userId) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -3862,12 +3862,58 @@ Looking forward to an amazing day on the water! 🛥️`;
       return res.status(400).json({ error: "Missing parameters" });
     }
 
-    await db
-      .update(schema.captains)
-      .set({ [documentType]: documentURL })
-      .where(eq(schema.captains.userId, req.session.userId));
+    try {
+      // Verificar si existe captain
+      const [existingCaptain] = await db
+        .select({ id: schema.captains.id })
+        .from(schema.captains)
+        .where(eq(schema.captains.userId, req.session.userId));
 
-    res.json({ success: true });
+      if (existingCaptain) {
+        // Captain existe → UPDATE
+        await db
+          .update(schema.captains)
+          .set({ [documentType]: documentURL })
+          .where(eq(schema.captains.userId, req.session.userId));
+      } else {
+        // Captain NO existe → INSERT (onboarding)
+        const user = await db.query.users.findFirst({
+          where: eq(schema.users.id, req.session.userId),
+        });
+        
+        if (!user) {
+          return res.status(404).json({ error: "User not found" });
+        }
+
+        await db.insert(schema.captains).values({
+          userId: req.session.userId,
+          name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email || "Captain",
+          bio: "",
+          experience: "",
+          licenseNumber: "",
+          location: "",
+          avatar: null,
+          verified: false,
+          rating: "0.0",
+          reviewCount: 0,
+          onboardingCompleted: false,
+          [documentType]: documentURL,
+          // Otros campos de documentos como null
+          licenseDocument: documentType === 'licenseDocument' ? documentURL : null,
+          boatDocumentation: documentType === 'boatDocumentation' ? documentURL : null,
+          insuranceDocument: documentType === 'insuranceDocument' ? documentURL : null,
+          identificationPhoto: documentType === 'identificationPhoto' ? documentURL : null,
+          localPermit: documentType === 'localPermit' ? documentURL : null,
+          cprCertification: documentType === 'cprCertification' ? documentURL : null,
+          drugTestingResults: documentType === 'drugTestingResults' ? documentURL : null,
+        });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Document upload error:", error);
+      res.status(500).json({ error: "Failed to save document" });
+    }
   });
 
   // POST /api/email/send-verification → enviar email de verificación
