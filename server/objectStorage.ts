@@ -22,17 +22,87 @@ enum ObjectPermission {
   WRITE = "write",
 }
 
-// Temporary stubs for ACL functions
-async function getObjectAclPolicy(file: any): Promise<ObjectAclPolicy | null> {
-  return null;
+// Implemented ACL functions with proper access control
+async function getObjectAclPolicy(file: File): Promise<ObjectAclPolicy | null> {
+  try {
+    // Check for metadata that might contain ACL info
+    const [metadata] = await file.getMetadata();
+    if (metadata.metadata && metadata.metadata.aclPolicy) {
+      return JSON.parse(metadata.metadata.aclPolicy);
+    }
+    return null;
+  } catch (error) {
+    console.warn("Could not get ACL policy for file:", error);
+    return null;
+  }
 }
 
-async function setObjectAclPolicy(file: any, policy: ObjectAclPolicy): Promise<void> {
-  // Stub implementation
+async function setObjectAclPolicy(file: File, policy: ObjectAclPolicy): Promise<void> {
+  try {
+    // Store ACL policy in file metadata
+    await file.setMetadata({
+      metadata: {
+        aclPolicy: JSON.stringify(policy),
+      },
+    });
+  } catch (error) {
+    console.error("Could not set ACL policy for file:", error);
+    throw error;
+  }
 }
 
-async function canAccessObject(params: any): Promise<boolean> {
-  return true; // Allow all access for now
+async function canAccessObject(params: {
+  userId?: string;
+  objectFile: File;
+  requestedPermission: ObjectPermission;
+}): Promise<boolean> {
+  const { userId, objectFile, requestedPermission } = params;
+  
+  // No user = no access to private objects
+  if (!userId) {
+    return false;
+  }
+
+  try {
+    // Get ACL policy from file
+    const aclPolicy = await getObjectAclPolicy(objectFile);
+    
+    // If no ACL policy exists, default to owner-only access
+    if (!aclPolicy) {
+      // For captain documents, check if the requesting user owns the document
+      // This is determined by the file path containing the user's directory
+      const fileName = objectFile.name;
+      
+      // Captain documents are typically in a user-specific directory
+      // Allow access if the file belongs to the requesting user
+      return fileName.includes(userId) || fileName.includes(`user_${userId}`);
+    }
+
+    // Check if user is the owner
+    if (aclPolicy.owner === userId) {
+      return true;
+    }
+
+    // Check if object is public for read access
+    if (aclPolicy.visibility === "public" && requestedPermission === ObjectPermission.READ) {
+      return true;
+    }
+
+    // Check specific ACL rules if they exist
+    if (aclPolicy.aclRules) {
+      for (const rule of aclPolicy.aclRules) {
+        if (rule.userId === userId && rule.permissions.includes(requestedPermission)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  } catch (error) {
+    console.error("Error checking object access:", error);
+    // Default to deny access on error for security
+    return false;
+  }
 }
 
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
