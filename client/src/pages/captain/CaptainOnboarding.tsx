@@ -356,14 +356,7 @@ export default function CaptainOnboarding() {
                     </div>
                   </div>
 
-                  <Button
-                    onClick={() => setStep(1)}
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                    disabled={!canGoFromStep0}
-                    title={!canGoFromStep0 ? "Verify your email to continue" : undefined}
-                  >
-                    Continue
-                  </Button>
+                  
                 </CardContent>
               </Card>
             </motion.div>
