@@ -2376,20 +2376,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         apiVersion: "2025-08-27.basil",
       });
       
-      // Verificar si es un capitán
-      const captain = await db.select().from(captainsTable).where(eq(captainsTable.userId, req.session.userId)).execute();
-      if (!captain.length) {
-        return res.status(403).json({ error: 'Only captains can subscribe' });
-      }
-
-      // Verificar si el capitán está verificado
-      if (!captain[0].verified) {
-        return res.status(403).json({ 
-          error: 'Captain must be verified before subscribing',
-          requiresVerification: true 
-        });
-      }
-
       const [user] = await db
         .select()
         .from(usersTable)
@@ -2476,12 +2462,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Unauthorized" });
       }
       
-      // Verificar si es un capitán
-      const captain = await db.select().from(captainsTable).where(eq(captainsTable.userId, req.session.userId)).execute();
-      if (!captain.length) {
-        return res.status(403).json({ error: 'Only captains can access subscription' });
-      }
-
       if (!process.env.STRIPE_SECRET_KEY) {
         return res.status(503).json({ error: 'Stripe not configured' });
       }
