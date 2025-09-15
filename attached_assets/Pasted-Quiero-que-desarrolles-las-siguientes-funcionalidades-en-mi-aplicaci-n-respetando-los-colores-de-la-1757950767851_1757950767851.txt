@@ -1,0 +1,39 @@
+Quiero que desarrolles las siguientes funcionalidades en mi aplicación, respetando los colores de la empresa (azul, blanco y negro), y asegurando que el frontend y backend estén correctamente integrados.
+
+1. Verificación por email (Captains)
+   - Al crear un nuevo captain debe enviarse un email de verificación.
+   - El captain no podrá iniciar sesión ni acceder al dashboard hasta confirmar su correo.
+   - Guardar un campo booleano en la base de datos para saber si ya verificó el email.
+   - Mostrar mensaje claro en UI si aún no verificó.
+
+2. Onboarding obligatorio para Captains
+   - Al iniciar sesión por primera vez, mostrar un onboarding en una sola página dinámica (con estilo tipo wizard pero todo fluido).
+   - Debe pedir y guardar:
+     - Número de licencia
+     - Documentación del bote
+     - Seguro
+     - Foto de identificación
+     - Permiso local
+     - Opcionales: CPR, Drug testing
+   - Si falta algo, no dejar continuar.
+   - La **subida de fotos y documentos** debe hacerse con **Cloudinary**, sin límite de subida, y guardando en la base de datos solo la URL del archivo.
+
+3. Activación de Free Trial con tarjeta
+   - Al terminar el onboarding, mostrar botón que diga: **"Activate Free Trial"**.
+   - Integrar con Stripe para pedir los datos de la tarjeta.
+   - Dar 1 mes gratis de prueba, y después cobrar automáticamente $49/mes.
+   - Guardar en la base de datos el estado de la suscripción, fechas de inicio/fin de trial y método de pago.
+
+4. UI y estilo
+   - Todo el flujo debe mantener la paleta corporativa: azul, blanco y negro.
+   - Botones principales en azul con texto blanco.
+   - Fondos claros minimalistas en blanco y negro.
+   - Validaciones en tiempo real (ej: “Falta subir la foto del ID”).
+   - Onboarding con transiciones suaves y dinámicas (cambios de secciones en la misma página).
+
+Resultado esperado:
+- Sistema de verificación sólido (email + onboarding).
+- Captains más confiables con toda la documentación validada.
+- Suscripción automática con free trial de 1 mes y luego cobro de $49/mes.
+- UI moderna y coherente con los colores de la marca.
+- Todas las imágenes/documentos se suben y almacenan en Cloudinary.
