@@ -110,16 +110,38 @@ function fmtDate(iso?: string | null) {
 }
 
 async function uploadToCloudinary(file: File): Promise<string> {
+  console.log("Cloudinary Config:", { CLOUD_NAME, UPLOAD_PRESET, hasCloudName: !!CLOUD_NAME, hasUploadPreset: !!UPLOAD_PRESET });
+  
   if (!CLOUD_NAME || !UPLOAD_PRESET) {
-    throw new Error("Missing Cloudinary env (VITE_CLOUDINARY_CLOUD_NAME / VITE_CLOUDINARY_UPLOAD_PRESET)");
+    throw new Error(`Missing Cloudinary configuration: 
+      - VITE_CLOUDINARY_CLOUD_NAME: ${CLOUD_NAME ? 'SET' : 'MISSING'}
+      - VITE_CLOUDINARY_UPLOAD_PRESET: ${UPLOAD_PRESET ? 'SET' : 'MISSING'}
+      
+      Please check your environment variables in the Secrets tool.`);
   }
   const form = new FormData();
   form.append("file", file);
   form.append("upload_preset", UPLOAD_PRESET);
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/upload`, { method: "POST", body: form });
-  if (!res.ok) throw new Error("Cloudinary upload failed");
-  const data = await res.json();
-  return data.secure_url as string;
+  
+  try {
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/upload`, { 
+      method: "POST", 
+      body: form 
+    });
+    
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("Cloudinary error response:", errorText);
+      throw new Error(`Cloudinary upload failed: ${res.status} ${res.statusText}`);
+    }
+    
+    const data = await res.json();
+    console.log("Cloudinary upload success:", data);
+    return data.secure_url as string;
+  } catch (error) {
+    console.error("Upload error:", error);
+    throw error;
+  }
 }
 
 // ---------------- Main component ----------------
