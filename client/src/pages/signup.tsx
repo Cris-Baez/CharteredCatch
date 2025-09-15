@@ -25,14 +25,14 @@ export default function Signup() {
   const queryClient = useQueryClient();
 
   const redirectTo = useMemo(() => {
-    if (role === "captain") return "/captain/dashboard";
+    if (role === "captain") return "/captain/onboarding";
     return "/user/home";
   }, [role]);
 
   useEffect(() => {
     if (isAuthenticated && user) {
       if (user.role === "captain") {
-        window.location.replace("/captain/dashboard");
+        window.location.replace("/captain/onboarding");
       } else if (user.role === "user") {
         window.location.replace("/user/home");
       }

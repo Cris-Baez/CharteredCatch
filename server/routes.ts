@@ -9,9 +9,10 @@ import connectPg from "connect-pg-simple";
 import cors from "cors";
 import Stripe from "stripe"; // Stripe integration for subscriptions
 import multer from "multer";
-
 import { db } from "./db";
 import { storage } from "./storage";
+import { randomBytes } from "crypto";
+
 import {
   users as usersTable,
   captains as captainsTable,
@@ -34,8 +35,9 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { and, eq, ilike, inArray, gte, lt, or, isNotNull, desc, sql } from "drizzle-orm";
-import { sendEmailVerification, sendWelcomeEmail, generateVerificationToken } from "./emailService";
+import { sendEmailVerification, sendWelcomeEmail, generateVerificationToken , sendEmail  , } from "./emailService";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import * as schema from "../shared/schema";
 
 /**
  * SessionData: solo guardamos userId para evitar conflictos de tipos
@@ -288,6 +290,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         return created;
+
+        
       });
 
       req.session.userId = result.id;
@@ -299,6 +303,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: "Failed to register" });
     }
   });
+  // Middleware: proteger rutas de capitanes hasta que completen onboarding
+  app.use("/api/captain", async (req, res, next) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      // buscar usuario
+      const user = await db.query.users.findFirst({
+        where: eq(usersTable.id, req.session.userId),
+      });
+      if (!user || user.role !== "captain") {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      // buscar perfil del capitán
+      const captain = await db.query.captains.findFirst({
+        where: eq(captainsTable.userId, req.session.userId),
+      });
+
+      // si no completó el onboarding, bloquear acceso
+      if (!captain || !captain.onboardingCompleted) {
+        return res.status(403).json({ redirect: "/captain/onboarding" });
+      }
+
+      next();
+    } catch (err) {
+      console.error("Onboarding check error:", err);
+      return res.status(500).json({ error: "Server error" });
+    }
+  });
+
 
   // Login
   app.post("/api/auth/local/login", async (req: Request, res: Response) => {
@@ -3779,6 +3815,112 @@ Looking forward to an amazing day on the water! 🛥️`;
       res.status(500).json({ error: "Internal server error" });
     }
   });
+
+  // ----------------------------------------------------
+  // Captain Onboarding Endpoints
+  // ----------------------------------------------------
+
+
+  // PATCH /api/captain/me → actualizar perfil del capitán
+  app.patch("/api/captain/me", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const user = await db.query.users.findFirst({
+      where: eq(schema.users.id, req.session.userId),
+    });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    await db
+      .update(schema.captains)
+      .set(req.body)
+      .where(eq(schema.captains.userId, req.session.userId));
+
+    res.json({ success: true });
+  });
+
+  // PUT /api/captain/documents → subir documento
+  app.put("/api/captain/documents", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const { documentType, documentURL } = req.body;
+    if (!documentType || !documentURL) {
+      return res.status(400).json({ error: "Missing parameters" });
+    }
+
+    await db
+      .update(schema.captains)
+      .set({ [documentType]: documentURL })
+      .where(eq(schema.captains.userId, req.session.userId));
+
+    res.json({ success: true });
+  });
+
+  // POST /api/email/send-verification → enviar email de verificación
+  app.post("/api/email/send-verification", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const user = await db.query.users.findFirst({
+      where: eq(schema.users.id, req.session.userId),
+    });
+
+    if (!user || !user.email) {
+      return res.status(404).json({ error: "User not found or missing email" });
+    }
+
+    const token = randomBytes(32).toString("hex");
+    const expires = new Date(Date.now() + 1000 * 60 * 60); // 1 hora
+
+    await db.insert(schema.emailVerificationTokens).values({
+      email: user.email,
+      token,
+      expiresAt: expires,
+    });
+
+    const link = `${process.env.APP_URL}/verify-email?token=${token}`;
+
+    // ✅ user.email comprobado antes → ya es string
+    await sendEmail({
+      to: user.email,
+      subject: "Verify your email",
+      html: `<p>Click here to verify your email: <a href="${link}">${link}</a></p>`,
+    });
+
+    return res.json({ success: true });
+  });
+
+
+  // POST /api/captain/subscription/create → activar free trial
+  app.post("/api/captain/subscription/create", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const user = await db.query.users.findFirst({
+      where: eq(schema.users.id, req.session.userId),
+    });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    await db.insert(schema.subscriptions).values({
+      userId: req.session.userId,
+      status: "trialing",
+      planType: "captain_monthly",
+      trialStartDate: new Date(),
+      trialEndDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30), // 30 days
+    });
+
+    res.json({ success: true });
+  });
+
 
     // ==============================
     // HTTP SERVER

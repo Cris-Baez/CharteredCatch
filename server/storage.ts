@@ -223,6 +223,16 @@ export class DatabaseStorage implements IStorage {
           verified: captains.verified,
           rating: captains.rating,
           reviewCount: captains.reviewCount,
+          onboardingCompleted: captains.onboardingCompleted,
+          licenseDocument: captains.licenseDocument,
+          boatDocumentation: captains.boatDocumentation,
+          insuranceDocument: captains.insuranceDocument,
+          identificationPhoto: captains.identificationPhoto,
+          localPermit: captains.localPermit,
+          cprCertification: captains.cprCertification,
+          drugTestingResults: captains.drugTestingResults,
+          onboardingStartedAt: captains.onboardingStartedAt,
+          onboardingCompletedAt: captains.onboardingCompletedAt,
         },
       })
       .from(charters)
@@ -243,7 +253,17 @@ export class DatabaseStorage implements IStorage {
             avatar: null,
             verified: false,
             rating: "0.0", 
-            reviewCount: 0 
+            reviewCount: 0,
+            onboardingCompleted: false,
+            licenseDocument: null,
+            boatDocumentation: null,
+            insuranceDocument: null,
+            identificationPhoto: null,
+            localPermit: null,
+            cprCertification: null,
+            drugTestingResults: null,
+            onboardingStartedAt: null,
+            onboardingCompletedAt: null
           },
         }
       : undefined;
@@ -288,6 +308,16 @@ export class DatabaseStorage implements IStorage {
           verified: captains.verified,
           rating: captains.rating,
           reviewCount: captains.reviewCount,
+          onboardingCompleted: captains.onboardingCompleted,
+          licenseDocument: captains.licenseDocument,
+          boatDocumentation: captains.boatDocumentation,
+          insuranceDocument: captains.insuranceDocument,
+          identificationPhoto: captains.identificationPhoto,
+          localPermit: captains.localPermit,
+          cprCertification: captains.cprCertification,
+          drugTestingResults: captains.drugTestingResults,
+          onboardingStartedAt: captains.onboardingStartedAt,
+          onboardingCompletedAt: captains.onboardingCompletedAt,
         },
       })
       .from(charters)
@@ -395,6 +425,9 @@ export class DatabaseStorage implements IStorage {
         totalPrice: bookings.totalPrice,
         status: bookings.status,
         message: bookings.message,
+        paymentProofUrl: bookings.paymentProofUrl,
+        paymentMethod: bookings.paymentMethod,
+        paymentStatus: bookings.paymentStatus,
         createdAt: bookings.createdAt,
       })
       .from(bookings)

@@ -48,7 +48,7 @@ import CaptainAnalytics from "./pages/captain/analytics";
 import CaptainSubscribe from "./pages/captain/subscribe";
 import CaptainPayments from "./pages/captain/payments";
 import EditCharter from "./pages/captain/edit-charter";
-import CaptainOnboarding from "./pages/CaptainOnboarding";
+import CaptainOnboarding from "./pages/captain/CaptainOnboarding";
 
 // Admin
 import Admin from "./pages/admin";
