@@ -227,7 +227,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
             <Popover open={showGuestPicker} onOpenChange={setShowGuestPicker}>
               <PopoverTrigger asChild>
                 <button 
-                  className="w-full flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 focus-within:ring-1 focus-within:ring-gray-300 transition-all text-left"
+                  className="w-full flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 hover:shadow-sm transition-all text-left"
                   data-testid="button-guests"
                 >
                   <Users className="w-3.5 h-3.5 text-gray-400 shrink-0" />
