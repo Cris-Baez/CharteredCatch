@@ -478,7 +478,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (user && user.email) {
         // Enviar email de bienvenida
-        await sendWelcomeEmail(user.email, user.firstName);
+        await sendWelcomeEmail(user.email, user.firstName || undefined);
       }
 
       // Redirigir a la página de éxito o dashboard
@@ -3657,6 +3657,128 @@ Looking forward to an amazing day on the water! 🛥️`;
       return res.status(500).json({ error: "Failed to upload profile image" });
     }
   }
+
+  // ==============================
+  // OBJECT STORAGE ROUTES
+  // ==============================
+
+  // Get upload URL for an object entity (protected)
+  app.post("/api/objects/upload", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const objectStorageService = new ObjectStorageService();
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      res.json({ uploadURL });
+    } catch (error) {
+      console.error("Error getting upload URL:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Serve private objects (protected)
+  app.get("/objects/:objectPath(*)", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const objectStorageService = new ObjectStorageService();
+      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
+      
+      // For now, allow access to all logged-in users
+      // In the future, implement proper ACL checks here
+      await objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      console.error("Error serving object:", error);
+      if (error instanceof ObjectNotFoundError) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Serve public objects (no authentication required)
+  app.get("/public-objects/:filePath(*)", async (req: Request, res: Response) => {
+    try {
+      const filePath = req.params.filePath;
+      const objectStorageService = new ObjectStorageService();
+      const file = await objectStorageService.searchPublicObject(filePath);
+      
+      if (!file) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      await objectStorageService.downloadObject(file, res);
+    } catch (error) {
+      console.error("Error serving public object:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Update document after upload for captain onboarding
+  app.put("/api/captain/documents", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { documentType, documentURL } = req.body;
+
+      if (!documentType || !documentURL) {
+        return res.status(400).json({ error: "Document type and URL are required" });
+      }
+
+      // Validate document type
+      const validDocumentTypes = [
+        "licenseDocument",
+        "boatDocumentation", 
+        "insuranceDocument",
+        "identificationPhoto",
+        "localPermit",
+        "cprCertification",
+        "drugTestingResults"
+      ];
+
+      if (!validDocumentTypes.includes(documentType)) {
+        return res.status(400).json({ error: "Invalid document type" });
+      }
+
+      // Find captain record for the user
+      const [captain] = await db
+        .select()
+        .from(captainsTable)
+        .where(eq(captainsTable.userId, req.session.userId));
+
+      if (!captain) {
+        return res.status(404).json({ error: "Captain profile not found" });
+      }
+
+      // Normalize the object path
+      const objectStorageService = new ObjectStorageService();
+      const normalizedPath = objectStorageService.normalizeObjectEntityPath(documentURL);
+
+      // Update the captain's document field
+      const updateData: any = {};
+      updateData[documentType] = normalizedPath;
+
+      await db
+        .update(captainsTable)
+        .set(updateData)
+        .where(eq(captainsTable.id, captain.id));
+
+      res.json({ 
+        message: "Document updated successfully",
+        documentType,
+        documentPath: normalizedPath
+      });
+    } catch (error) {
+      console.error("Error updating captain document:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
 
     // ==============================
     // HTTP SERVER
