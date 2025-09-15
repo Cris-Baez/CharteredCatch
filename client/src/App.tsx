@@ -49,6 +49,8 @@ import CaptainSubscribe from "./pages/captain/subscribe";
 import CaptainPayments from "./pages/captain/payments";
 import EditCharter from "./pages/captain/edit-charter";
 import CaptainOnboarding from "./pages/captain/CaptainOnboarding";
+import SubscriptionSuccess from "./pages/captain/subscription-success";
+import SubscriptionCancel from "./pages/captain/subscription-cancel";
 
 // Admin
 import Admin from "./pages/admin";
@@ -115,6 +117,8 @@ function App() {
         <Route path="/captain/analytics" component={CaptainAnalytics} />
         <Route path="/captain/payments" component={CaptainPayments} />
         <Route path="/captain/subscribe" component={CaptainSubscribe} />
+        <Route path="/captain/subscription-success" component={SubscriptionSuccess} />
+        <Route path="/captain/subscription-cancel" component={SubscriptionCancel} />
         <Route path="/captain/onboarding" component={CaptainOnboarding} />
 
         {/* Admin */}

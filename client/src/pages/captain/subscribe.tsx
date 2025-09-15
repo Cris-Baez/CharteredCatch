@@ -24,7 +24,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
 // Initialize Stripe
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "");
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || "");
 
 type SubscriptionStatus = {
   id: string;
@@ -241,9 +241,33 @@ export default function CaptainSubscribe() {
     }
   };
 
-  // Show payment dialog for Stripe CardElement setup
-  const handleSubscribeWithCard = () => {
-    setShowPaymentDialog(true);
+  // OPCIÓN A: Redirigir a Stripe Checkout (página segura)
+  const handleSubscribeWithCard = async () => {
+    setSubscribing(true);
+    try {
+      const response = await fetch("/api/captain/create-checkout-session", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      const data = await response.json();
+      
+      if (response.ok && data.checkout_url) {
+        // Redirigir a la página segura de Stripe
+        window.location.href = data.checkout_url;
+      } else {
+        throw new Error(data.error || "Failed to create checkout session");
+      }
+    } catch (error: any) {
+      console.error("Checkout error:", error);
+      toast({
+        title: "Payment Setup Failed",
+        description: error.message || "Unable to start payment process. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubscribing(false);
+    }
   };
 
   const handlePaymentSuccess = async () => {

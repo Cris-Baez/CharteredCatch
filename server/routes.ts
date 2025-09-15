@@ -321,7 +321,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Rutas que pueden acceder DURANTE onboarding (paths relativos)
-      const onboardingRoutes = new Set(['/me', '/documents', '/subscribe', '/subscription', '/subscription/create', '/setup-intent']);
+      const onboardingRoutes = new Set(['/me', '/documents', '/subscribe', '/subscription', '/subscription/create', '/create-checkout-session']);
       
       if (onboardingRoutes.has(req.path)) {
         return next(); // Skip solo la verificación de onboardingCompleted
@@ -2592,15 +2592,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // CAPTAIN: Crear SetupIntent para Stripe (Opción A)
-  app.post("/api/captain/setup-intent", async (req, res) => {
+  // CAPTAIN: Crear Stripe Checkout Session (Opción A - Redirección a página segura de Stripe)
+  app.post("/api/captain/create-checkout-session", async (req, res) => {
     try {
       if (!process.env.STRIPE_SECRET_KEY) {
         return res.status(503).json({ error: 'Stripe not configured' });
       }
       
       const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-        apiVersion: "2024-11-20",
+        apiVersion: "2024-10-28.acacia",
       });
 
       // Buscar usuario
@@ -2628,20 +2628,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(eq(usersTable.id, user.id));
       }
 
-      // Crear SetupIntent
-      const setupIntent = await stripe.setupIntents.create({
+      // Crear Stripe Checkout Session - REDIRECCIONA A STRIPE SEGURO
+      const session = await stripe.checkout.sessions.create({
         customer: customer.id,
+        mode: 'subscription',
         payment_method_types: ['card'],
-        usage: 'off_session',
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: 'Captain Professional Plan',
+              description: 'Full access to charter management platform - $49/month',
+            },
+            unit_amount: 4900, // $49.00
+            recurring: {
+              interval: 'month',
+            },
+          },
+          quantity: 1,
+        }],
+        subscription_data: {
+          trial_period_days: 30,
+        },
+        success_url: `${req.protocol}://${req.get('host')}/captain/subscription-success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${req.protocol}://${req.get('host')}/captain/subscription-cancel`,
+        metadata: {
+          userId: req.session.userId!.toString(),
+        },
       });
 
       res.json({ 
-        client_secret: setupIntent.client_secret,
-        customer_id: customer.id
+        checkout_url: session.url,
+        session_id: session.id
       });
     } catch (error: any) {
-      console.error("Setup intent error:", error);
-      res.status(500).json({ error: "Failed to create setup intent" });
+      console.error("Checkout session creation error:", error);
+      res.status(500).json({ error: "Failed to create checkout session: " + error.message });
     }
   });
 
@@ -2750,7 +2772,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             recurring: {
               interval: 'month',
             },
-            product_data: {
+            product: {
               name: 'Captain Professional Plan',
               description: 'Full access to charter management platform',
             },
@@ -2770,8 +2792,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         planType: "captain_monthly",
         trialStartDate: new Date(),
         trialEndDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30), // 30 days
-        currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
-        currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
+        currentPeriodStart: new Date((stripeSubscription as any).current_period_start * 1000),
+        currentPeriodEnd: new Date((stripeSubscription as any).current_period_end * 1000),
         cancelAtPeriodEnd: false,
       }).returning();
 

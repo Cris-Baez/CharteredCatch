@@ -30,7 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 // ---------------- Env (Cloudinary + Stripe) ----------------
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-const STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+const STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
 const stripePromise = STRIPE_PK ? loadStripe(STRIPE_PK) : null;
 
 // ---------------- Tipos alineados a tu backend ----------------
@@ -697,7 +697,7 @@ export default function CaptainOnboarding() {
                     </Elements>
                   ) : (
                     <div className="text-sm text-red-600">
-                      Stripe publishable key missing. Set VITE_STRIPE_PUBLISHABLE_KEY.
+                      Stripe publishable key missing. Set VITE_STRIPE_PUBLIC_KEY.
                     </div>
                   )}
 
