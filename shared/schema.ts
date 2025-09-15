@@ -37,6 +37,11 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role").default("user"), // "user" | "captain" | "admin"
+  // Email verification fields
+  emailVerified: boolean("email_verified").default(false),
+  emailVerificationToken: varchar("email_verification_token"),
+  emailVerificationExpiry: timestamp("email_verification_expiry"),
+  // Stripe fields
   stripeCustomerId: varchar("stripe_customer_id"), // Para Stripe
   stripeSubscriptionId: varchar("stripe_subscription_id"), // Para suscripciones
   createdAt: timestamp("created_at").defaultNow(),
@@ -58,6 +63,17 @@ export const captains = pgTable("captains", {
   verified: boolean("verified").default(false),
   rating: decimal("rating", { precision: 3, scale: 2 }).default("0.00"),
   reviewCount: integer("review_count").default(0),
+  // Onboarding fields
+  onboardingCompleted: boolean("onboarding_completed").default(false),
+  licenseDocument: text("license_document"), // Object storage URL
+  boatDocumentation: text("boat_documentation"), // Object storage URL
+  insuranceDocument: text("insurance_document"), // Object storage URL
+  identificationPhoto: text("identification_photo"), // Object storage URL
+  localPermit: text("local_permit"), // Object storage URL
+  cprCertification: text("cpr_certification"), // Object storage URL (optional)
+  drugTestingResults: text("drug_testing_results"), // Object storage URL (optional)
+  onboardingStartedAt: timestamp("onboarding_started_at"),
+  onboardingCompletedAt: timestamp("onboarding_completed_at"),
 });
 
 // =====================
@@ -145,6 +161,37 @@ export const availability = pgTable(
 );
 
 // =====================
+// Subscriptions
+// =====================
+export const subscriptions = pgTable("subscriptions", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull().unique(),
+  stripeSubscriptionId: varchar("stripe_subscription_id").unique(),
+  stripeCustomerId: varchar("stripe_customer_id"),
+  status: varchar("status").notNull(), // 'trial', 'active', 'cancelled', 'past_due'
+  planType: varchar("plan_type").default("captain_monthly"), // 'captain_monthly'
+  trialStartDate: timestamp("trial_start_date"),
+  trialEndDate: timestamp("trial_end_date"),
+  currentPeriodStart: timestamp("current_period_start"),
+  currentPeriodEnd: timestamp("current_period_end"),
+  cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// =====================
+// Email Verification Tokens
+// =====================
+export const emailVerificationTokens = pgTable("email_verification_tokens", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  token: varchar("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// =====================
 // Captain Payment Info
 // =====================
 export const captainPaymentInfo = pgTable("captain_payment_info", {
@@ -203,6 +250,17 @@ export const insertAvailabilitySchema = createInsertSchema(availability).omit({
   createdAt: true,
 });
 
+export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertEmailVerificationTokenSchema = createInsertSchema(emailVerificationTokens).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertCaptainPaymentInfoSchema = createInsertSchema(captainPaymentInfo).omit({
   id: true,
   captainId: true,
@@ -220,6 +278,8 @@ export type Booking = typeof bookings.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
 export type Availability = typeof availability.$inferSelect;
+export type Subscription = typeof subscriptions.$inferSelect;
+export type EmailVerificationToken = typeof emailVerificationTokens.$inferSelect;
 export type CaptainPaymentInfo = typeof captainPaymentInfo.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -230,6 +290,8 @@ export type InsertBooking = z.infer<typeof insertBookingSchema>;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type InsertReview = z.infer<typeof insertReviewSchema>;
 export type InsertAvailability = z.infer<typeof insertAvailabilitySchema>;
+export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
+export type InsertEmailVerificationToken = z.infer<typeof insertEmailVerificationTokenSchema>;
 export type InsertCaptainPaymentInfo = z.infer<typeof insertCaptainPaymentInfoSchema>;
 
 // Extended types for API responses
@@ -239,6 +301,15 @@ export type CharterWithCaptain = Charter & {
     user?: User;
   };
   reviews?: Review[];
+};
+
+export type CaptainWithUser = Captain & {
+  user: User;
+  subscription?: Subscription;
+};
+
+export type UserWithSubscription = User & {
+  subscription?: Subscription;
 };
 
 export type MessageThread = {
