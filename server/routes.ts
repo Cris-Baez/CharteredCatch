@@ -269,145 +269,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
             firstName: firstName ?? null,
             lastName: lastName ?? null,
             role: sanitizedRole,
-            // algunos tipos de schema no declaran password, forzamos tipo:
             password: hashed as any,
           })
           .returning();
 
         // Si el rol creado es captain, crear automáticamente el perfil de captain
         if (created.role === "captain") {
-          await tx
-            .insert(captainsTable)
-            .values({
-              userId: created.id,
-              name: `${firstName || 'Captain'} ${lastName || ''}`.trim(),
-              bio: '',
-              licenseNumber: '',
-              location: '',
-              experience: '',
-              verified: false,
-            });
+          await tx.insert(captainsTable).values({
+            userId: created.id,
+            name: `${firstName || "Captain"} ${lastName || ""}`.trim(),
+            bio: "",
+            licenseNumber: "",
+            location: "",
+            experience: "",
+            verified: false,
+          });
         }
 
         return created;
-
-        
       });
 
+      // 🔑 ENVIAR VERIFICACIÓN DE EMAIL
+      const token = generateVerificationToken();
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // expira en 1 hora
+
+      await db.insert(emailVerificationTokens).values({
+        email,
+        token,
+        expiresAt,
+      });
+
+      await sendEmailVerification(email, token, firstName);
+
       req.session.userId = result.id;
+
       // No devolver el hash de contraseña por seguridad
       const { password: hashedPassword, ...safeResult } = result;
-      return res.status(201).json(safeResult);
+      return res.status(201).json({
+        ...safeResult,
+        message: "User registered. Verification email sent.",
+      });
     } catch (err) {
       console.error("Register error:", err);
       return res.status(500).json({ message: "Failed to register" });
     }
-  });
-  // Middleware: proteger rutas de capitanes hasta que completen onboarding
-  // Middleware para captain routes - con excepción correcta para onboarding
-  app.use("/api/captain", async (req, res, next) => {
-    try {
-      // SIEMPRE verificar autenticación y rol primero
-      if (!req.session.userId) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      // buscar usuario
-      const user = await db.query.users.findFirst({
-        where: eq(usersTable.id, req.session.userId),
-      });
-      if (!user || user.role !== "captain") {
-        return res.status(403).json({ error: "Forbidden" });
-      }
-
-      // Rutas que pueden acceder DURANTE onboarding (paths relativos)
-      const onboardingRoutes = new Set(['/me', '/documents', '/subscribe', '/subscription', '/subscription/create', '/create-checkout-session']);
-      
-      if (onboardingRoutes.has(req.path)) {
-        return next(); // Skip solo la verificación de onboardingCompleted
-      }
-
-      // Para todas las demás rutas, verificar onboarding completado
-      const captain = await db.query.captains.findFirst({
-        where: eq(captainsTable.userId, req.session.userId),
-      });
-
-      if (!captain || !captain.onboardingCompleted) {
-        return res.status(403).json({ redirect: "/captain/onboarding" });
-      }
-
-      next();
-    } catch (err) {
-      console.error("Captain middleware error:", err);
-      return res.status(500).json({ error: "Server error" });
-    }
-  });
-
-
-  // Login
-  app.post("/api/auth/local/login", async (req: Request, res: Response) => {
-    try {
-      const { email, password } = req.body ?? {};
-      if (!email || !password) {
-        return res.status(400).json({ message: "Email and password required" });
-      }
-
-      const [userRow] = await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.email, email));
-      if (!userRow) {
-        return res.status(401).json({ message: "Invalid email or password" });
-      }
-
-      const hashed = (userRow as any).password as string | undefined;
-      if (!hashed) {
-        return res.status(401).json({ message: "Invalid email or password" });
-      }
-
-      const ok = await bcrypt.compare(password, hashed);
-      if (!ok) {
-        return res.status(401).json({ message: "Invalid email or password" });
-      }
-
-      req.session.userId = userRow.id;
-      // No devolver el hash de contraseña por seguridad
-      const { password: _, ...safeUserRow } = userRow as any;
-      return res.json(safeUserRow);
-    } catch (err) {
-      console.error("Login error:", err);
-      return res.status(500).json({ message: "Failed to login" });
-    }
-  });
-
-  // Obtener usuario actual
-  app.get("/api/auth/user", async (req: Request, res: Response) => {
-    try {
-      if (!req.session.userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-      const [userRow] = await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.id, req.session.userId));
-      if (!userRow) {
-        req.session.destroy(() => {});
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-      // No devolver el hash de contraseña por seguridad
-      const { password: _, ...safeUserRow } = userRow as any;
-      return res.json(safeUserRow);
-    } catch (err) {
-      console.error("Get user error:", err);
-      return res.status(500).json({ message: "Failed to get user" });
-    }
-  });
-
-  // Logout
-  app.post("/api/auth/logout", (req: Request, res: Response) => {
-    req.session.destroy(() => {
-      res.json({ success: true });
-    });
   });
 
   // ==============================
