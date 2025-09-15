@@ -39,8 +39,7 @@ export const users = pgTable("users", {
   role: varchar("role").default("user"), // "user" | "captain" | "admin"
   // Email verification fields
   emailVerified: boolean("email_verified").default(false),
-  emailVerificationToken: varchar("email_verification_token"),
-  emailVerificationExpiry: timestamp("email_verification_expiry"),
+  emailVerifiedAt: timestamp("email_verified_at"),
   // Stripe fields
   stripeCustomerId: varchar("stripe_customer_id"), // Para Stripe
   stripeSubscriptionId: varchar("stripe_subscription_id"), // Para suscripciones
@@ -184,7 +183,7 @@ export const subscriptions = pgTable("subscriptions", {
 // =====================
 export const emailVerificationTokens = pgTable("email_verification_tokens", {
   id: serial("id").primaryKey(),
-  userId: varchar("user_id").references(() => users.id).notNull(),
+  email: varchar("email").notNull(),
   token: varchar("token").notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
   used: boolean("used").default(false),

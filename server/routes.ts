@@ -21,13 +21,21 @@ import {
   messages,
   reviews as reviewsTable,
   captainPaymentInfo as captainPaymentInfoTable,
+  emailVerificationTokens,
+  subscriptions as subscriptionsTable,
   insertCaptainPaymentInfoSchema,
   insertBookingSchema,
   insertReviewSchema,
+  insertEmailVerificationTokenSchema,
+  insertSubscriptionSchema,
   type CaptainPaymentInfo,
+  type EmailVerificationToken,
+  type Subscription,
 } from "@shared/schema";
 import { z } from "zod";
 import { and, eq, ilike, inArray, gte, lt, or, isNotNull, desc, sql } from "drizzle-orm";
+import { sendEmailVerification, sendWelcomeEmail, generateVerificationToken } from "./emailService";
+import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
 /**
  * SessionData: solo guardamos userId para evitar conflictos de tipos
@@ -356,6 +364,156 @@ export async function registerRoutes(app: Express): Promise<Server> {
     req.session.destroy(() => {
       res.json({ success: true });
     });
+  });
+
+  // ==============================
+  // EMAIL VERIFICATION
+  // ==============================
+
+  // Enviar email de verificación
+  app.post("/api/email/send-verification", async (req: Request, res: Response) => {
+    try {
+      const { email, firstName } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      // Verificar que el usuario existe
+      const [user] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.email, email));
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (user.emailVerified) {
+        return res.status(400).json({ message: "Email already verified" });
+      }
+
+      // Generar token de verificación
+      const token = generateVerificationToken();
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 horas
+
+      // Eliminar tokens existentes para este email
+      await db
+        .delete(emailVerificationTokens)
+        .where(eq(emailVerificationTokens.email, email));
+
+      // Crear nuevo token
+      await db
+        .insert(emailVerificationTokens)
+        .values({
+          email,
+          token,
+          expiresAt,
+        });
+
+      // Enviar email
+      const emailSent = await sendEmailVerification(email, token, firstName || user.firstName);
+
+      if (!emailSent) {
+        return res.status(500).json({ message: "Failed to send verification email" });
+      }
+
+      res.json({ message: "Verification email sent successfully" });
+    } catch (error) {
+      console.error("Send verification email error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Verificar email con token
+  app.get("/verify-email", async (req: Request, res: Response) => {
+    try {
+      const { token } = req.query;
+
+      if (!token || typeof token !== "string") {
+        return res.status(400).json({ message: "Invalid token" });
+      }
+
+      // Buscar token
+      const [tokenRecord] = await db
+        .select()
+        .from(emailVerificationTokens)
+        .where(eq(emailVerificationTokens.token, token));
+
+      if (!tokenRecord) {
+        return res.status(400).json({ message: "Invalid or expired token" });
+      }
+
+      // Verificar que no haya expirado
+      if (new Date() > tokenRecord.expiresAt) {
+        // Eliminar token expirado
+        await db
+          .delete(emailVerificationTokens)
+          .where(eq(emailVerificationTokens.token, token));
+        
+        return res.status(400).json({ message: "Token has expired" });
+      }
+
+      // Actualizar usuario como verificado
+      await db.transaction(async (tx) => {
+        await tx
+          .update(usersTable)
+          .set({ 
+            emailVerified: true,
+            emailVerifiedAt: new Date()
+          })
+          .where(eq(usersTable.email, tokenRecord.email));
+
+        // Eliminar token usado
+        await tx
+          .delete(emailVerificationTokens)
+          .where(eq(emailVerificationTokens.token, token));
+      });
+
+      // Buscar usuario para enviar email de bienvenida
+      const [user] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.email, tokenRecord.email));
+
+      if (user && user.email) {
+        // Enviar email de bienvenida
+        await sendWelcomeEmail(user.email, user.firstName);
+      }
+
+      // Redirigir a la página de éxito o dashboard
+      res.redirect("/?email-verified=true");
+    } catch (error) {
+      console.error("Email verification error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Verificar estado de verificación de email
+  app.get("/api/email/verification-status", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const [user] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, req.session.userId));
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json({
+        email: user.email,
+        verified: user.emailVerified || false,
+        verifiedAt: user.emailVerifiedAt
+      });
+    } catch (error) {
+      console.error("Check verification status error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
   });
 
   // ==============================
