@@ -1,14 +1,13 @@
-// src/services/emailService.ts
 import nodemailer from "nodemailer";
 import { randomBytes } from "crypto";
 
 // ---------------------------------------------
-// Transporter (adjust for your SMTP provider)
+// Transporter (Gmail u otro SMTP)
 // ---------------------------------------------
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.gmail.com",
   port: Number(process.env.SMTP_PORT) || 587,
-  secure: Number(process.env.SMTP_PORT) === 465, // auto true for 465
+  secure: Number(process.env.SMTP_PORT) === 465,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
@@ -60,18 +59,22 @@ export async function sendEmailVerification(
   const subject = "Verify your email - Charterly";
 
   const html = `
-    <h2>Welcome${firstName ? `, ${firstName}` : ""}!</h2>
-    <p>Thanks for signing up with <b>Charterly</b>. Please confirm your email address to activate your account.</p>
-    <p style="margin:20px 0;">
-      <a href="${verificationUrl}" style="background:#2563eb;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:600;display:inline-block;">
-        Verify My Email
-      </a>
-    </p>
-    <p>If the button above doesn’t work, copy and paste this link into your browser:</p>
-    <p><a href="${verificationUrl}">${verificationUrl}</a></p>
-    <p style="font-size:12px;color:#666;margin-top:24px;">
-      This link will expire in 1 hour for your security.
-    </p>
+    <div style="font-family: Arial, sans-serif; line-height:1.6; color:#333; max-width:600px; margin:auto;">
+      <h2 style="color:#2563eb;">Welcome${firstName ? `, ${firstName}` : ""}!</h2>
+      <p>Thanks for signing up with <b>Charterly</b>. Please confirm your email address to activate your account.</p>
+      <div style="text-align:center; margin:30px 0;">
+        <a href="${verificationUrl}" target="_blank"
+          style="background:#2563eb;color:#fff;padding:14px 28px;text-decoration:none;
+                 border-radius:6px;font-weight:600;display:inline-block;font-size:16px;">
+          Verify My Email
+        </a>
+      </div>
+      <p>If the button above doesn’t work, copy and paste this link into your browser:</p>
+      <p style="word-break:break-all;"><a href="${verificationUrl}" target="_blank">${verificationUrl}</a></p>
+      <p style="font-size:12px;color:#666;margin-top:24px;">
+        This link will expire in 1 hour for your security.
+      </p>
+    </div>
   `;
 
   return await sendEmail({ to: email, subject, html });
@@ -79,23 +82,31 @@ export async function sendEmailVerification(
 
 export async function sendWelcomeEmail(
   email: string,
-  firstName?: string
+  firstName?: string,
+  role?: string
 ): Promise<boolean> {
   const baseUrl = process.env.APP_URL || "http://localhost:5000";
-  const dashboardUrl = `${baseUrl}/captain/dashboard`;
+  const redirectUrl =
+    role === "captain"
+      ? `${baseUrl}/captain/onboarding`
+      : `${baseUrl}/dashboard`;
 
   const subject = "Welcome to Charterly 🎉";
 
   const html = `
-    <h2>Great job${firstName ? `, ${firstName}` : ""}!</h2>
-    <p>Your email has been successfully verified. You can now access your dashboard and start setting up your charters.</p>
-    <p style="margin:20px 0;">
-      <a href="${dashboardUrl}" style="background:#2563eb;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:600;display:inline-block;">
-        Go to Dashboard
-      </a>
-    </p>
-    <p>If the button above doesn’t work, copy and paste this link into your browser:</p>
-    <p><a href="${dashboardUrl}">${dashboardUrl}</a></p>
+    <div style="font-family: Arial, sans-serif; line-height:1.6; color:#333; max-width:600px; margin:auto;">
+      <h2 style="color:#2563eb;">Great job${firstName ? `, ${firstName}` : ""}!</h2>
+      <p>Your email has been successfully verified. You can now access your account and start exploring Charterly.</p>
+      <div style="text-align:center; margin:30px 0;">
+        <a href="${redirectUrl}" target="_blank"
+          style="background:#16a34a;color:#fff;padding:14px 28px;text-decoration:none;
+                 border-radius:6px;font-weight:600;display:inline-block;font-size:16px;">
+          ${role === "captain" ? "Start Onboarding" : "Go to Dashboard"}
+        </a>
+      </div>
+      <p>If the button above doesn’t work, copy and paste this link into your browser:</p>
+      <p style="word-break:break-all;"><a href="${redirectUrl}" target="_blank">${redirectUrl}</a></p>
+    </div>
   `;
 
   return await sendEmail({ to: email, subject, html });

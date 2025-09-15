@@ -20,11 +20,6 @@ import {
   Clock,
   X,
 } from "lucide-react";
-import { loadStripe } from "@stripe/stripe-js";
-import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
-
-// Initialize Stripe
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || "");
 
 type SubscriptionStatus = {
   id: string;
@@ -34,157 +29,6 @@ type SubscriptionStatus = {
   cancel_at_period_end: boolean;
 } | null;
 
-// Card setup form component
-function CardSetupForm({ onSuccess, onError, onCancel }: {
-  onSuccess: () => void;
-  onError: (error: string) => void;
-  onCancel: () => void;
-}) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [processing, setProcessing] = useState(false);
-  const [setupIntent, setSetupIntent] = useState<{ client_secret: string } | null>(null);
-
-  useEffect(() => {
-    // Create setup intent when component mounts
-    const createSetupIntent = async () => {
-      try {
-        const response = await fetch("/api/captain/setup-intent", {
-          method: "POST",
-          credentials: "include",
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to create setup intent");
-        }
-
-        const data = await response.json();
-        setSetupIntent(data);
-      } catch (error: any) {
-        onError(error.message || "Failed to initialize payment setup");
-      }
-    };
-
-    createSetupIntent();
-  }, [onError]);
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-
-    if (!stripe || !elements || !setupIntent) {
-      return;
-    }
-
-    setProcessing(true);
-
-    const cardElement = elements.getElement(CardElement);
-    if (!cardElement) {
-      onError("Card element not found");
-      setProcessing(false);
-      return;
-    }
-
-    try {
-      // Confirm the setup intent with the card
-      const { error, setupIntent: confirmedSetupIntent } = await stripe.confirmCardSetup(
-        setupIntent.client_secret,
-        {
-          payment_method: {
-            card: cardElement,
-          },
-        }
-      );
-
-      if (error) {
-        onError(error.message || "Failed to set up payment method");
-      } else if (confirmedSetupIntent?.status === "succeeded") {
-        // Now create the subscription with the payment method
-        const subscriptionResponse = await fetch("/api/captain/subscription/create-with-payment", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({
-            payment_method_id: confirmedSetupIntent.payment_method,
-          }),
-        });
-
-        if (subscriptionResponse.ok) {
-          onSuccess();
-        } else {
-          const errorData = await subscriptionResponse.json();
-          onError(errorData.error || "Failed to create subscription");
-        }
-      }
-    } catch (error: any) {
-      onError(error.message || "Payment setup failed");
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const cardElementOptions = {
-    style: {
-      base: {
-        fontSize: '16px',
-        color: '#424770',
-        '::placeholder': {
-          color: '#aab7c4',
-        },
-      },
-      invalid: {
-        color: '#9e2146',
-      },
-    },
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Card Information
-        </label>
-        <div className="p-3 border border-gray-300 rounded-md bg-white">
-          <CardElement options={cardElementOptions} />
-        </div>
-      </div>
-      
-      <div className="flex space-x-3">
-        <Button
-          type="submit"
-          disabled={!stripe || processing}
-          className="flex-1 bg-ocean-blue hover:bg-deep-blue"
-        >
-          {processing ? (
-            <>
-              <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-              Setting up payment...
-            </>
-          ) : (
-            <>
-              <CreditCard className="w-4 h-4 mr-2" />
-              Start Trial with Payment
-            </>
-          )}
-        </Button>
-        
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          disabled={processing}
-        >
-          Cancel
-        </Button>
-      </div>
-      
-      <p className="text-xs text-gray-500 text-center">
-        Your payment method will be securely stored. No charges until trial ends.
-      </p>
-    </form>
-  );
-}
 
 export default function CaptainSubscribe() {
   const { user, isAuthenticated, isLoading: loadingAuth } = useAuth();
@@ -194,7 +38,6 @@ export default function CaptainSubscribe() {
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState(false);
   const [captainData, setCaptainData] = useState<{verified: boolean} | null>(null);
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
 
   useEffect(() => {
     if (!loadingAuth && !isAuthenticated) {
@@ -270,27 +113,6 @@ export default function CaptainSubscribe() {
     }
   };
 
-  const handlePaymentSuccess = async () => {
-    setShowPaymentDialog(false);
-    toast({
-      title: "Trial Started!",
-      description: "30-day free trial activated with payment method on file.",
-    });
-    // Refresh subscription status
-    await fetchSubscriptionStatus();
-  };
-
-  const handlePaymentError = (error: string) => {
-    toast({
-      title: "Payment Setup Failed",
-      description: error,
-      variant: "destructive",
-    });
-  };
-
-  const handlePaymentCancel = () => {
-    setShowPaymentDialog(false);
-  };
 
   // Opción B: "Do it later" (manual/externo)
   const handleSubscribeDoItLater = async () => {
@@ -624,30 +446,6 @@ export default function CaptainSubscribe() {
         </Card>
       </main>
 
-      {/* Payment Setup Dialog */}
-      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center">
-              <CreditCard className="w-5 h-5 mr-2 text-ocean-blue" />
-              Setup Payment Method
-            </DialogTitle>
-            <DialogDescription>
-              Add your payment method to start your 30-day free trial. No charges until trial ends.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {stripePromise && (
-            <Elements stripe={stripePromise}>
-              <CardSetupForm 
-                onSuccess={handlePaymentSuccess}
-                onError={handlePaymentError}
-                onCancel={handlePaymentCancel}
-              />
-            </Elements>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

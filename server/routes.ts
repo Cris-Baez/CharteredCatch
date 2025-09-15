@@ -315,6 +315,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Verificar email
+  app.get("/verify-email", async (req: Request, res: Response) => {
+    try {
+      const { token } = req.query as { token?: string };
+      if (!token) {
+        return res.status(400).send("Invalid verification link");
+      }
+
+      // Buscar token
+      const [record] = await db
+        .select()
+        .from(emailVerificationTokens)
+        .where(eq(emailVerificationTokens.token, token));
+
+      if (!record || record.expiresAt < new Date()) {
+        return res.status(400).send("Verification link expired or invalid");
+      }
+
+      // Marcar usuario como verificado
+      await db
+        .update(usersTable)
+        .set({ emailVerified: true })
+        .where(eq(usersTable.email, record.email));
+
+      // Borrar token usado
+      await db
+        .delete(emailVerificationTokens)
+        .where(eq(emailVerificationTokens.email, record.email));
+
+      // Buscar usuario
+      const [user] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.email, record.email));
+
+      // Enviar welcome email
+      if (user.email) {
+        await sendWelcomeEmail(user.email, user.firstName || '');
+      }
+
+      // 🔑 Redirigir según rol
+      if (user.role === "captain") {
+        return res.redirect("/captain/onboarding");
+      } else {
+        return res.redirect("/dashboard");
+      }
+    } catch (err) {
+      console.error("Verify email error:", err);
+      return res.status(500).send("Server error");
+    }
+  });
+
+  // Login
+  app.post("/api/auth/local/login", async (req: Request, res: Response) => {
+    try {
+      const { email, password } = req.body ?? {};
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password required" });
+      }
+
+      const [userRow] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.email, email));
+      if (!userRow) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      const hashed = (userRow as any).password as string | undefined;
+      if (!hashed) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      const ok = await bcrypt.compare(password, hashed);
+      if (!ok) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      req.session.userId = userRow.id;
+      // No devolver el hash de contraseña por seguridad
+      const { password: _, ...safeUserRow } = userRow as any;
+      return res.json(safeUserRow);
+    } catch (err) {
+      console.error("Login error:", err);
+      return res.status(500).json({ message: "Failed to login" });
+    }
+  });
+
+  // Obtener usuario actual
+  app.get("/api/auth/user", async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const [userRow] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, req.session.userId));
+      if (!userRow) {
+        req.session.destroy(() => {});
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      // No devolver el hash de contraseña por seguridad
+      const { password: _, ...safeUserRow } = userRow as any;
+      return res.json(safeUserRow);
+    } catch (err) {
+      console.error("Get user error:", err);
+      return res.status(500).json({ message: "Failed to get user" });
+    }
+  });
+
+  // Logout
+  app.post("/api/auth/logout", (req: Request, res: Response) => {
+    req.session.destroy(() => {
+      res.json({ success: true });
+    });
+  });
+
   // ==============================
   // EMAIL VERIFICATION
   // ==============================
@@ -2505,7 +2623,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-        apiVersion: "2024-10-28.acacia",
+        apiVersion: "2025-08-27.basil",
       });
 
       // Buscar usuario
@@ -2543,7 +2661,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             currency: 'usd',
             product_data: {
               name: 'Captain Professional Plan',
-              description: 'Full access to charter management platform - $49/month',
             },
             unit_amount: 4900, // $49.00
             recurring: {
@@ -2608,112 +2725,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // CAPTAIN: Crear suscripción con método de pago (Stripe CardElement flow)
-  app.post("/api/captain/subscription/create-with-payment", async (req, res) => {
-    try {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: "Unauthorized" });
-      }
-
-      if (!process.env.STRIPE_SECRET_KEY) {
-        return res.status(503).json({ error: 'Stripe not configured' });
-      }
-
-      const { payment_method_id } = req.body;
-      if (!payment_method_id) {
-        return res.status(400).json({ error: "Payment method required" });
-      }
-
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-        apiVersion: "2025-08-27.basil",
-      });
-
-      const user = await db.query.users.findFirst({
-        where: eq(usersTable.id, req.session.userId),
-      });
-
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      // Verificar si ya tiene suscripción activa
-      const existingSub = await db.query.subscriptions.findFirst({
-        where: eq(subscriptionsTable.userId, req.session.userId),
-      });
-      
-      if (existingSub && (existingSub.status === "active" || existingSub.status === "trialing")) {
-        return res.json({ success: true, subscription: existingSub });
-      }
-
-      // Crear o obtener customer de Stripe
-      let customer;
-      if (user.stripeCustomerId) {
-        customer = await stripe.customers.retrieve(user.stripeCustomerId);
-      } else {
-        customer = await stripe.customers.create({
-          email: user.email || "",
-          name: [user.firstName, user.lastName].filter(Boolean).join(" ") || undefined,
-        });
-
-        // Actualizar usuario con customer ID
-        await db
-          .update(usersTable)
-          .set({ stripeCustomerId: customer.id })
-          .where(eq(usersTable.id, user.id));
-      }
-
-      // Adjuntar el método de pago al customer
-      await stripe.paymentMethods.attach(payment_method_id, {
-        customer: customer.id,
-      });
-
-      // Crear suscripción de Stripe con trial y método de pago
-      const stripeSubscription = await stripe.subscriptions.create({
-        customer: customer.id,
-        items: [{
-          price_data: {
-            currency: 'usd',
-            unit_amount: 4900, // $49.00
-            recurring: {
-              interval: 'month',
-            },
-            product: {
-              name: 'Captain Professional Plan',
-              description: 'Full access to charter management platform',
-            },
-          },
-        }],
-        default_payment_method: payment_method_id,
-        trial_period_days: 30,
-        expand: ['latest_invoice.payment_intent'],
-      });
-
-      // Crear suscripción en nuestra base de datos
-      const subscription = await db.insert(subscriptionsTable).values({
-        userId: req.session.userId,
-        stripeSubscriptionId: stripeSubscription.id,
-        stripeCustomerId: customer.id,
-        status: "trialing", // Stripe status for trial period
-        planType: "captain_monthly",
-        trialStartDate: new Date(),
-        trialEndDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30), // 30 days
-        currentPeriodStart: new Date((stripeSubscription as any).current_period_start * 1000),
-        currentPeriodEnd: new Date((stripeSubscription as any).current_period_end * 1000),
-        cancelAtPeriodEnd: false,
-      }).returning();
-
-      // Actualizar usuario con subscription ID
-      await db
-        .update(usersTable)
-        .set({ stripeSubscriptionId: stripeSubscription.id })
-        .where(eq(usersTable.id, user.id));
-
-      res.json({ success: true, subscription: subscription[0] });
-    } catch (error: any) {
-      console.error("Create subscription with payment error:", error);
-      res.status(500).json({ error: "Failed to create subscription with payment" });
-    }
-  });
 
   // CAPTAIN: Aprobar/rechazar booking
   app.patch("/api/captain/bookings/:id/approve", async (req: Request, res: Response) => {

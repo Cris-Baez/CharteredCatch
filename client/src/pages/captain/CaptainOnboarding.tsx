@@ -15,8 +15,6 @@ import {
   MailWarning,
   CreditCard,
 } from "lucide-react";
-import { loadStripe } from "@stripe/stripe-js";
-import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,8 +28,6 @@ import { useToast } from "@/hooks/use-toast";
 // ---------------- Env (Cloudinary + Stripe) ----------------
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-const STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
-const stripePromise = STRIPE_PK ? loadStripe(STRIPE_PK) : null;
 
 // ---------------- Tipos alineados a tu backend ----------------
 interface User {
@@ -154,7 +150,8 @@ export default function CaptainOnboarding() {
   const { data: user } = useQuery<User>({ queryKey: ["/api/auth/user"] });
   const { data: emailStatus, refetch: refetchEmail } = useQuery<EmailVerificationStatus>({
     queryKey: ["/api/email/verification-status"],
-    refetchInterval: 8000,
+    // ARREGLADO: Eliminar polling automático para evitar crash de DB
+    // refetchInterval: 8000,  // Removido - causaba loop infinito
   });
   const { data: captain } = useQuery<Captain>({ queryKey: ["/api/captain/me"] });
   const { data: sub } = useQuery<StripeSubscription>({ queryKey: ["/api/captain/subscription"] });
@@ -691,15 +688,7 @@ export default function CaptainOnboarding() {
                     </div>
                   </div>
 
-                  {stripePromise ? (
-                    <Elements stripe={stripePromise}>
-                      <CardPaymentBlock onSuccess={goOverview} />
-                    </Elements>
-                  ) : (
-                    <div className="text-sm text-red-600">
-                      Stripe publishable key missing. Set VITE_STRIPE_PUBLIC_KEY.
-                    </div>
-                  )}
+                  <PaymentSetupBlock onSuccess={goOverview} />
 
                   <div className="flex items-center justify-center gap-2">
                     <Button variant="outline" onClick={() => setStep(2)}>
@@ -769,79 +758,113 @@ export default function CaptainOnboarding() {
 }
 
 // ---------------- Stripe Card Block (Setup Intent + attach) ----------------
-function CardPaymentBlock({ onSuccess }: { onSuccess: () => void }) {
-  const stripe = useStripe();
-  const elements = useElements();
+function PaymentSetupBlock({ onSuccess }: { onSuccess: () => void }) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
 
   // 1) Pedimos un SetupIntent a tu backend (si no existe, intenta tu endpoint de create subscription que devuelva clientSecret)
   useEffect(() => {
     (async () => {
       try {
-        // endpoint sugerido: /api/billing/create-setup-intent → debe devolver { clientSecret }
-        const r = await fetch("/api/captain/setup-intent", { method: "POST" });
-        if (r.ok) {
-          const data = await r.json();
-          setClientSecret(data.client_secret || data.clientSecret);
-          return;
-        }
-        // fallback: algunos setups devuelven clientSecret desde create subscription
-        const r2 = await fetch("/api/captain/subscription/create", { method: "POST" });
-        if (r2.ok) {
-          const data2 = await r2.json();
-          if (data2.clientSecret) setClientSecret(data2.clientSecret);
-        }
       } catch {
         /* ignore; el botón “Do it later” cubrirá */
       }
     })();
   }, []);
 
-  async function handleAddPaymentMethod() {
-    if (!stripe || !elements || !clientSecret) return;
+  const handleSubscribeWithCard = async () => {
     setLoading(true);
     try {
-      const card = elements.getElement(CardElement);
-      if (!card) throw new Error("Card element not ready");
-
-      // confirmamos el setup intent en el cliente
-      const { error, setupIntent } = await stripe.confirmCardSetup(clientSecret, {
-        payment_method: { card },
+      const response = await fetch("/api/captain/create-checkout-session", {
+        method: "POST",
+        credentials: "include",
       });
 
-      if (error) {
-        toast({ title: "Card error", description: error.message, variant: "destructive" });
-        setLoading(false);
-        return;
-      }
-
-      if (setupIntent.status === "succeeded") {
-        // opcional: avisar a backend que ya hay PM; muchas veces no hace falta
-        toast({ title: "Payment method saved" });
-        onSuccess();
+      const data = await response.json();
+      
+      if (response.ok && data.checkout_url) {
+        // Redirect to secure Stripe checkout page
+        window.location.href = data.checkout_url;
       } else {
-        toast({ title: "Setup incomplete", description: `Status: ${setupIntent.status}`, variant: "destructive" });
+        throw new Error(data.error || "Failed to create checkout session");
       }
-    } catch (e: any) {
-      toast({ title: "Error", description: e?.message || "Something went wrong", variant: "destructive" });
+    } catch (error: any) {
+      console.error("Checkout error:", error);
+      toast({
+        title: "Payment Setup Failed",
+        description: error.message || "Unable to start payment process. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
-  }
+  };
+
+  const handleStartTrialLater = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch("/api/captain/subscription/create", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        toast({
+          title: "Trial Started!",
+          description: "30-day free trial activated. Add payment method anytime during trial.",
+        });
+        onSuccess();
+      } else {
+        throw new Error(data.error || "Failed to create subscription");
+      }
+    } catch (error: any) {
+      console.error("Subscription error:", error);
+      toast({
+        title: "Subscription Failed",
+        description: error.message || "Unable to start trial. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-3">
-      <div className="rounded-md border p-3">
-        <CardElement options={{ hidePostalCode: true }} />
-      </div>
       <Button
-        onClick={handleAddPaymentMethod}
-        disabled={!clientSecret || loading}
-        className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+        onClick={handleSubscribeWithCard}
+        disabled={loading}
+        className="w-full bg-ocean-blue hover:bg-deep-blue"
       >
-        {loading ? "Saving…" : "Add payment method"}
+        {loading ? (
+          <>
+            <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+            Setting up payment...
+          </>
+        ) : (
+          <>
+            <CreditCard className="w-4 h-4 mr-2" />
+            Add Payment & Start Trial
+          </>
+        )}
+      </Button>
+      
+      <Button
+        onClick={handleStartTrialLater}
+        disabled={loading}
+        variant="outline"
+        className="w-full border-ocean-blue text-ocean-blue hover:bg-ocean-50"
+      >
+        {loading ? (
+          <>
+            <div className="animate-spin w-4 h-4 border-2 border-ocean-blue border-t-transparent rounded-full mr-2"></div>
+            Starting trial...
+          </>
+        ) : (
+          "Start Trial (Add Payment Later)"
+        )}
       </Button>
     </div>
   );
