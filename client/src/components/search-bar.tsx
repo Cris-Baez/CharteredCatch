@@ -34,8 +34,13 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
   const [guests, setGuests] = useState(1);
   const [suggestions, setSuggestions] = useState<NominatimItem[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [showGuestPicker, setShowGuestPicker] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number>(-1);
+
+  // estados separados para evitar conflictos
+  const [showGuestPickerMobile, setShowGuestPickerMobile] = useState(false);
+  const [showGuestPickerDesktop, setShowGuestPickerDesktop] = useState(false);
+  const [showDatePickerMobile, setShowDatePickerMobile] = useState(false);
+  const [showDatePickerDesktop, setShowDatePickerDesktop] = useState(false);
 
   const [_, navigate] = useLocation();
   const mobileDropdownRef = useRef<HTMLDivElement>(null);
@@ -67,11 +72,14 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
   }, [initialValues]);
 
   useEffect(() => {
-    localStorage.setItem("searchFilters", JSON.stringify({
-      location: locationValue,
-      date,
-      guests,
-    }));
+    localStorage.setItem(
+      "searchFilters",
+      JSON.stringify({
+        location: locationValue,
+        date,
+        guests,
+      })
+    );
   }, [locationValue, date, guests]);
 
   // Autocomplete with Nominatim (debounce)
@@ -97,8 +105,8 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
         setShowSuggestions(true);
         setActiveIndex(-1);
       } catch (error) {
-        if (error instanceof Error && error.name !== 'AbortError') {
-          console.error('Fetch error:', error);
+        if (error instanceof Error && error.name !== "AbortError") {
+          console.error("Fetch error:", error);
         }
       }
       return () => {
@@ -119,8 +127,12 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
       const mobileContainer = mobileDropdownRef.current;
       const desktopContainer = desktopDropdownRef.current;
 
-      if (mobileContainer && !mobileContainer.contains(e.target as Node) &&
-          desktopContainer && !desktopContainer.contains(e.target as Node)) {
+      if (
+        mobileContainer &&
+        !mobileContainer.contains(e.target as Node) &&
+        desktopContainer &&
+        !desktopContainer.contains(e.target as Node)
+      ) {
         setShowSuggestions(false);
         setActiveIndex(-1);
       }
@@ -129,7 +141,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Highlight match (escaping query for regex safety)
+  // Highlight match
   function highlightMatch(text: string, query: string) {
     const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const regex = new RegExp(`(${escaped})`, "gi");
@@ -148,7 +160,6 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
       location: locationValue,
       date,
       guests: guests.toString(),
-      // Keep compatibility with existing search params
       targetSpecies: "",
       duration: "",
     };
@@ -156,7 +167,6 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
     if (onSearch) onSearch({ location: locationValue, date, guests });
     const params = new URLSearchParams(filters).toString();
     navigate(`/search?${params}`);
-    // Close dropdown on search
     setShowSuggestions(false);
     setActiveIndex(-1);
   };
@@ -200,33 +210,37 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
       month: "short",
-      day: "numeric"
+      day: "numeric",
     });
   };
 
   return (
     <>
-      {/* MOBILE - Stack vertically */}
+      {/* MOBILE */}
       <div className="md:hidden" data-testid="mobile-search-bar">
         <Card className="bg-white rounded-2xl shadow-sm p-1.5 ring-1 ring-gray-200">
           <div className="space-y-1.5">
-            {/* Destination - Full width */}
+            {/* Destination */}
             <div className="relative" ref={mobileDropdownRef}>
-              <div className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 focus-within:ring-1 focus-within:ring-gray-300 transition-all">
+              <div className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full">
                 <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                 <div className="flex-1">
-                  <div className="text-[11px] font-medium text-gray-800 mb-0">Where</div>
+                  <div className="text-[11px] font-medium text-gray-800 mb-0">
+                    Where
+                  </div>
                   <Input
                     type="text"
                     placeholder="Search destinations"
                     value={locationValue}
-                    onChange={(e) => { setLocationValue(e.target.value); setShowSuggestions(true); }}
+                    onChange={(e) => {
+                      setLocationValue(e.target.value);
+                      setShowSuggestions(true);
+                    }}
                     onKeyDown={handleLocationKeyDown}
                     className="border-0 p-0 h-auto text-xs placeholder:text-gray-500 focus-visible:ring-0"
                     aria-expanded={showSuggestions}
                     aria-autocomplete="list"
                     aria-controls="location-suggestions"
-                    data-testid="input-destination"
                   />
                 </div>
                 {locationValue && (
@@ -234,7 +248,6 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                     onClick={() => clearField(setLocationValue)}
                     className="p-1 hover:bg-gray-100 rounded-full transition-colors"
                     aria-label="Clear location"
-                    data-testid="button-clear-destination"
                   >
                     <X className="w-4 h-4 text-gray-400" />
                   </button>
@@ -252,17 +265,23 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                       key={s.place_id}
                       role="option"
                       aria-selected={i === activeIndex}
-                      className={`w-full px-4 py-2.5 text-left text-sm transition-colors first:rounded-t-2xl last:rounded-b-2xl ${
+                      className={`w-full px-4 py-2.5 text-left text-sm ${
                         i === activeIndex ? "bg-gray-100" : "hover:bg-gray-50"
                       }`}
                       onMouseEnter={() => setActiveIndex(i)}
                       onMouseLeave={() => setActiveIndex(-1)}
                       onClick={() => selectSuggestion(s)}
-                      data-testid={`suggestion-${s.place_id}`}
                     >
                       <div className="flex items-center gap-3">
                         <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
-                        <span dangerouslySetInnerHTML={{ __html: highlightMatch(s.display_name, locationValue) }} />
+                        <span
+                          dangerouslySetInnerHTML={{
+                            __html: highlightMatch(
+                              s.display_name,
+                              locationValue
+                            ),
+                          }}
+                        />
                       </div>
                     </div>
                   ))}
@@ -270,67 +289,75 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
               )}
             </div>
 
-            {/* Date - Full width */}
-            <div className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 focus-within:ring-1 focus-within:ring-gray-300 transition-all">
-              <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-              <div className="flex-1">
-                <div className="text-[11px] font-medium text-gray-800 mb-0">When</div>
+            {/* Date */}
+            <Popover
+              open={showDatePickerMobile}
+              onOpenChange={setShowDatePickerMobile}
+            >
+              <PopoverTrigger asChild>
+                <button className="w-full flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full text-left">
+                  <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                  <div className="flex-1">
+                    <div className="text-[11px] font-medium text-gray-800 mb-0">
+                      When
+                    </div>
+                    <div className="text-xs text-gray-700">
+                      {date ? formatDate(date) : "Add dates"}
+                    </div>
+                  </div>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-2">
                 <Input
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="border-0 p-0 h-auto text-xs focus-visible:ring-0"
-                  placeholder="Add dates"
-                  data-testid="input-date"
+                  className="text-sm"
                 />
-              </div>
-              {date && (
-                <button
-                  onClick={() => clearField(setDate)}
-                  className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-                  aria-label="Clear date"
-                  data-testid="button-clear-date"
-                >
-                  <X className="w-4 h-4 text-gray-400" />
-                </button>
-              )}
-            </div>
+              </PopoverContent>
+            </Popover>
 
-            {/* Guests - Full width */}
-            <Popover open={showGuestPicker} onOpenChange={setShowGuestPicker}>
+            {/* Guests */}
+            <Popover
+              open={showGuestPickerMobile}
+              onOpenChange={setShowGuestPickerMobile}
+            >
               <PopoverTrigger asChild>
-                <button
-                  className="w-full flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 hover:shadow-sm transition-all cursor-pointer text-left"
-                  data-testid="button-guests"
-                >
+                <button className="w-full flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full text-left">
                   <Users className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                   <div className="flex-1">
-                    <div className="text-[11px] font-medium text-gray-800 mb-0">Who</div>
-                    <div className="text-xs text-gray-700">{formatGuestText(guests)}</div>
+                    <div className="text-[11px] font-medium text-gray-800 mb-0">
+                      Who
+                    </div>
+                    <div className="text-xs text-gray-700">
+                      {formatGuestText(guests)}
+                    </div>
                   </div>
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-48 p-3 rounded-2xl shadow-xl" align="start">
+              <PopoverContent className="w-48 p-3 rounded-2xl shadow-xl">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="font-semibold text-xs">Guests</div>
-                    <div className="text-[10px] text-gray-500">Ages 13 or above</div>
+                    <div className="text-[10px] text-gray-500">
+                      Ages 13 or above
+                    </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => adjustGuests(-1)}
                       disabled={guests <= 1}
-                      className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-900 transition-colors"
-                      data-testid="button-guests-decrease"
+                      className="w-6 h-6 rounded-full border border-gray-300"
                     >
                       <Minus className="w-2.5 h-2.5" />
                     </button>
-                    <span className="w-8 text-center font-semibold" data-testid="text-guests-count">{guests}</span>
+                    <span className="w-8 text-center font-semibold">
+                      {guests}
+                    </span>
                     <button
                       onClick={() => adjustGuests(1)}
                       disabled={guests >= 16}
-                      className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-900 transition-colors"
-                      data-testid="button-guests-increase"
+                      className="w-6 h-6 rounded-full border border-gray-300"
                     >
                       <Plus className="w-2.5 h-2.5" />
                     </button>
@@ -342,8 +369,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
             {/* Search Button */}
             <Button
               onClick={handleSearch}
-              className="w-full h-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs flex items-center justify-center gap-1 transition-all hover:shadow-lg"
-              data-testid="button-search"
+              className="w-full h-10 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center gap-1"
             >
               <Search className="w-3.5 h-3.5" />
               Search
@@ -352,58 +378,43 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
         </Card>
       </div>
 
-      {/* DESKTOP - Horizontal layout */}
-      <div className="hidden md:block max-w-5xl mx-auto" data-testid="desktop-search-bar">
-        <Card className="bg-white rounded-full shadow-md border border-gray-200 hover:shadow-xl transition-shadow">
+      {/* DESKTOP */}
+      <div className="hidden md:block max-w-5xl mx-auto">
+        <Card className="bg-white rounded-full shadow-md border border-gray-200">
           <div className="flex items-center">
             {/* Destination */}
             <div className="flex-1 relative" ref={desktopDropdownRef}>
-              <button
-                className="w-full flex items-center gap-2 p-2 pl-4 hover:bg-gray-50 rounded-l-full transition-colors text-left"
-                onClick={() => {
-                  const input = document.querySelector('[data-testid="desktop-destination-input"]') as HTMLInputElement;
-                  input?.focus();
+              <Input
+                type="text"
+                placeholder="Where"
+                value={locationValue}
+                onChange={(e) => {
+                  setLocationValue(e.target.value);
+                  setShowSuggestions(true);
                 }}
-              >
-                <div className="flex-1">
-                  <div className="text-xs font-semibold text-gray-900 mb-1">Where</div>
-                  <Input
-                    type="text"
-                    placeholder="Search destinations"
-                    value={locationValue}
-                    onChange={(e) => { setLocationValue(e.target.value); setShowSuggestions(true); }}
-                    onKeyDown={handleLocationKeyDown}
-                    className="border-0 p-0 h-auto text-sm placeholder:text-gray-500 focus-visible:ring-0 bg-transparent"
-                    aria-expanded={showSuggestions}
-                    aria-autocomplete="list"
-                    aria-controls="location-suggestions-desktop"
-                    data-testid="desktop-destination-input"
-                  />
-                </div>
-              </button>
-
+                onKeyDown={handleLocationKeyDown}
+                className="border-0 p-3 text-sm placeholder:text-gray-500 focus-visible:ring-0 bg-transparent"
+              />
               {showSuggestions && suggestions.length > 0 && (
-                <div
-                  id="location-suggestions-desktop"
-                  className="absolute top-full left-0 right-0 mt-2 bg-white border rounded-xl shadow-lg z-20 max-h-60 overflow-y-auto"
-                  role="listbox"
-                >
+                <div className="absolute top-full left-0 right-0 bg-white border rounded-xl shadow-lg z-20 max-h-60 overflow-y-auto">
                   {suggestions.map((s, i) => (
                     <button
                       key={s.place_id}
-                      role="option"
-                      aria-selected={i === activeIndex}
-                      className={`w-full px-4 py-2.5 text-left text-sm transition-colors first:rounded-t-xl last:rounded-b-xl ${
+                      onClick={() => selectSuggestion(s)}
+                      className={`w-full px-4 py-2.5 text-left text-sm ${
                         i === activeIndex ? "bg-gray-100" : "hover:bg-gray-50"
                       }`}
-                      onMouseEnter={() => setActiveIndex(i)}
-                      onMouseLeave={() => setActiveIndex(-1)}
-                      onClick={() => selectSuggestion(s)}
-                      data-testid={`desktop-suggestion-${s.place_id}`}
                     >
                       <div className="flex items-center gap-3">
                         <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
-                        <span dangerouslySetInnerHTML={{ __html: highlightMatch(s.display_name, locationValue) }} />
+                        <span
+                          dangerouslySetInnerHTML={{
+                            __html: highlightMatch(
+                              s.display_name,
+                              locationValue
+                            ),
+                          }}
+                        />
                       </div>
                     </button>
                   ))}
@@ -411,87 +422,92 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
               )}
             </div>
 
-            {/* Divider */}
             <div className="w-px h-8 bg-gray-200"></div>
 
             {/* Date */}
-            <div className="flex-1">
-              <button
-                className="w-full flex items-center gap-2 p-2 hover:bg-gray-50 transition-colors text-left"
-                onClick={() => {
-                  const input = document.querySelector('[data-testid="desktop-date-input"]') as HTMLInputElement;
-                  input?.focus();
-                }}
-              >
-                <div className="flex-1">
-                  <div className="text-xs font-semibold text-gray-900 mb-1">When</div>
-                  <div className="text-sm text-gray-500">
-                    {date ? formatDate(date) : "Add dates"}
+            <Popover
+              open={showDatePickerDesktop}
+              onOpenChange={setShowDatePickerDesktop}
+            >
+              <PopoverTrigger asChild>
+                <button className="w-full flex items-center gap-2 p-2 text-left">
+                  <Calendar className="w-4 h-4 text-gray-400" />
+                  <div className="flex-1">
+                    <div className="text-xs font-semibold text-gray-900 mb-1">
+                      When
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {date ? formatDate(date) : "Add dates"}
+                    </div>
                   </div>
-                  <Input
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    className="border-0 p-0 h-0 opacity-0 absolute pointer-events-none"
-                    data-testid="desktop-date-input"
-                  />
-                </div>
-              </button>
-            </div>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-2">
+                <Input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="text-sm"
+                />
+              </PopoverContent>
+            </Popover>
 
-            {/* Divider */}
             <div className="w-px h-8 bg-gray-200"></div>
 
             {/* Guests */}
-            <div className="flex-1">
-              <Popover open={showGuestPicker} onOpenChange={setShowGuestPicker}>
-                <PopoverTrigger asChild>
-                  <button
-                    className="w-full flex items-center gap-2 p-2 hover:bg-gray-50 transition-colors cursor-pointer text-left"
-                    data-testid="desktop-button-guests"
-                  >
-                    <div className="flex-1">
-                      <div className="text-xs font-semibold text-gray-900 mb-1">Who</div>
-                      <div className="text-sm text-gray-500">{formatGuestText(guests)}</div>
+            <Popover
+              open={showGuestPickerDesktop}
+              onOpenChange={setShowGuestPickerDesktop}
+            >
+              <PopoverTrigger asChild>
+                <button className="w-full flex items-center gap-2 p-2 text-left">
+                  <Users className="w-4 h-4 text-gray-400" />
+                  <div className="flex-1">
+                    <div className="text-xs font-semibold text-gray-900 mb-1">
+                      Who
                     </div>
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-4" align="end">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-semibold text-sm">Guests</div>
-                      <div className="text-xs text-gray-500">Ages 13 or above</div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => adjustGuests(-1)}
-                        disabled={guests <= 1}
-                        className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-900 transition-colors"
-                        data-testid="desktop-button-guests-decrease"
-                      >
-                        <Minus className="w-3 h-3" />
-                      </button>
-                      <span className="w-8 text-center font-semibold" data-testid="desktop-text-guests-count">{guests}</span>
-                      <button
-                        onClick={() => adjustGuests(1)}
-                        disabled={guests >= 16}
-                        className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-900 transition-colors"
-                        data-testid="desktop-button-guests-increase"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </button>
+                    <div className="text-sm text-gray-500">
+                      {formatGuestText(guests)}
                     </div>
                   </div>
-                </PopoverContent>
-              </Popover>
-            </div>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-semibold text-sm">Guests</div>
+                    <div className="text-xs text-gray-500">
+                      Ages 13 or above
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => adjustGuests(-1)}
+                      disabled={guests <= 1}
+                      className="w-6 h-6 rounded-full border border-gray-300"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <span className="w-8 text-center font-semibold">
+                      {guests}
+                    </span>
+                    <button
+                      onClick={() => adjustGuests(1)}
+                      disabled={guests >= 16}
+                      className="w-6 h-6 rounded-full border border-gray-300"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
 
             {/* Search Button */}
             <div className="p-1">
               <Button
                 onClick={handleSearch}
-                className="h-10 w-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all hover:shadow-lg hover:scale-105"
-                data-testid="desktop-button-search"
+                className="h-10 w-10 rounded-full bg-blue-600 text-white flex items-center justify-center"
               >
                 <Search className="w-4 h-4" />
               </Button>
