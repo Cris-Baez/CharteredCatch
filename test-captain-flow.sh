@@ -59,9 +59,10 @@ echo "============================="
 captain_data='{
   "email": "'$TEST_EMAIL'",
   "password": "'$TEST_PASSWORD'",
-  "fullName": "Captain Test",
+  "firstName": "Captain",
+  "lastName": "Test",
   "phone": "+1555123456",
-  "userType": "captain"
+  "role": "captain"
 }'
 
 make_request "POST" "/api/auth/local/register" "$captain_data" "Registrando captain"
@@ -113,12 +114,14 @@ charter_data='{
   "title": "Test Half Day Charter",
   "description": "Automated test charter - please ignore",
   "duration": 4,
-  "capacity": 6,
-  "pricePerPerson": 150,
+  "maxGuests": 6,
+  "price": 150,
   "location": "Key West Marina",
   "targetSpecies": ["Snapper", "Grouper", "Mahi"],
-  "includesEquipment": true,
-  "includesBait": true
+  "included": "Equipment, bait, and refreshments",
+  "images": [],
+  "isListed": true,
+  "available": true
 }'
 
 make_request "POST" "/api/captain/charters" "$charter_data" "Creando charter de prueba"
