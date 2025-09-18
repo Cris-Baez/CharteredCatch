@@ -2,6 +2,7 @@
 import type { Express, Request, Response } from "express";
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer, type Server } from "http";
 import bcrypt from "bcrypt";
 import session from "express-session";
@@ -11,7 +12,7 @@ import Stripe from "stripe"; // Stripe integration for subscriptions
 import multer from "multer";
 import { db } from "./db";
 import { storage } from "./storage";
-import { randomBytes } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
 
 import {
   users as usersTable,
@@ -84,15 +85,144 @@ declare module "express-session" {
 
 const PgStore = connectPg(session);
 
+const fsPromises = fs.promises;
+const ATTACHED_ASSETS_DIR = path.resolve(process.cwd(), "attached_assets");
+const SECURE_UPLOADS_DIR = path.resolve(process.cwd(), "private_uploads");
+const SECURE_UPLOAD_ROUTE = "/secure_uploads" as const;
+const UNSUPPORTED_IMAGE_TYPE_MESSAGE = "Only JPEG, PNG, or GIF images are allowed.";
+const SAFE_IMAGE_MIME_TYPES = new Map<string, string>([
+  ["image/jpeg", ".jpg"],
+  ["image/pjpeg", ".jpg"],
+  ["image/jpg", ".jpg"],
+  ["image/png", ".png"],
+  ["image/x-png", ".png"],
+  ["image/gif", ".gif"],
+]);
+const SAFE_IMAGE_CONTENT_TYPES = new Map<string, string>([
+  [".jpg", "image/jpeg"],
+  [".jpeg", "image/jpeg"],
+  [".png", "image/png"],
+  [".gif", "image/gif"],
+]);
+const SAFE_IMAGE_EXTENSIONS = new Set(SAFE_IMAGE_CONTENT_TYPES.keys());
+const IMAGE_SECURITY_HEADERS = {
+  "Content-Security-Policy": "default-src 'none'; img-src 'self'; style-src 'none'; script-src 'none'",
+  "X-Content-Type-Options": "nosniff",
+  "Cross-Origin-Resource-Policy": "same-origin",
+} as const;
+
+try {
+  fs.mkdirSync(SECURE_UPLOADS_DIR, { recursive: true });
+} catch (error) {
+  console.error("Failed to ensure upload directory exists", error);
+}
+
+function getValidatedImageExtension(file: Express.Multer.File): string | null {
+  const mimeType = (file.mimetype || "").toLowerCase();
+  const extFromMime = SAFE_IMAGE_MIME_TYPES.get(mimeType);
+  if (!extFromMime) {
+    return null;
+  }
+
+  const originalExt = (file.originalname ? path.extname(file.originalname) : "").toLowerCase();
+  if (originalExt) {
+    if (!SAFE_IMAGE_EXTENSIONS.has(originalExt)) {
+      return null;
+    }
+
+    if (originalExt === ".jpeg" || originalExt === ".jpg") {
+      return extFromMime === ".jpg" ? ".jpg" : null;
+    }
+
+    if (originalExt !== extFromMime) {
+      return null;
+    }
+  }
+
+  return extFromMime;
+}
+
+function resolveSafeAssetPath(baseDir: string, rawPath: string | undefined): string | null {
+  if (!rawPath) return null;
+
+  const sanitized = rawPath.replace(/\\/g, "/");
+  if (sanitized.includes("\0")) {
+    return null;
+  }
+
+  const normalized = path.posix.normalize(sanitized);
+  if (!normalized || normalized === "." || normalized.startsWith("..")) {
+    return null;
+  }
+
+  const absolutePath = path.resolve(baseDir, normalized);
+  const relativePath = path.relative(baseDir, absolutePath);
+
+  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    return null;
+  }
+
+  return absolutePath;
+}
+
+async function sendSafeImage(
+  res: Response,
+  absolutePath: string,
+  {
+    cacheControl,
+    logLabel,
+  }: {
+    cacheControl: string;
+    logLabel: string;
+  }
+): Promise<void> {
+  const extension = path.extname(absolutePath).toLowerCase();
+  if (!SAFE_IMAGE_EXTENSIONS.has(extension)) {
+    res.status(403).json({ error: "Unsupported asset type" });
+    return;
+  }
+
+  const contentType = SAFE_IMAGE_CONTENT_TYPES.get(extension);
+
+  if (!contentType) {
+    res.status(403).json({ error: "Unsupported asset type" });
+    return;
+  }
+
+  try {
+    const stats = await fsPromises.stat(absolutePath);
+    res.set({
+      ...IMAGE_SECURITY_HEADERS,
+      "Cache-Control": cacheControl,
+      "Content-Type": contentType,
+      "Content-Length": stats.size.toString(),
+      "Content-Disposition": "inline",
+    });
+    res.sendFile(absolutePath);
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err?.code === "ENOENT") {
+      res.status(404).json({ error: "Asset not found" });
+      return;
+    }
+    console.error(`Failed to serve ${logLabel}:`, error);
+    res.status(500).json({ error: "Failed to serve asset" });
+  }
+}
+
 // Configure multer for file uploads
 const uploadStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(process.cwd(), "attached_assets"));
+  destination: (_req, _file, cb) => {
+    cb(null, SECURE_UPLOADS_DIR);
   },
-  filename: (req, file, cb) => {
-    // Generate unique filename with timestamp and original extension
-    const uniqueName = `payment_proof_${Date.now()}_${Math.random().toString(36).slice(2, 9)}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
+  filename: (_req, file, cb) => {
+    const normalizedExtension = getValidatedImageExtension(file);
+    if (!normalizedExtension) {
+      cb(new Error(UNSUPPORTED_IMAGE_TYPE_MESSAGE), "");
+      return;
+    }
+
+    cb(null, `${randomUUID()}${normalizedExtension}`);
   }
 });
 
@@ -103,9 +233,8 @@ const upload = multer({
     fileSize: 100 * 1024 * 1024, // 100MB max file size
   },
   fileFilter: (req, file, cb) => {
-    // Only allow image files
-    if (!file.mimetype.startsWith("image/")) {
-      cb(new Error("Only image files are allowed"));
+    if (!getValidatedImageExtension(file)) {
+      cb(new Error(UNSUPPORTED_IMAGE_TYPE_MESSAGE));
       return;
     }
     cb(null, true);
@@ -187,10 +316,29 @@ function serializeBooking(row: any) {
 export async function registerRoutes(app: Express): Promise<Server> {
   // JSON y estáticos (límite configurado en index.ts)
   // app.use(express.json()); // Ya configurado en index.ts con 50MB limit
-  app.use(
-    "/attached_assets",
-    express.static(path.join(process.cwd(), "attached_assets"))
-  );
+  app.get("/attached_assets/:assetPath(*)", async (req: Request, res: Response) => {
+    const absolutePath = resolveSafeAssetPath(ATTACHED_ASSETS_DIR, req.params.assetPath);
+    if (!absolutePath) {
+      return res.status(404).json({ error: "Asset not found" });
+    }
+
+    await sendSafeImage(res, absolutePath, {
+      cacheControl: "public, max-age=3600, immutable",
+      logLabel: "attached asset",
+    });
+  });
+
+  app.get(`${SECURE_UPLOAD_ROUTE}/:assetPath(*)`, async (req: Request, res: Response) => {
+    const absolutePath = resolveSafeAssetPath(SECURE_UPLOADS_DIR, req.params.assetPath);
+    if (!absolutePath) {
+      return res.status(404).json({ error: "Asset not found" });
+    }
+
+    await sendSafeImage(res, absolutePath, {
+      cacheControl: "private, no-store",
+      logLabel: "uploaded asset",
+    });
+  });
 
   // ✅ CORS con credenciales (debe ir ANTES de session)
   const getAllowedOrigins = () => {
@@ -3233,8 +3381,8 @@ Looking forward to an amazing day on the water! 🛥️`;
         return res.status(400).json({ error: `Upload error: ${err.message}` });
       } else if (err) {
         // Handle custom validation errors (like file type)
-        if (err.message === "Only image files are allowed") {
-          return res.status(400).json({ error: "Only image files (JPG, PNG, GIF, etc.) are allowed." });
+        if (err.message === UNSUPPORTED_IMAGE_TYPE_MESSAGE) {
+          return res.status(400).json({ error: UNSUPPORTED_IMAGE_TYPE_MESSAGE });
         }
         return res.status(400).json({ error: err.message });
       }
@@ -3279,7 +3427,7 @@ Looking forward to an amazing day on the water! 🛥️`;
       const paymentMethod = req.body.paymentMethod || "unknown";
       
       // Use the uploaded file path
-      const paymentProofUrl = `/attached_assets/${req.file.filename}`;
+      const paymentProofUrl = `${SECURE_UPLOAD_ROUTE}/${req.file.filename}`;
 
       // Update booking with payment proof
       const [updatedBooking] = await db
@@ -3724,8 +3872,8 @@ Looking forward to an amazing day on the water! 🛥️`;
         return res.status(400).json({ error: `Upload error: ${err.message}` });
       } else if (err) {
         // Handle custom validation errors (like file type)
-        if (err.message === "Only image files are allowed") {
-          return res.status(400).json({ error: "Only image files (JPG, PNG, GIF, etc.) are allowed." });
+        if (err.message === UNSUPPORTED_IMAGE_TYPE_MESSAGE) {
+          return res.status(400).json({ error: UNSUPPORTED_IMAGE_TYPE_MESSAGE });
         }
         return res.status(400).json({ error: err.message });
       }
@@ -3745,7 +3893,7 @@ Looking forward to an amazing day on the water! 🛥️`;
       }
 
       // Use the uploaded file path
-      const profileImageUrl = `/attached_assets/${req.file.filename}`;
+      const profileImageUrl = `${SECURE_UPLOAD_ROUTE}/${req.file.filename}`;
 
       // Update user with new profile image
       const [updatedUser] = await db
