@@ -9,6 +9,7 @@ import {
   varchar,
   jsonb,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -74,6 +75,29 @@ export const captains = pgTable("captains", {
   onboardingStartedAt: timestamp("onboarding_started_at"),
   onboardingCompletedAt: timestamp("onboarding_completed_at"),
 });
+
+// =====================
+// Captain Document Reviews
+// =====================
+export const captainDocumentReviews = pgTable(
+  "captain_document_reviews",
+  {
+    id: serial("id").primaryKey(),
+    captainId: integer("captain_id").references(() => captains.id).notNull(),
+    documentType: text("document_type").notNull(),
+    status: text("status").notNull().default("pending"),
+    reviewedBy: varchar("reviewed_by").references(() => users.id),
+    reviewedAt: timestamp("reviewed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_captain_document_reviews_unique").on(
+      table.captainId,
+      table.documentType,
+    ),
+  ]
+);
 
 // =====================
 // Charters
@@ -267,6 +291,12 @@ export const insertCaptainPaymentInfoSchema = createInsertSchema(captainPaymentI
   updatedAt: true,
 });
 
+export const insertCaptainDocumentReviewSchema = createInsertSchema(captainDocumentReviews).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // =====================
 // Types
 // =====================
@@ -280,6 +310,7 @@ export type Availability = typeof availability.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type EmailVerificationToken = typeof emailVerificationTokens.$inferSelect;
 export type CaptainPaymentInfo = typeof captainPaymentInfo.$inferSelect;
+export type CaptainDocumentReview = typeof captainDocumentReviews.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type UpsertUser = typeof users.$inferInsert;
@@ -292,6 +323,7 @@ export type InsertAvailability = z.infer<typeof insertAvailabilitySchema>;
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 export type InsertEmailVerificationToken = z.infer<typeof insertEmailVerificationTokenSchema>;
 export type InsertCaptainPaymentInfo = z.infer<typeof insertCaptainPaymentInfoSchema>;
+export type InsertCaptainDocumentReview = z.infer<typeof insertCaptainDocumentReviewSchema>;
 
 // Extended types for API responses
 export type CharterWithCaptain = Charter & {

@@ -8,6 +8,20 @@
       "when": 1757097299915,
       "tag": "0000_sweet_exodus",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1757097299916,
+      "tag": "0001_add_captain_name",
+      "breakpoints": false
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1757097299917,
+      "tag": "0002_add_captain_document_reviews",
+      "breakpoints": false
     }
   ]
 }

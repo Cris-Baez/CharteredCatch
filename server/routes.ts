@@ -16,6 +16,7 @@ import { randomBytes } from "crypto";
 import {
   users as usersTable,
   captains as captainsTable,
+  captainDocumentReviews as captainDocumentReviewsTable,
   charters as chartersTable,
   bookings as bookingsTable,
   availability as availabilityTable,
@@ -30,6 +31,7 @@ import {
   insertEmailVerificationTokenSchema,
   insertSubscriptionSchema,
   type CaptainPaymentInfo,
+  type CaptainDocumentReview,
   type EmailVerificationToken,
   type Subscription,
 } from "@shared/schema";
@@ -38,7 +40,6 @@ import { and, eq, ilike, inArray, gte, lt, or, isNotNull, desc, sql } from "driz
 import { sendEmailVerification, sendWelcomeEmail, generateVerificationToken , sendEmail  , } from "./emailService";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { handleStripeWebhook } from "./stripe-webhooks";
-import * as schema from "../shared/schema";
 
 /**
  * SessionData: solo guardamos userId para evitar conflictos de tipos
@@ -147,6 +148,36 @@ function serializeBooking(row: any) {
     totalPrice: Number(row.totalPrice),
     charter: row.charter ? serializeCharter(row.charter) : row.charter
   };
+}
+
+const CAPTAIN_DOCUMENT_TYPES = [
+  "licenseDocument",
+  "boatDocumentation",
+  "insuranceDocument",
+  "identificationPhoto",
+  "localPermit",
+  "cprCertification",
+  "drugTestingResults",
+] as const;
+
+type CaptainDocumentType = typeof CAPTAIN_DOCUMENT_TYPES[number];
+
+const CAPTAIN_DOCUMENT_STATUSES = ["pending", "approved", "rejected"] as const;
+
+type CaptainDocumentStatus = typeof CAPTAIN_DOCUMENT_STATUSES[number];
+
+function isCaptainDocumentType(value: unknown): value is CaptainDocumentType {
+  return (
+    typeof value === "string" &&
+    CAPTAIN_DOCUMENT_TYPES.includes(value as CaptainDocumentType)
+  );
+}
+
+function isCaptainDocumentStatus(value: unknown): value is CaptainDocumentStatus {
+  return (
+    typeof value === "string" &&
+    CAPTAIN_DOCUMENT_STATUSES.includes(value as CaptainDocumentStatus)
+  );
 }
 
 // ==============================
@@ -1878,7 +1909,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Captain profile not found" });
       }
 
-      return res.json(captain);
+      const documentReviews = await db
+        .select()
+        .from(captainDocumentReviewsTable)
+        .where(eq(captainDocumentReviewsTable.captainId, captain.id));
+
+      return res.json({
+        ...captain,
+        documentReviews,
+      });
     } catch (error) {
       console.error("Get captain me error:", error);
       return res.status(500).json({ error: "Failed to fetch captain profile" });
@@ -1901,21 +1940,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Captain profile not found" });
       }
 
-      const { 
-        bio, 
-        licenseNumber, 
-        location, 
+      const attemptedDocumentFields = CAPTAIN_DOCUMENT_TYPES.filter((field) =>
+        field in (req.body ?? {})
+      );
+
+      if (attemptedDocumentFields.length > 0) {
+        return res.status(400).json({
+          error: "Document updates must be performed via the document upload endpoint",
+          fields: attemptedDocumentFields,
+        });
+      }
+
+      const {
+        bio,
+        licenseNumber,
+        location,
         experience,
         name,
         avatar,
-        // Document fields
-        licenseDocument,
-        boatDocumentation,
-        insuranceDocument,
-        identificationPhoto,
-        localPermit,
-        cprCertification,
-        drugTestingResults
       } = req.body ?? {};
 
       // Build update object with only provided fields
@@ -1928,15 +1970,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (typeof name === "string") updateData.name = name;
       if (typeof avatar === "string") updateData.avatar = avatar;
       
-      // Handle document uploads
-      if (typeof licenseDocument === "string") updateData.licenseDocument = licenseDocument;
-      if (typeof boatDocumentation === "string") updateData.boatDocumentation = boatDocumentation;
-      if (typeof insuranceDocument === "string") updateData.insuranceDocument = insuranceDocument;
-      if (typeof identificationPhoto === "string") updateData.identificationPhoto = identificationPhoto;
-      if (typeof localPermit === "string") updateData.localPermit = localPermit;
-      if (typeof cprCertification === "string") updateData.cprCertification = cprCertification;
-      if (typeof drugTestingResults === "string") updateData.drugTestingResults = drugTestingResults;
-
       const [updated] = await db
         .update(captainsTable)
         .set(updateData)
@@ -3454,7 +3487,34 @@ Looking forward to an amazing day on the water! 🛥️`;
         .leftJoin(usersTable, eq(captainsTable.userId, usersTable.id))
         .orderBy(captainsTable.id);
 
-      res.json(captainsWithUsers);
+      const captainIds = captainsWithUsers
+        .map((captain) => captain.id)
+        .filter((id): id is number => typeof id === "number");
+
+      const documentReviewsByCaptain = new Map<number, CaptainDocumentReview[]>();
+
+      if (captainIds.length > 0) {
+        const documentReviews = await db
+          .select()
+          .from(captainDocumentReviewsTable)
+          .where(inArray(captainDocumentReviewsTable.captainId, captainIds));
+
+        for (const review of documentReviews) {
+          const reviewsForCaptain = documentReviewsByCaptain.get(review.captainId) ?? [];
+          reviewsForCaptain.push(review);
+          documentReviewsByCaptain.set(review.captainId, reviewsForCaptain);
+        }
+      }
+
+      const response = captainsWithUsers.map((captain) => ({
+        ...captain,
+        documentReviews:
+          typeof captain.id === "number"
+            ? documentReviewsByCaptain.get(captain.id) ?? []
+            : [],
+      }));
+
+      res.json(response);
     } catch (error) {
       console.error("Admin get captains error:", error);
       res.status(500).json({ error: "Failed to get captains" });
@@ -3500,6 +3560,82 @@ Looking forward to an amazing day on the water! 🛥️`;
       res.status(500).json({ error: "Failed to update captain" });
     }
   });
+
+  // ADMIN: Update document review status for a captain
+  app.patch(
+    "/api/admin/captains/:id/documents/:documentType",
+    async (req: Request, res: Response) => {
+      try {
+        if (!req.session.userId) {
+          return res.status(401).json({ error: "Unauthorized" });
+        }
+
+        const admin = await isAdmin(req.session.userId);
+        if (!admin) {
+          return res.status(403).json({ error: "Admin access required" });
+        }
+
+        const captainId = Number(req.params.id);
+        const { documentType } = req.params;
+        const { status } = req.body ?? {};
+
+        if (!Number.isFinite(captainId)) {
+          return res.status(400).json({ error: "Invalid captain ID" });
+        }
+
+        if (!isCaptainDocumentType(documentType)) {
+          return res.status(400).json({ error: "Invalid document type" });
+        }
+
+        if (!isCaptainDocumentStatus(status)) {
+          return res.status(400).json({ error: "Invalid review status" });
+        }
+
+        const typedDocumentType = documentType as CaptainDocumentType;
+        const typedStatus = status as CaptainDocumentStatus;
+
+        const [captain] = await db
+          .select({ id: captainsTable.id })
+          .from(captainsTable)
+          .where(eq(captainsTable.id, captainId));
+
+        if (!captain) {
+          return res.status(404).json({ error: "Captain not found" });
+        }
+
+        const now = new Date();
+        const reviewer = typedStatus === "pending" ? null : req.session.userId;
+
+        const [review] = await db
+          .insert(captainDocumentReviewsTable)
+          .values({
+            captainId: captain.id,
+            documentType: typedDocumentType,
+            status: typedStatus,
+            reviewedBy: reviewer,
+            reviewedAt: reviewer ? now : null,
+          })
+          .onConflictDoUpdate({
+            target: [
+              captainDocumentReviewsTable.captainId,
+              captainDocumentReviewsTable.documentType,
+            ],
+            set: {
+              status: typedStatus,
+              reviewedBy: reviewer,
+              reviewedAt: reviewer ? now : null,
+              updatedAt: now,
+            },
+          })
+          .returning();
+
+        res.json({ review });
+      } catch (error) {
+        console.error("Admin document review update error:", error);
+        res.status(500).json({ error: "Failed to update document review" });
+      }
+    }
+  );
 
   // ADMIN: Get all charters
   app.get("/api/admin/charters", async (req: Request, res: Response) => {
@@ -3935,189 +4071,150 @@ Looking forward to an amazing day on the water! 🛥️`;
         return res.status(401).json({ error: "Unauthorized" });
       }
 
-      const { documentType, documentURL } = req.body;
+      const sessionUserId = req.session.userId as string;
 
-      if (!documentType || !documentURL) {
-        return res.status(400).json({ error: "Document type and URL are required" });
+      const { documentType } = req.body ?? {};
+      const rawObjectPath = (() => {
+        const body = req.body ?? {};
+        if (typeof body.objectPath === "string") return body.objectPath;
+        if (typeof body.documentPath === "string") return body.documentPath;
+        if (typeof body.documentURL === "string") return body.documentURL;
+        return undefined;
+      })();
+
+      if (!isCaptainDocumentType(documentType)) {
+        return res.status(400).json({ error: "Invalid or missing document type" });
       }
 
-      // Validate document type
-      const validDocumentTypes = [
-        "licenseDocument",
-        "boatDocumentation", 
-        "insuranceDocument",
-        "identificationPhoto",
-        "localPermit",
-        "cprCertification",
-        "drugTestingResults"
-      ];
-
-      if (!validDocumentTypes.includes(documentType)) {
-        return res.status(400).json({ error: "Invalid document type" });
+      if (typeof rawObjectPath !== "string" || rawObjectPath.trim().length === 0) {
+        return res.status(400).json({ error: "Document object identifier is required" });
       }
 
-      // Find captain record for the user
-      const [captain] = await db
-        .select()
-        .from(captainsTable)
-        .where(eq(captainsTable.userId, req.session.userId));
+      const typedDocumentType = documentType as CaptainDocumentType;
 
-      if (!captain) {
-        return res.status(404).json({ error: "Captain profile not found" });
-      }
-
-      // Normalize the object path
       const objectStorageService = new ObjectStorageService();
-      const normalizedPath = objectStorageService.normalizeObjectEntityPath(documentURL);
+      const normalizedPath = objectStorageService.normalizeObjectEntityPath(rawObjectPath);
 
-      // Update the captain's document field
-      const updateData: any = {};
-      updateData[documentType] = normalizedPath;
+      if (!normalizedPath.startsWith("/objects/")) {
+        return res.status(400).json({
+          error: "Document must reference an uploaded object path",
+        });
+      }
 
-      await db
-        .update(captainsTable)
-        .set(updateData)
-        .where(eq(captainsTable.id, captain.id));
+      let objectFile;
+      try {
+        objectFile = await objectStorageService.getObjectEntityFile(normalizedPath);
+      } catch (error) {
+        if (error instanceof ObjectNotFoundError) {
+          return res.status(404).json({ error: "Document not found in storage" });
+        }
+        throw error;
+      }
 
-      res.json({ 
+      const canAccess = await objectStorageService.canAccessObjectEntity({
+        userId: sessionUserId,
+        objectFile,
+      });
+
+      if (!canAccess) {
+        return res.status(403).json({ error: "You do not have access to this document" });
+      }
+
+      const user = await db.query.users.findFirst({
+        where: eq(usersTable.id, sessionUserId),
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const now = new Date();
+      const result = await db.transaction(async (tx) => {
+        const [existingCaptain] = await tx
+          .select()
+          .from(captainsTable)
+          .where(eq(captainsTable.userId, sessionUserId));
+
+        let targetCaptain = existingCaptain;
+
+        if (!targetCaptain) {
+          const displayName =
+            (user.firstName && user.lastName
+              ? `${user.firstName} ${user.lastName}`
+              : user.firstName || user.lastName)
+              ?.trim() || user.email || "Captain";
+
+          const [createdCaptain] = await tx
+            .insert(captainsTable)
+            .values({
+              userId: sessionUserId,
+              name: displayName,
+              bio: "",
+              experience: "",
+              licenseNumber: "",
+              location: "",
+              avatar: null,
+              verified: false,
+              onboardingCompleted: false,
+              licenseDocument: null,
+              boatDocumentation: null,
+              insuranceDocument: null,
+              identificationPhoto: null,
+              localPermit: null,
+              cprCertification: null,
+              drugTestingResults: null,
+            })
+            .returning();
+
+          targetCaptain = createdCaptain;
+        }
+
+        const [updatedCaptain] = await tx
+          .update(captainsTable)
+          .set({ [typedDocumentType]: normalizedPath })
+          .where(eq(captainsTable.id, targetCaptain.id))
+          .returning({ id: captainsTable.id });
+
+        const [reviewRecord] = await tx
+          .insert(captainDocumentReviewsTable)
+          .values({
+            captainId: updatedCaptain.id,
+            documentType: typedDocumentType,
+            status: "pending",
+            reviewedBy: null,
+            reviewedAt: null,
+          })
+          .onConflictDoUpdate({
+            target: [
+              captainDocumentReviewsTable.captainId,
+              captainDocumentReviewsTable.documentType,
+            ],
+            set: {
+              status: "pending",
+              reviewedBy: null,
+              reviewedAt: null,
+              updatedAt: now,
+            },
+          })
+          .returning();
+
+        return {
+          captainId: updatedCaptain.id,
+          review: reviewRecord,
+        };
+      });
+
+      res.json({
         message: "Document updated successfully",
-        documentType,
-        documentPath: normalizedPath
+        documentType: typedDocumentType,
+        documentPath: normalizedPath,
+        review: result.review,
       });
     } catch (error) {
       console.error("Error updating captain document:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   });
-
-  // ----------------------------------------------------
-  // Captain Onboarding Endpoints
-  // ----------------------------------------------------
-
-
-  // PATCH /api/captain/me → actualizar perfil del capitán
-  app.patch("/api/captain/me", async (req, res) => {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-
-    const user = await db.query.users.findFirst({
-      where: eq(schema.users.id, req.session.userId),
-    });
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    await db
-      .update(schema.captains)
-      .set(req.body)
-      .where(eq(schema.captains.userId, req.session.userId));
-
-    res.json({ success: true });
-  });
-
-  // PUT /api/captain/documents → subir documento (funciona durante onboarding)
-  app.put("/api/captain/documents", async (req, res) => {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-
-    const { documentType, documentURL } = req.body;
-    if (!documentType || !documentURL) {
-      return res.status(400).json({ error: "Missing parameters" });
-    }
-
-    try {
-      // Verificar si existe captain
-      const [existingCaptain] = await db
-        .select({ id: schema.captains.id })
-        .from(schema.captains)
-        .where(eq(schema.captains.userId, req.session.userId));
-
-      if (existingCaptain) {
-        // Captain existe → UPDATE
-        await db
-          .update(schema.captains)
-          .set({ [documentType]: documentURL })
-          .where(eq(schema.captains.userId, req.session.userId));
-      } else {
-        // Captain NO existe → INSERT (onboarding)
-        const user = await db.query.users.findFirst({
-          where: eq(schema.users.id, req.session.userId),
-        });
-        
-        if (!user) {
-          return res.status(404).json({ error: "User not found" });
-        }
-
-        await db.insert(schema.captains).values({
-          userId: req.session.userId,
-          name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email || "Captain",
-          bio: "",
-          experience: "",
-          licenseNumber: "",
-          location: "",
-          avatar: null,
-          verified: false,
-          rating: "0.0",
-          reviewCount: 0,
-          onboardingCompleted: false,
-          [documentType]: documentURL,
-          // Otros campos de documentos como null
-          licenseDocument: documentType === 'licenseDocument' ? documentURL : null,
-          boatDocumentation: documentType === 'boatDocumentation' ? documentURL : null,
-          insuranceDocument: documentType === 'insuranceDocument' ? documentURL : null,
-          identificationPhoto: documentType === 'identificationPhoto' ? documentURL : null,
-          localPermit: documentType === 'localPermit' ? documentURL : null,
-          cprCertification: documentType === 'cprCertification' ? documentURL : null,
-          drugTestingResults: documentType === 'drugTestingResults' ? documentURL : null,
-        });
-      }
-
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Document upload error:", error);
-      res.status(500).json({ error: "Failed to save document" });
-    }
-  });
-
-  // POST /api/email/send-verification → enviar email de verificación
-  app.post("/api/email/send-verification", async (req, res) => {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-
-    const user = await db.query.users.findFirst({
-      where: eq(schema.users.id, req.session.userId),
-    });
-
-    if (!user || !user.email) {
-      return res.status(404).json({ error: "User not found or missing email" });
-    }
-
-    const token = randomBytes(32).toString("hex");
-    const expires = new Date(Date.now() + 1000 * 60 * 60); // 1 hora
-
-    await db.insert(schema.emailVerificationTokens).values({
-      email: user.email,
-      token,
-      expiresAt: expires,
-    });
-
-    const link = `${process.env.APP_URL}/verify-email?token=${token}`;
-
-    // ✅ user.email comprobado antes → ya es string
-    await sendEmail({
-      to: user.email,
-      subject: "Verify your email",
-      html: `<p>Click here to verify your email: <a href="${link}">${link}</a></p>`,
-    });
-
-    return res.json({ success: true });
-  });
-
-
-
 
     // ==============================
     // HTTP SERVER
