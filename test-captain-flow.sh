@@ -91,17 +91,44 @@ if [ $? -ne 0 ]; then exit 1; fi
 echo "📋 PASO 5: CREAR PERFIL CAPTAIN"
 echo "==============================="
 captain_profile='{
-  "businessName": "Test Charter Co",
-  "description": "Professional test charter service",
+  "firstName": "Captain",
+  "lastName": "Test",
+  "bio": "Professional test charter service",
   "location": "Key West, FL",
-  "yearsExperience": 10,
-  "certifications": ["USCG Master", "CPR Certified"],
-  "insuranceNumber": "TEST123456",
+  "experience": "10 years guiding offshore trips",
   "licenseNumber": "FL123456"
 }'
 
-make_request "POST" "/api/captain/profile" "$captain_profile" "Creando perfil de captain"
+make_request "POST" "/api/captains/onboarding" "$captain_profile" "Creando perfil de captain"
 if [ $? -ne 0 ]; then exit 1; fi
+
+CAPTAIN_ID=$(cat /tmp/last_captain_response.json | jq -r '.id // empty')
+echo "   👤 Perfil de captain ID: $CAPTAIN_ID"
+
+echo "📋 PASO 5B: VALIDAR PERFIL ÚNICO"
+echo "================================"
+captain_profile_update='{
+  "location": "Miami, FL",
+  "experience": "Actualización automática de experiencia"
+}'
+
+make_request "POST" "/api/captains/onboarding" "$captain_profile_update" "Actualizando perfil existente"
+if [ $? -ne 0 ]; then exit 1; fi
+
+UPDATED_CAPTAIN_ID=$(cat /tmp/last_captain_response.json | jq -r '.id // empty')
+UPDATED_LOCATION=$(cat /tmp/last_captain_response.json | jq -r '.location // empty')
+
+if [ "$UPDATED_CAPTAIN_ID" != "$CAPTAIN_ID" ]; then
+    echo "   ❌ Se creó un segundo perfil de captain"
+    exit 1
+fi
+
+if [ "$UPDATED_LOCATION" != "Miami, FL" ]; then
+    echo "   ❌ No se actualizó la ubicación del perfil"
+    exit 1
+fi
+
+echo "   ✅ Perfil existente actualizado sin duplicados"
 
 echo "📋 PASO 6: VERIFICAR DOCUMENTOS REQUERIDOS"
 echo "=========================================="

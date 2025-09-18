@@ -8,6 +8,13 @@
       "when": 1757097299915,
       "tag": "0000_sweet_exodus",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1758235521735,
+      "tag": "0002_unique_captain_profile",
+      "breakpoints": true
     }
   ]
 }
