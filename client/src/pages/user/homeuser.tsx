@@ -338,39 +338,45 @@ export default function HomeUser() {
           />
 
           {mode === "search" && (
-            <div className="flex items-center gap-2 mt-3">
-              <Badge variant="secondary" className="text-gray-700">
-                {filters.location || "Anywhere"}
-              </Badge>
-              {filters.species && (
+            <div className="mt-3">
+              {/* Badges row */}
+              <div className="flex flex-wrap items-center gap-2 mb-3">
                 <Badge variant="secondary" className="text-gray-700">
-                  {filters.species}
+                  {filters.location || "Anywhere"}
                 </Badge>
-              )}
-              {filters.duration && (
-                <Badge variant="secondary" className="text-gray-700">
-                  {filters.duration}
-                </Badge>
-              )}
-
-              {/* Sorting (idéntico a Search Results) */}
-              <div className="ml-auto flex items-center gap-2">
-                <span className="text-sm text-storm-gray">Sort by:</span>
-                <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="h-8 w-44">
-                    <SelectValue placeholder="Sort by" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="rating">Highest Rated</SelectItem>
-                    <SelectItem value="reviews">Most Reviews</SelectItem>
-                    <SelectItem value="price-low">Price: Low to High</SelectItem>
-                    <SelectItem value="price-high">Price: High to Low</SelectItem>
-                  </SelectContent>
-                </Select>
+                {filters.species && (
+                  <Badge variant="secondary" className="text-gray-700">
+                    {filters.species}
+                  </Badge>
+                )}
+                {filters.duration && (
+                  <Badge variant="secondary" className="text-gray-700">
+                    {filters.duration}
+                  </Badge>
+                )}
+              </div>
+              
+              {/* Controls row - responsive */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-storm-gray whitespace-nowrap">Sort by:</span>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="h-8 w-40">
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="rating">Highest Rated</SelectItem>
+                      <SelectItem value="reviews">Most Reviews</SelectItem>
+                      <SelectItem value="price-low">Price: Low to High</SelectItem>
+                      <SelectItem value="price-high">Price: High to Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={() => setMode("home")}
+                  className="w-full sm:w-auto"
                 >
                   Back to Home
                 </Button>
