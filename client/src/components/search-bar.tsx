@@ -78,12 +78,19 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
         );
         const data = await res.json();
         setSuggestions(data.slice(0, 5));
-      } catch {
-        // ignore cancel/error
+      } catch (error) {
+        // Only log if it's not an abort error
+        if (error instanceof Error && error.name !== 'AbortError') {
+          console.error('Fetch error:', error);
+        }
       }
     };
     fetchSuggestions();
-    return () => controller.abort();
+    return () => {
+      if (!controller.signal.aborted) {
+        controller.abort();
+      }
+    };
   }, [locationValue]);
 
   // Close dropdown on click outside
