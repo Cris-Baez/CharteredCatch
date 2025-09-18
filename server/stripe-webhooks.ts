@@ -13,7 +13,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 
-export async function handleStripeWebhook(rawBody: string, signature: string) {
+export async function handleStripeWebhook(rawBody: Buffer | string, signature: string) {
   if (!WEBHOOK_SECRET) {
     throw new Error('STRIPE_WEBHOOK_SECRET not configured');
   }

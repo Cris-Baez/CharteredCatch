@@ -9,6 +9,7 @@ import {
   varchar,
   jsonb,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -50,52 +51,64 @@ export const users = pgTable("users", {
 // =====================
 // Captains
 // =====================
-export const captains = pgTable("captains", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").references(() => users.id).notNull(),
-  name: text("name").notNull(),
-  bio: text("bio").notNull(),
-  experience: text("experience").notNull(),
-  licenseNumber: text("license_number").notNull(),
-  location: text("location").notNull(),
-  avatar: text("avatar"),
-  verified: boolean("verified").default(false),
-  rating: decimal("rating", { precision: 3, scale: 2 }).default("0.00"),
-  reviewCount: integer("review_count").default(0),
-  // Onboarding fields
-  onboardingCompleted: boolean("onboarding_completed").default(false),
-  licenseDocument: text("license_document"), // Object storage URL
-  boatDocumentation: text("boat_documentation"), // Object storage URL
-  insuranceDocument: text("insurance_document"), // Object storage URL
-  identificationPhoto: text("identification_photo"), // Object storage URL
-  localPermit: text("local_permit"), // Object storage URL
-  cprCertification: text("cpr_certification"), // Object storage URL (optional)
-  drugTestingResults: text("drug_testing_results"), // Object storage URL (optional)
-  onboardingStartedAt: timestamp("onboarding_started_at"),
-  onboardingCompletedAt: timestamp("onboarding_completed_at"),
-});
+export const captains = pgTable(
+  "captains",
+  {
+    id: serial("id").primaryKey(),
+    userId: varchar("user_id").references(() => users.id).notNull(),
+    name: text("name").notNull(),
+    bio: text("bio").notNull(),
+    experience: text("experience").notNull(),
+    licenseNumber: text("license_number").notNull(),
+    location: text("location").notNull(),
+    avatar: text("avatar"),
+    verified: boolean("verified").default(false),
+    rating: decimal("rating", { precision: 3, scale: 2 }).default("0.00"),
+    reviewCount: integer("review_count").default(0),
+    // Onboarding fields
+    onboardingCompleted: boolean("onboarding_completed").default(false),
+    licenseDocument: text("license_document"), // Object storage URL
+    boatDocumentation: text("boat_documentation"), // Object storage URL
+    insuranceDocument: text("insurance_document"), // Object storage URL
+    identificationPhoto: text("identification_photo"), // Object storage URL
+    localPermit: text("local_permit"), // Object storage URL
+    cprCertification: text("cpr_certification"), // Object storage URL (optional)
+    drugTestingResults: text("drug_testing_results"), // Object storage URL (optional)
+    onboardingStartedAt: timestamp("onboarding_started_at"),
+    onboardingCompletedAt: timestamp("onboarding_completed_at"),
+  },
+  (table) => [uniqueIndex("captains_user_id_unique").on(table.userId)]
+);
 
 // =====================
 // Charters
 // =====================
-export const charters = pgTable("charters", {
-  id: serial("id").primaryKey(),
-  captainId: integer("captain_id").references(() => captains.id).notNull(),
-  title: text("title").notNull(),
-  description: text("description").notNull(),
-  location: text("location").notNull(),
-  lat: decimal("lat", { precision: 10, scale: 7 }),
-  lng: decimal("lng", { precision: 10, scale: 7 }),
-  targetSpecies: text("target_species").notNull(),
-  duration: text("duration").notNull(),
-  maxGuests: integer("max_guests").notNull(),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  boatSpecs: text("boat_specs"),
-  included: text("included"),
-  images: text("images").array(),
-  available: boolean("available").default(true),
-  isListed: boolean("is_listed").default(true),
-});
+export const charters = pgTable(
+  "charters",
+  {
+    id: serial("id").primaryKey(),
+    captainId: integer("captain_id").references(() => captains.id).notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    location: text("location").notNull(),
+    lat: decimal("lat", { precision: 10, scale: 7 }),
+    lng: decimal("lng", { precision: 10, scale: 7 }),
+    targetSpecies: text("target_species").notNull(),
+    duration: text("duration").notNull(),
+    maxGuests: integer("max_guests").notNull(),
+    price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+    boatSpecs: text("boat_specs"),
+    included: text("included"),
+    images: text("images").array(),
+    available: boolean("available").default(true),
+    isListed: boolean("is_listed").default(true),
+  },
+  (table) => [
+    index("idx_charters_location").on(table.location),
+    index("idx_charters_target_species").on(table.targetSpecies),
+    index("idx_charters_is_listed").on(table.isListed),
+  ]
+);
 
 // =====================
 // Bookings

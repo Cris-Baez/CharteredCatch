@@ -2,6 +2,7 @@
 import type { Express, Request, Response } from "express";
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer, type Server } from "http";
 import bcrypt from "bcrypt";
 import session from "express-session";
@@ -11,7 +12,7 @@ import Stripe from "stripe"; // Stripe integration for subscriptions
 import multer from "multer";
 import { db } from "./db";
 import { storage } from "./storage";
-import { randomBytes } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
 
 import {
   users as usersTable,
@@ -44,7 +45,40 @@ import {
   PENDING_SUBSCRIPTION_GRACE_PERIOD_MS,
   isActiveSubscriptionStatus,
 } from "./subscriptionUtils";
+
+import {
+  makeCancelCaptainSubscriptionHandler,
+  makeCreateCaptainSubscriptionHandler,
+  makeGetCaptainSubscriptionHandler,
+} from "./stripe-subscription-handlers";
 import * as schema from "../shared/schema";
+
+export const stripeWebhookRouter = express.Router();
+
+stripeWebhookRouter.post(
+  "/api/stripe/webhook",
+  express.raw({ type: "application/json" }),
+  async (req: Request, res: Response) => {
+    const signature = req.headers["stripe-signature"];
+
+    if (typeof signature !== "string") {
+      res.status(400).send("Missing Stripe signature");
+      return;
+    }
+
+    const rawBody = Buffer.isBuffer(req.body)
+      ? req.body
+      : Buffer.from(req.body ?? "");
+
+    try {
+      await handleStripeWebhook(rawBody, signature);
+      res.status(200).send("OK");
+    } catch (error) {
+      console.error("Webhook error:", error);
+      res.status(400).send("Webhook error");
+    }
+  }
+);
 
 /**
  * SessionData: solo guardamos userId para evitar conflictos de tipos
@@ -58,15 +92,144 @@ declare module "express-session" {
 
 const PgStore = connectPg(session);
 
+const fsPromises = fs.promises;
+const ATTACHED_ASSETS_DIR = path.resolve(process.cwd(), "attached_assets");
+const SECURE_UPLOADS_DIR = path.resolve(process.cwd(), "private_uploads");
+const SECURE_UPLOAD_ROUTE = "/secure_uploads" as const;
+const UNSUPPORTED_IMAGE_TYPE_MESSAGE = "Only JPEG, PNG, or GIF images are allowed.";
+const SAFE_IMAGE_MIME_TYPES = new Map<string, string>([
+  ["image/jpeg", ".jpg"],
+  ["image/pjpeg", ".jpg"],
+  ["image/jpg", ".jpg"],
+  ["image/png", ".png"],
+  ["image/x-png", ".png"],
+  ["image/gif", ".gif"],
+]);
+const SAFE_IMAGE_CONTENT_TYPES = new Map<string, string>([
+  [".jpg", "image/jpeg"],
+  [".jpeg", "image/jpeg"],
+  [".png", "image/png"],
+  [".gif", "image/gif"],
+]);
+const SAFE_IMAGE_EXTENSIONS = new Set(SAFE_IMAGE_CONTENT_TYPES.keys());
+const IMAGE_SECURITY_HEADERS = {
+  "Content-Security-Policy": "default-src 'none'; img-src 'self'; style-src 'none'; script-src 'none'",
+  "X-Content-Type-Options": "nosniff",
+  "Cross-Origin-Resource-Policy": "same-origin",
+} as const;
+
+try {
+  fs.mkdirSync(SECURE_UPLOADS_DIR, { recursive: true });
+} catch (error) {
+  console.error("Failed to ensure upload directory exists", error);
+}
+
+function getValidatedImageExtension(file: Express.Multer.File): string | null {
+  const mimeType = (file.mimetype || "").toLowerCase();
+  const extFromMime = SAFE_IMAGE_MIME_TYPES.get(mimeType);
+  if (!extFromMime) {
+    return null;
+  }
+
+  const originalExt = (file.originalname ? path.extname(file.originalname) : "").toLowerCase();
+  if (originalExt) {
+    if (!SAFE_IMAGE_EXTENSIONS.has(originalExt)) {
+      return null;
+    }
+
+    if (originalExt === ".jpeg" || originalExt === ".jpg") {
+      return extFromMime === ".jpg" ? ".jpg" : null;
+    }
+
+    if (originalExt !== extFromMime) {
+      return null;
+    }
+  }
+
+  return extFromMime;
+}
+
+function resolveSafeAssetPath(baseDir: string, rawPath: string | undefined): string | null {
+  if (!rawPath) return null;
+
+  const sanitized = rawPath.replace(/\\/g, "/");
+  if (sanitized.includes("\0")) {
+    return null;
+  }
+
+  const normalized = path.posix.normalize(sanitized);
+  if (!normalized || normalized === "." || normalized.startsWith("..")) {
+    return null;
+  }
+
+  const absolutePath = path.resolve(baseDir, normalized);
+  const relativePath = path.relative(baseDir, absolutePath);
+
+  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    return null;
+  }
+
+  return absolutePath;
+}
+
+async function sendSafeImage(
+  res: Response,
+  absolutePath: string,
+  {
+    cacheControl,
+    logLabel,
+  }: {
+    cacheControl: string;
+    logLabel: string;
+  }
+): Promise<void> {
+  const extension = path.extname(absolutePath).toLowerCase();
+  if (!SAFE_IMAGE_EXTENSIONS.has(extension)) {
+    res.status(403).json({ error: "Unsupported asset type" });
+    return;
+  }
+
+  const contentType = SAFE_IMAGE_CONTENT_TYPES.get(extension);
+
+  if (!contentType) {
+    res.status(403).json({ error: "Unsupported asset type" });
+    return;
+  }
+
+  try {
+    const stats = await fsPromises.stat(absolutePath);
+    res.set({
+      ...IMAGE_SECURITY_HEADERS,
+      "Cache-Control": cacheControl,
+      "Content-Type": contentType,
+      "Content-Length": stats.size.toString(),
+      "Content-Disposition": "inline",
+    });
+    res.sendFile(absolutePath);
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err?.code === "ENOENT") {
+      res.status(404).json({ error: "Asset not found" });
+      return;
+    }
+    console.error(`Failed to serve ${logLabel}:`, error);
+    res.status(500).json({ error: "Failed to serve asset" });
+  }
+}
+
 // Configure multer for file uploads
 const uploadStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(process.cwd(), "attached_assets"));
+  destination: (_req, _file, cb) => {
+    cb(null, SECURE_UPLOADS_DIR);
   },
-  filename: (req, file, cb) => {
-    // Generate unique filename with timestamp and original extension
-    const uniqueName = `payment_proof_${Date.now()}_${Math.random().toString(36).slice(2, 9)}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
+  filename: (_req, file, cb) => {
+    const normalizedExtension = getValidatedImageExtension(file);
+    if (!normalizedExtension) {
+      cb(new Error(UNSUPPORTED_IMAGE_TYPE_MESSAGE), "");
+      return;
+    }
+
+    cb(null, `${randomUUID()}${normalizedExtension}`);
   }
 });
 
@@ -77,9 +240,8 @@ const upload = multer({
     fileSize: 100 * 1024 * 1024, // 100MB max file size
   },
   fileFilter: (req, file, cb) => {
-    // Only allow image files
-    if (!file.mimetype.startsWith("image/")) {
-      cb(new Error("Only image files are allowed"));
+    if (!getValidatedImageExtension(file)) {
+      cb(new Error(UNSUPPORTED_IMAGE_TYPE_MESSAGE));
       return;
     }
     cb(null, true);
@@ -161,10 +323,29 @@ function serializeBooking(row: any) {
 export async function registerRoutes(app: Express): Promise<Server> {
   // JSON y estáticos (límite configurado en index.ts)
   // app.use(express.json()); // Ya configurado en index.ts con 50MB limit
-  app.use(
-    "/attached_assets",
-    express.static(path.join(process.cwd(), "attached_assets"))
-  );
+  app.get("/attached_assets/:assetPath(*)", async (req: Request, res: Response) => {
+    const absolutePath = resolveSafeAssetPath(ATTACHED_ASSETS_DIR, req.params.assetPath);
+    if (!absolutePath) {
+      return res.status(404).json({ error: "Asset not found" });
+    }
+
+    await sendSafeImage(res, absolutePath, {
+      cacheControl: "public, max-age=3600, immutable",
+      logLabel: "attached asset",
+    });
+  });
+
+  app.get(`${SECURE_UPLOAD_ROUTE}/:assetPath(*)`, async (req: Request, res: Response) => {
+    const absolutePath = resolveSafeAssetPath(SECURE_UPLOADS_DIR, req.params.assetPath);
+    if (!absolutePath) {
+      return res.status(404).json({ error: "Asset not found" });
+    }
+
+    await sendSafeImage(res, absolutePath, {
+      cacheControl: "private, no-store",
+      logLabel: "uploaded asset",
+    });
+  });
 
   // ✅ CORS con credenciales (debe ir ANTES de session)
   const getAllowedOrigins = () => {
@@ -2044,17 +2225,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!req.session.userId) {
           return res.status(401).json({ error: "Unauthorized" });
         }
-        const { bio, licenseNumber, location, experience } = req.body ?? {};
+
+        const { bio, licenseNumber, location, experience, firstName, lastName } =
+          req.body ?? {};
+
+        const computedName = `${firstName ?? ""} ${lastName ?? ""}`.trim();
+        const updateData: Partial<typeof captainsTable.$inferInsert> = {};
+
+        if (typeof bio === "string") {
+          updateData.bio = bio;
+        }
+        if (typeof licenseNumber === "string") {
+          updateData.licenseNumber = licenseNumber;
+        }
+        if (typeof location === "string") {
+          updateData.location = location;
+        }
+        if (typeof experience === "string") {
+          updateData.experience = experience;
+        }
+        if (computedName) {
+          updateData.name = computedName;
+        }
+
+        const [existingCaptain] = await db
+          .select({ id: captainsTable.id })
+          .from(captainsTable)
+          .where(eq(captainsTable.userId, req.session.userId));
+
+        if (existingCaptain) {
+          if (Object.keys(updateData).length === 0) {
+            const [current] = await db
+              .select()
+              .from(captainsTable)
+              .where(eq(captainsTable.id, existingCaptain.id));
+            return res.status(200).json(current);
+          }
+
+          const [updated] = await db
+            .update(captainsTable)
+            .set(updateData)
+            .where(eq(captainsTable.userId, req.session.userId))
+            .returning();
+          return res.status(200).json(updated);
+        }
 
         const [created] = await db
           .insert(captainsTable)
           .values({
             userId: req.session.userId,
-            name: `${req.body.firstName || 'Captain'} ${req.body.lastName || ''}`.trim(),
-            bio: bio || '',
-            licenseNumber: licenseNumber || '',
-            location: location || '',
-            experience: experience || '',
+            name: computedName || "Captain",
+            bio: typeof bio === "string" ? bio : "",
+            licenseNumber: typeof licenseNumber === "string" ? licenseNumber : "",
+            location: typeof location === "string" ? location : "",
+            experience: typeof experience === "string" ? experience : "",
             verified: false,
           })
           .returning();
@@ -2086,6 +2310,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Crea una reserva (usa el usuario en sesión)
     app.post("/api/bookings", async (req: Request, res: Response) => {
+      const SLOTS_PER_BOOKING = 1;
+      const AVAILABILITY_NOT_FOUND = "AVAILABILITY_NOT_FOUND";
+      const AVAILABILITY_UPDATE_FAILED = "AVAILABILITY_UPDATE_FAILED";
+
       try {
         if (!req.session.userId) {
           return res.status(401).json({ message: "Unauthorized" });
@@ -2154,21 +2382,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Future enhancement: add guest-based pricing, date-based pricing, etc.
         const totalPrice = charterPriceDecimal;
 
-        const [created] = await db
-          .insert(bookingsTable)
-          .values({
-            userId: req.session.userId,
-            charterId: charterId,
-            tripDate: new Date(tripDate),
-            guests: Number(guests),
-            totalPrice: totalPrice.toString(),
-            status: "pending",
-            message: message ?? null,
-          })
-          .returning();
+        const tripDateValue =
+          tripDate instanceof Date ? tripDate : new Date(tripDate);
+
+        if (Number.isNaN(tripDateValue.getTime())) {
+          return res.status(400).json({ message: "Invalid trip date" });
+        }
+
+        const created = await db.transaction(async (tx) => {
+          const available = await storage.checkAvailability(
+            charterId,
+            tripDateValue,
+            SLOTS_PER_BOOKING,
+            tx,
+          );
+
+          if (!available) {
+            throw new Error(AVAILABILITY_NOT_FOUND);
+          }
+
+          const [insertedBooking] = await tx
+            .insert(bookingsTable)
+            .values({
+              userId: req.session.userId!,
+              charterId: charterId,
+              tripDate: tripDateValue,
+              guests: Number(guests),
+              totalPrice: totalPrice.toString(),
+              status: "pending",
+              message: message ?? null,
+            })
+            .returning();
+
+          const updated = await storage.updateAvailabilitySlots(
+            charterId,
+            tripDateValue,
+            SLOTS_PER_BOOKING,
+            tx,
+          );
+
+          if (!updated) {
+            throw new Error(AVAILABILITY_UPDATE_FAILED);
+          }
+
+          return insertedBooking;
+        });
 
         return res.status(201).json(serializeBooking(created));
       } catch (error) {
+        if (error instanceof Error) {
+          if (error.message === AVAILABILITY_NOT_FOUND) {
+            return res.status(409).json({ message: "Selected date is no longer available" });
+          }
+          if (error.message === AVAILABILITY_UPDATE_FAILED) {
+            return res.status(409).json({ message: "Unable to reserve the selected slot" });
+          }
+        }
         console.error("Create booking error:", error);
         return res.status(500).json({ message: "Failed to create booking" });
       }
@@ -2477,203 +2746,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // STRIPE SUBSCRIPTION ENDPOINTS  
   // ==============================
 
-  // Create subscription for captain
-  app.post("/api/captain/subscribe", async (req: Request, res: Response) => {
-    try {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: "Unauthorized" });
-      }
-      
-      if (!process.env.STRIPE_SECRET_KEY) {
-        return res.status(503).json({ error: 'Stripe not configured' });
-      }
-      
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-        apiVersion: "2025-08-27.basil",
-      });
-      
-      const [user] = await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.id, req.session.userId));
+  const stripeFactory = () =>
+    new Stripe(process.env.STRIPE_SECRET_KEY!, {
+      apiVersion: "2025-08-27.basil",
+    });
 
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
+  app.post(
+    "/api/captain/subscribe",
+    makeCreateCaptainSubscriptionHandler({
+      db,
+      stripeFactory,
+    }),
+  );
 
-      // Check if user already has an active subscription
-      if (user.stripeSubscriptionId) {
-        const { data: subscription } = await stripe.subscriptions.retrieve(user.stripeSubscriptionId) as any;
-        
-        if (subscription.status === 'active' || subscription.status === 'trialing') {
-          return res.json({
-            subscription: {
-              id: subscription.id,
-              status: subscription.status,
-              current_period_end: subscription.current_period_end,
-            }
-          });
-        }
-      }
+  app.get(
+    "/api/captain/subscription",
+    makeGetCaptainSubscriptionHandler({
+      db,
+      stripeFactory,
+    }),
+  );
 
-      // Create or get Stripe customer
-      let customer;
-      if (user.stripeCustomerId) {
-        customer = await stripe.customers.retrieve(user.stripeCustomerId);
-      } else {
-        customer = await stripe.customers.create({
-          email: user.email || "",
-          name: [user.firstName, user.lastName].filter(Boolean).join(" ") || undefined,
-        });
-
-        // Update user with customer ID
-        await db
-          .update(usersTable)
-          .set({ stripeCustomerId: customer.id })
-          .where(eq(usersTable.id, user.id));
-      }
-
-      // Create subscription with 1-month trial
-      const subscription = await stripe.subscriptions.create({
-        customer: customer.id,
-        items: [{
-          price_data: {
-            currency: 'usd',
-            unit_amount: 4900,
-            recurring: {
-              interval: 'month',
-            },
-            product_data: {
-              name: 'Captain Subscription',
-              description: 'Professional charter captain subscription with full platform access',
-            },
-          } as any,
-        }],
-        trial_period_days: 30,
-      });
-
-      // Update user with subscription ID
-      await db
-        .update(usersTable)
-        .set({ stripeSubscriptionId: subscription.id })
-        .where(eq(usersTable.id, user.id));
-
-      res.json({
-        subscriptionId: subscription.id,
-        clientSecret: null, // No payment intent needed for trial
-        status: subscription.status,
-        trial_end: subscription.trial_end,
-      });
-
-    } catch (error: any) {
-      console.error("Subscription creation error:", error);
-      res.status(500).json({ error: "Failed to create subscription: " + error.message });
-    }
-  });
-
-  // Get subscription status
-  app.get("/api/captain/subscription", async (req: Request, res: Response) => {
-    try {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: "Unauthorized" });
-      }
-      
-      if (!process.env.STRIPE_SECRET_KEY) {
-        return res.status(503).json({ error: 'Stripe not configured' });
-      }
-      
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-        apiVersion: "2025-08-27.basil",
-      });
-
-      const [user] = await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.id, req.session.userId));
-
-      if (!user || !user.stripeSubscriptionId) {
-        return res.json({ subscription: null });
-      }
-
-      const { data: subscription } = await stripe.subscriptions.retrieve(user.stripeSubscriptionId) as any;
-
-      res.json({
-        subscription: {
-          id: subscription.id,
-          status: subscription.status,
-          current_period_end: subscription.current_period_end,
-          trial_end: subscription.trial_end,
-          cancel_at_period_end: subscription.cancel_at_period_end,
-        }
-      });
-
-    } catch (error: any) {
-      console.error("Get subscription error:", error);
-      res.status(500).json({ error: "Failed to get subscription" });
-    }
-  });
-
-  // Cancel subscription
-  app.post("/api/captain/subscription/cancel", async (req: Request, res: Response) => {
-    try {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: "Unauthorized" });
-      }
-      
-      // Verificar si es un capitán
-      const captain = await db.select().from(captainsTable).where(eq(captainsTable.userId, req.session.userId)).execute();
-      if (!captain.length) {
-        return res.status(403).json({ error: 'Only captains can cancel subscription' });
-      }
-
-      if (!process.env.STRIPE_SECRET_KEY) {
-        return res.status(503).json({ error: 'Stripe not configured' });
-      }
-      
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-        apiVersion: "2025-08-27.basil",
-      });
-
-      const [user] = await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.id, req.session.userId));
-
-      if (!user || !user.stripeSubscriptionId) {
-        return res.status(404).json({ error: "No subscription found" });
-      }
-
-      const { data: subscription } = await stripe.subscriptions.update(user.stripeSubscriptionId, {
-        cancel_at_period_end: true,
-      }) as any;
-
-      res.json({
-        subscription: {
-          id: subscription.id,
-          status: subscription.status,
-          cancel_at_period_end: subscription.cancel_at_period_end,
-          current_period_end: subscription.current_period_end,
-        }
-      });
-
-    } catch (error: any) {
-      console.error("Cancel subscription error:", error);
-      res.status(500).json({ error: "Failed to cancel subscription" });
-    }
-  });
-
-  // ============ Stripe Webhooks ============
-  app.post('/api/stripe/webhook', express.raw({type: 'application/json'}), async (req: Request, res: Response) => {
-    const signature = req.headers['stripe-signature'] as string;
-    
-    try {
-      await handleStripeWebhook(req.body, signature);
-      res.status(200).send('OK');
-    } catch (error) {
-      console.error('Webhook error:', error);
-      res.status(400).send('Webhook error');
-    }
-  });
+  app.post(
+    "/api/captain/subscription/cancel",
+    makeCancelCaptainSubscriptionHandler({
+      db,
+      stripeFactory,
+    }),
+  );
 
   // CAPTAIN: Crear Stripe Checkout Session (Opción A - Redirección a página segura de Stripe)
   app.post("/api/captain/create-checkout-session", async (req, res) => {
@@ -3399,8 +3499,8 @@ Looking forward to an amazing day on the water! 🛥️`;
         return res.status(400).json({ error: `Upload error: ${err.message}` });
       } else if (err) {
         // Handle custom validation errors (like file type)
-        if (err.message === "Only image files are allowed") {
-          return res.status(400).json({ error: "Only image files (JPG, PNG, GIF, etc.) are allowed." });
+        if (err.message === UNSUPPORTED_IMAGE_TYPE_MESSAGE) {
+          return res.status(400).json({ error: UNSUPPORTED_IMAGE_TYPE_MESSAGE });
         }
         return res.status(400).json({ error: err.message });
       }
@@ -3445,7 +3545,7 @@ Looking forward to an amazing day on the water! 🛥️`;
       const paymentMethod = req.body.paymentMethod || "unknown";
       
       // Use the uploaded file path
-      const paymentProofUrl = `/attached_assets/${req.file.filename}`;
+      const paymentProofUrl = `${SECURE_UPLOAD_ROUTE}/${req.file.filename}`;
 
       // Update booking with payment proof
       const [updatedBooking] = await db
@@ -3890,8 +3990,8 @@ Looking forward to an amazing day on the water! 🛥️`;
         return res.status(400).json({ error: `Upload error: ${err.message}` });
       } else if (err) {
         // Handle custom validation errors (like file type)
-        if (err.message === "Only image files are allowed") {
-          return res.status(400).json({ error: "Only image files (JPG, PNG, GIF, etc.) are allowed." });
+        if (err.message === UNSUPPORTED_IMAGE_TYPE_MESSAGE) {
+          return res.status(400).json({ error: UNSUPPORTED_IMAGE_TYPE_MESSAGE });
         }
         return res.status(400).json({ error: err.message });
       }
@@ -3911,7 +4011,7 @@ Looking forward to an amazing day on the water! 🛥️`;
       }
 
       // Use the uploaded file path
-      const profileImageUrl = `/attached_assets/${req.file.filename}`;
+      const profileImageUrl = `${SECURE_UPLOAD_ROUTE}/${req.file.filename}`;
 
       // Update user with new profile image
       const [updatedUser] = await db
@@ -4001,6 +4101,15 @@ Looking forward to an amazing day on the water! 🛥️`;
   });
 
   // Update document after upload for captain onboarding
+  const isUniqueConstraintError = (error: unknown): error is { code: string } => {
+    return (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: string }).code === "23505"
+    );
+  };
+
   app.put("/api/captain/documents", async (req: Request, res: Response) => {
     try {
       if (!req.session.userId) {
@@ -4016,7 +4125,7 @@ Looking forward to an amazing day on the water! 🛥️`;
       // Validate document type
       const validDocumentTypes = [
         "licenseDocument",
-        "boatDocumentation", 
+        "boatDocumentation",
         "insuranceDocument",
         "identificationPhoto",
         "localPermit",
@@ -4040,25 +4149,45 @@ Looking forward to an amazing day on the water! 🛥️`;
 
       // Normalize the object path
       const objectStorageService = new ObjectStorageService();
-      const normalizedPath = objectStorageService.normalizeObjectEntityPath(documentURL);
+      let normalizedPath: string;
+      try {
+        normalizedPath = objectStorageService.normalizeObjectEntityPath(documentURL);
+      } catch (error) {
+        console.error("Failed to normalize document path:", error);
+        return res.status(422).json({
+          error: "DocumentMissing",
+          message: "We couldn't find that document. Please upload it again.",
+        });
+      }
 
       // Update the captain's document field
       const updateData: any = {};
       updateData[documentType] = normalizedPath;
 
-      await db
-        .update(captainsTable)
-        .set(updateData)
-        .where(eq(captainsTable.id, captain.id));
+      try {
+        await db
+          .update(captainsTable)
+          .set(updateData)
+          .where(eq(captainsTable.id, captain.id));
+      } catch (error) {
+        console.error("Database error updating captain document:", error);
+        if (isUniqueConstraintError(error)) {
+          return res.status(409).json({
+            error: "DocumentDuplicate",
+            message: "This document was already uploaded.",
+          });
+        }
+        return res.status(500).json({ error: "Failed to update captain document" });
+      }
 
-      res.json({ 
+      return res.json({
         message: "Document updated successfully",
         documentType,
         documentPath: normalizedPath
       });
     } catch (error) {
       console.error("Error updating captain document:", error);
-      res.status(500).json({ error: "Internal server error" });
+      return res.status(500).json({ error: "Internal server error" });
     }
   });
 

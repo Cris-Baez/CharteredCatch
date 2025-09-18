@@ -1,10 +1,14 @@
 // server/index.ts
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
+import { registerRoutes, stripeWebhookRouter } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import path from "path";
 
 const app = express();
+
+// Stripe webhooks require the raw body to validate signatures.
+// Register the webhook router before the JSON/body-parser middleware runs.
+app.use(stripeWebhookRouter);
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: false, limit: "50mb" }));
