@@ -317,25 +317,23 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                     <div className="text-[10px] text-gray-500">Ages 13 or above</div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div
+                    <button
                       onClick={() => adjustGuests(-1)}
-                      className={`w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center transition-colors cursor-pointer ${
-                        guests <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:border-gray-900'
-                      }`}
+                      disabled={guests <= 1}
+                      className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-900 transition-colors"
                       data-testid="button-guests-decrease"
                     >
                       <Minus className="w-2.5 h-2.5" />
-                    </div>
+                    </button>
                     <span className="w-8 text-center font-semibold" data-testid="text-guests-count">{guests}</span>
-                    <div
+                    <button
                       onClick={() => adjustGuests(1)}
-                      className={`w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center transition-colors cursor-pointer ${
-                        guests >= 16 ? 'opacity-30 cursor-not-allowed' : 'hover:border-gray-900'
-                      }`}
+                      disabled={guests >= 16}
+                      className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-900 transition-colors"
                       data-testid="button-guests-increase"
                     >
                       <Plus className="w-2.5 h-2.5" />
-                    </div>
+                    </button>
                   </div>
                 </div>
               </PopoverContent>
@@ -465,25 +463,23 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                       <div className="text-xs text-gray-500">Ages 13 or above</div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div
+                      <button
                         onClick={() => adjustGuests(-1)}
-                        className={`w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center transition-colors cursor-pointer ${
-                          guests <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:border-gray-900'
-                        }`}
+                        disabled={guests <= 1}
+                        className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-900 transition-colors"
                         data-testid="desktop-button-guests-decrease"
                       >
                         <Minus className="w-3 h-3" />
-                      </div>
+                      </button>
                       <span className="w-8 text-center font-semibold" data-testid="desktop-text-guests-count">{guests}</span>
-                      <div
+                      <button
                         onClick={() => adjustGuests(1)}
-                        className={`w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center transition-colors cursor-pointer ${
-                          guests >= 16 ? 'opacity-30 cursor-not-allowed' : 'hover:border-gray-900'
-                        }`}
+                        disabled={guests >= 16}
+                        className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-900 transition-colors"
                         data-testid="desktop-button-guests-increase"
                       >
                         <Plus className="w-3 h-3" />
-                      </div>
+                      </button>
                     </div>
                   </div>
                 </PopoverContent>
