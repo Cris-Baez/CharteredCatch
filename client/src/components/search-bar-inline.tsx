@@ -1,9 +1,15 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { Search, MapPin, Fish, Clock, Calendar, X } from "lucide-react";
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Search, MapPin, Fish, Clock, Calendar, X, Minus, Plus } from "lucide-react";
 
 interface SearchBarInlineProps {
   onSearch?: (filters: {
@@ -33,9 +39,10 @@ export default function SearchBarInline({ onSearch, initialValues }: SearchBarIn
 
   const [suggestions, setSuggestions] = useState<NominatimItem[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [activeIndex, setActiveIndex] = useState<number>(-1); // para teclado en dropdown
+  const [activeIndex, setActiveIndex] = useState<number>(-1);
 
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const mobileDropdownRef = useRef<HTMLDivElement>(null);
+  const desktopDropdownRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<number | null>(null);
 
   const targetSpeciesOptions = [
@@ -109,10 +116,16 @@ export default function SearchBarInline({ onSearch, initialValues }: SearchBarIn
         setSuggestions(data.slice(0, 5));
         setShowSuggestions(true);
         setActiveIndex(-1);
-      } catch {
-        // ignore cancel/error
+      } catch (error) {
+        if (error instanceof Error && error.name !== 'AbortError') {
+          console.error('Fetch error:', error);
+        }
       }
-      return () => controller.abort();
+      return () => {
+        if (!controller.signal.aborted) {
+          controller.abort();
+        }
+      };
     }, 250);
 
     return () => {
@@ -123,7 +136,11 @@ export default function SearchBarInline({ onSearch, initialValues }: SearchBarIn
   // cerrar dropdown al click fuera
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      const mobileContainer = mobileDropdownRef.current;
+      const desktopContainer = desktopDropdownRef.current;
+      
+      if (mobileContainer && !mobileContainer.contains(e.target as Node) && 
+          desktopContainer && !desktopContainer.contains(e.target as Node)) {
         setShowSuggestions(false);
         setActiveIndex(-1);
       }
@@ -179,81 +196,110 @@ export default function SearchBarInline({ onSearch, initialValues }: SearchBarIn
 
   const clearField = (setter: (v: string) => void) => setter("");
 
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "Add dates";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", { 
+      month: "short", 
+      day: "numeric" 
+    });
+  };
+
   return (
     <>
-      {/* MOBILE */}
-      <div className="md:hidden">
-        <Card className="bg-white rounded-2xl shadow-lg px-3 py-3">
-          <div className="grid grid-cols-1 gap-3">
-            <div className="grid grid-cols-2 gap-3 relative" ref={dropdownRef}>
-              <div className="flex flex-col">
-                <div className="flex items-center gap-2 relative">
-                  <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
+      {/* MOBILE - Stack vertically */}
+      <div className="md:hidden" data-testid="mobile-search-bar">
+        <Card className="bg-white rounded-2xl shadow-sm p-1.5 ring-1 ring-gray-200">
+          <div className="space-y-1.5">
+            {/* Destination - Full width */}
+            <div className="relative" ref={mobileDropdownRef}>
+              <div className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 focus-within:ring-1 focus-within:ring-gray-300 transition-all">
+                <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                <div className="flex-1">
+                  <div className="text-[11px] font-medium text-gray-800 mb-0">Where</div>
                   <Input
                     type="text"
-                    placeholder="Where to?"
+                    placeholder="Search destinations"
                     value={locationValue}
                     onChange={(e) => { setLocationValue(e.target.value); setShowSuggestions(true); }}
                     onKeyDown={handleLocationKeyDown}
-                    className="border border-gray-200 rounded-md h-11 text-base pr-7"
+                    className="border-0 p-0 h-auto text-xs placeholder:text-gray-500 focus-visible:ring-0"
                     aria-expanded={showSuggestions}
                     aria-autocomplete="list"
                     aria-controls="location-suggestions"
                   />
-                  {locationValue && (
-                    <X
-                      className="absolute right-2 w-4 h-4 text-gray-400 cursor-pointer"
-                      onClick={() => clearField(setLocationValue)}
-                      aria-label="Clear location"
-                    />
-                  )}
                 </div>
-                {showSuggestions && suggestions.length > 0 && (
-                  <div
-                    id="location-suggestions"
-                    className="absolute top-14 left-0 w-full bg-white border rounded-md shadow-md z-10 max-h-60 overflow-auto"
-                    role="listbox"
+                {locationValue && (
+                  <button 
+                    onClick={() => clearField(setLocationValue)}
+                    className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                    aria-label="Clear location"
                   >
-                    {suggestions.map((s, i) => (
-                      <div
-                        key={s.place_id}
-                        role="option"
-                        aria-selected={i === activeIndex}
-                        className={`px-3 py-2 text-sm cursor-pointer ${
-                          i === activeIndex ? "bg-gray-100" : "hover:bg-gray-100"
-                        }`}
-                        onMouseEnter={() => setActiveIndex(i)}
-                        onMouseLeave={() => setActiveIndex(-1)}
-                        onClick={() => selectSuggestion(s)}
-                        dangerouslySetInnerHTML={{ __html: highlightMatch(s.display_name, locationValue) }}
-                      />
-                    ))}
-                  </div>
+                    <X className="w-4 h-4 text-gray-400" />
+                  </button>
                 )}
               </div>
-              <div className="flex items-center gap-2 relative">
-                <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+              
+              {showSuggestions && suggestions.length > 0 && (
+                <div
+                  id="location-suggestions"
+                  className="absolute top-full left-0 right-0 mt-1.5 bg-white border rounded-2xl shadow-xl z-20 max-h-60 overflow-y-auto"
+                  role="listbox"
+                >
+                  {suggestions.map((s, i) => (
+                    <button
+                      key={s.place_id}
+                      role="option"
+                      aria-selected={i === activeIndex}
+                      className={`w-full px-4 py-2.5 text-left text-sm transition-colors first:rounded-t-2xl last:rounded-b-2xl ${
+                        i === activeIndex ? "bg-gray-100" : "hover:bg-gray-50"
+                      }`}
+                      onMouseEnter={() => setActiveIndex(i)}
+                      onMouseLeave={() => setActiveIndex(-1)}
+                      onClick={() => selectSuggestion(s)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
+                        <span dangerouslySetInnerHTML={{ __html: highlightMatch(s.display_name, locationValue) }} />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Date - Full width */}
+            <div className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 focus-within:ring-1 focus-within:ring-gray-300 transition-all">
+              <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+              <div className="flex-1">
+                <div className="text-[11px] font-medium text-gray-800 mb-0">When</div>
                 <Input
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="border border-gray-200 rounded-md h-11 text-base pr-7"
+                  className="border-0 p-0 h-auto text-xs focus-visible:ring-0"
+                  placeholder="Add dates"
                 />
-                {date && (
-                  <X
-                    className="absolute right-2 w-4 h-4 text-gray-400 cursor-pointer"
-                    onClick={() => clearField(setDate)}
-                    aria-label="Clear date"
-                  />
-                )}
               </div>
+              {date && (
+                <button 
+                  onClick={() => clearField(setDate)}
+                  className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                  aria-label="Clear date"
+                >
+                  <X className="w-4 h-4 text-gray-400" />
+                </button>
+              )}
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center gap-2">
-                <Fish className="w-4 h-4 text-gray-400 shrink-0" />
+
+            {/* Species - Full width */}
+            <div className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 focus-within:ring-1 focus-within:ring-gray-300 transition-all">
+              <Fish className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+              <div className="flex-1">
+                <div className="text-[11px] font-medium text-gray-800 mb-0">Species</div>
                 <Select value={targetSpecies} onValueChange={setTargetSpecies}>
-                  <SelectTrigger className="border border-gray-200 rounded-md h-11 text-base">
-                    <SelectValue placeholder="Species" />
+                  <SelectTrigger className="border-0 p-0 h-auto text-xs focus:ring-0 bg-transparent">
+                    <SelectValue placeholder="Any species" />
                   </SelectTrigger>
                   <SelectContent>
                     {targetSpeciesOptions.map((s) => (
@@ -262,130 +308,179 @@ export default function SearchBarInline({ onSearch, initialValues }: SearchBarIn
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-gray-400 shrink-0" />
+            </div>
+
+            {/* Duration - Full width */}
+            <div className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 focus-within:ring-1 focus-within:ring-gray-300 transition-all">
+              <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+              <div className="flex-1">
+                <div className="text-[11px] font-medium text-gray-800 mb-0">Duration</div>
                 <Select value={duration} onValueChange={setDuration}>
-                    <SelectTrigger className="border border-gray-200 rounded-md h-11 text-base">
-                      <SelectValue placeholder="Duration" />
+                  <SelectTrigger className="border-0 p-0 h-auto text-xs focus:ring-0 bg-transparent">
+                    <SelectValue placeholder="Any duration" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {durationOptions.map((d) => (
+                      <SelectItem key={d} value={d === "Any Duration" ? "" : d}>{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Search Button */}
+            <Button 
+              onClick={handleSearch} 
+              className="w-full h-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs flex items-center justify-center gap-1 transition-all hover:shadow-lg"
+            >
+              <Search className="w-3.5 h-3.5" />
+              Search
+            </Button>
+          </div>
+        </Card>
+      </div>
+
+      {/* DESKTOP - Horizontal layout */}
+      <div className="hidden md:block max-w-5xl mx-auto" data-testid="desktop-search-bar">
+        <Card className="bg-white rounded-full shadow-md border border-gray-200 hover:shadow-xl transition-shadow">
+          <div className="flex items-center">
+            {/* Destination */}
+            <div className="flex-1 relative" ref={desktopDropdownRef}>
+              <button 
+                className="w-full flex items-center gap-2 p-2 pl-4 hover:bg-gray-50 rounded-l-full transition-colors text-left"
+                onClick={() => {
+                  const input = document.querySelector('[data-testid="desktop-destination-input"]') as HTMLInputElement;
+                  input?.focus();
+                }}
+              >
+                <div className="flex-1">
+                  <div className="text-xs font-semibold text-gray-900 mb-1">Where</div>
+                  <Input
+                    type="text"
+                    placeholder="Search destinations"
+                    value={locationValue}
+                    onChange={(e) => { setLocationValue(e.target.value); setShowSuggestions(true); }}
+                    onKeyDown={handleLocationKeyDown}
+                    className="border-0 p-0 h-auto text-sm placeholder:text-gray-500 focus-visible:ring-0 bg-transparent"
+                    aria-expanded={showSuggestions}
+                    aria-autocomplete="list"
+                    aria-controls="location-suggestions-desktop"
+                    data-testid="desktop-destination-input"
+                  />
+                </div>
+              </button>
+              
+              {showSuggestions && suggestions.length > 0 && (
+                <div
+                  id="location-suggestions-desktop"
+                  className="absolute top-full left-0 right-0 mt-2 bg-white border rounded-xl shadow-lg z-20 max-h-60 overflow-y-auto"
+                  role="listbox"
+                >
+                  {suggestions.map((s, i) => (
+                    <button
+                      key={s.place_id}
+                      role="option"
+                      aria-selected={i === activeIndex}
+                      className={`w-full px-4 py-2.5 text-left text-sm transition-colors first:rounded-t-xl last:rounded-b-xl ${
+                        i === activeIndex ? "bg-gray-100" : "hover:bg-gray-50"
+                      }`}
+                      onMouseEnter={() => setActiveIndex(i)}
+                      onMouseLeave={() => setActiveIndex(-1)}
+                      onClick={() => selectSuggestion(s)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
+                        <span dangerouslySetInnerHTML={{ __html: highlightMatch(s.display_name, locationValue) }} />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Divider */}
+            <div className="w-px h-8 bg-gray-200"></div>
+
+            {/* Date */}
+            <div className="flex-1">
+              <button 
+                className="w-full flex items-center gap-2 p-2 hover:bg-gray-50 transition-colors text-left"
+                onClick={() => {
+                  const input = document.querySelector('[data-testid="desktop-date-input"]') as HTMLInputElement;
+                  input?.focus();
+                }}
+              >
+                <div className="flex-1">
+                  <div className="text-xs font-semibold text-gray-900 mb-1">When</div>
+                  <div className="text-sm text-gray-500">
+                    {date ? formatDate(date) : "Add dates"}
+                  </div>
+                  <Input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="border-0 p-0 h-0 opacity-0 absolute pointer-events-none"
+                    data-testid="desktop-date-input"
+                  />
+                </div>
+              </button>
+            </div>
+
+            {/* Divider */}
+            <div className="w-px h-8 bg-gray-200"></div>
+
+            {/* Species */}
+            <div className="flex-1">
+              <button 
+                className="w-full flex items-center gap-2 p-2 hover:bg-gray-50 transition-colors text-left"
+              >
+                <div className="flex-1">
+                  <div className="text-xs font-semibold text-gray-900 mb-1">Species</div>
+                  <Select value={targetSpecies} onValueChange={setTargetSpecies}>
+                    <SelectTrigger className="border-0 p-0 h-auto text-sm focus:ring-0 bg-transparent">
+                      <SelectValue placeholder="Any species" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {targetSpeciesOptions.map((s) => (
+                        <SelectItem key={s} value={s === "Any Species" ? "" : s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </button>
+            </div>
+
+            {/* Divider */}
+            <div className="w-px h-8 bg-gray-200"></div>
+
+            {/* Duration */}
+            <div className="flex-1">
+              <button 
+                className="w-full flex items-center gap-2 p-2 hover:bg-gray-50 transition-colors text-left"
+              >
+                <div className="flex-1">
+                  <div className="text-xs font-semibold text-gray-900 mb-1">Duration</div>
+                  <Select value={duration} onValueChange={setDuration}>
+                    <SelectTrigger className="border-0 p-0 h-auto text-sm focus:ring-0 bg-transparent">
+                      <SelectValue placeholder="Any duration" />
                     </SelectTrigger>
                     <SelectContent>
                       {durationOptions.map((d) => (
                         <SelectItem key={d} value={d === "Any Duration" ? "" : d}>{d}</SelectItem>
                       ))}
                     </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <Button
-              onClick={handleSearch}
-              className="w-full h-11 rounded-lg bg-ocean-blue text-white hover:bg-blue-800 font-semibold flex items-center justify-center gap-2"
-            >
-              <Search className="w-5 h-5" />
-              <span>Search</span>
-            </Button>
-          </div>
-        </Card>
-      </div>
-
-      {/* DESKTOP */}
-      <div className="hidden md:block">
-        <Card className="bg-white rounded-full shadow-lg max-w-5xl mx-auto px-2 py-3">
-          <div className="grid md:[grid-template-columns:1.2fr_1fr_1fr_1fr_auto] items-center divide-x divide-gray-200">
-            <div className="flex items-center gap-2 px-4 relative" ref={dropdownRef}>
-              <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
-              <Input
-                type="text"
-                placeholder="Where to?"
-                value={locationValue}
-                onChange={(e) => { setLocationValue(e.target.value); setShowSuggestions(true); }}
-                onKeyDown={handleLocationKeyDown}
-                className="border-0 focus:ring-0 text-sm h-9 pr-7"
-                aria-expanded={showSuggestions}
-                aria-autocomplete="list"
-                aria-controls="location-suggestions-desktop"
-              />
-              {locationValue && (
-                <X
-                  className="absolute right-3 w-4 h-4 text-gray-400 cursor-pointer"
-                  onClick={() => clearField(setLocationValue)}
-                  aria-label="Clear location"
-                />
-              )}
-              {showSuggestions && suggestions.length > 0 && (
-                <div
-                  id="location-suggestions-desktop"
-                  className="absolute top-10 left-0 w-80 bg-white border rounded-md shadow-md z-10 max-h-64 overflow-auto"
-                  role="listbox"
-                >
-                  {suggestions.map((s, i) => (
-                    <div
-                      key={s.place_id}
-                      role="option"
-                      aria-selected={i === activeIndex}
-                      className={`px-3 py-2 text-sm cursor-pointer ${
-                        i === activeIndex ? "bg-gray-100" : "hover:bg-gray-100"
-                      }`}
-                      onMouseEnter={() => setActiveIndex(i)}
-                      onMouseLeave={() => setActiveIndex(-1)}
-                      onClick={() => selectSuggestion(s)}
-                      dangerouslySetInnerHTML={{ __html: highlightMatch(s.display_name, locationValue) }}
-                    />
-                  ))}
+                  </Select>
                 </div>
-              )}
+              </button>
             </div>
 
-            <div className="flex items-center gap-2 px-4 relative">
-              <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="border-0 focus:ring-0 text-sm h-9 pr-7"
-              />
-              {date && (
-                <X
-                  className="absolute right-3 w-4 h-4 text-gray-400 cursor-pointer"
-                  onClick={() => clearField(setDate)}
-                  aria-label="Clear date"
-                />
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 px-4">
-              <Fish className="w-4 h-4 text-gray-400 shrink-0" />
-              <Select value={targetSpecies} onValueChange={setTargetSpecies}>
-                <SelectTrigger className="border-0 focus:ring-0 text-sm h-9">
-                  <SelectValue placeholder="Species" />
-                </SelectTrigger>
-                <SelectContent>
-                  {targetSpeciesOptions.map((s) => (
-                    <SelectItem key={s} value={s === "Any Species" ? "" : s}>{s}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center gap-2 px-4">
-              <Clock className="w-4 h-4 text-gray-400 shrink-0" />
-              <Select value={duration} onValueChange={setDuration}>
-                <SelectTrigger className="border-0 focus:ring-0 text-sm h-9">
-                  <SelectValue placeholder="Duration" />
-                </SelectTrigger>
-                <SelectContent>
-                  {durationOptions.map((d) => (
-                    <SelectItem key={d} value={d === "Any Duration" ? "" : d}>{d}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="px-3">
-              <Button
+            {/* Search Button */}
+            <div className="p-1">
+              <Button 
                 onClick={handleSearch}
-                className="h-10 w-10 rounded-full p-0 bg-ocean-blue text-white hover:bg-blue-800 flex items-center justify-center transition-transform hover:scale-105 shrink-0"
+                className="h-10 w-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all hover:shadow-lg hover:scale-105"
               >
-                <Search className="w-5 h-5" />
+                <Search className="w-4 h-4" />
               </Button>
             </div>
           </div>
