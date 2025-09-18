@@ -92,6 +92,14 @@ const DOCS: { key: DocKey; name: string; description: string; required: boolean;
   { key: "drugTestingResults", name: "Drug Test", description: "Recent toxicology (optional)", required: false, icon: FileText },
 ];
 
+type DocumentStatus = "pending" | "uploaded" | "error";
+
+const DOCUMENT_STATUS_META: Record<DocumentStatus, { label: string; className: string }> = {
+  pending: { label: "Pending", className: "bg-amber-100 text-amber-700" },
+  uploaded: { label: "Uploaded", className: "bg-green-100 text-green-700" },
+  error: { label: "Error", className: "bg-red-100 text-red-700" },
+};
+
 // ---------------- Helpers ----------------
 const variants = {
   initial: { opacity: 0, y: 16 },
@@ -165,6 +173,29 @@ export default function CaptainOnboarding() {
     licenseNumber: "",
   });
 
+  const docInfoMap = useMemo(
+    () =>
+      DOCS.reduce((acc, doc) => {
+        acc[doc.key] = doc;
+        return acc;
+      }, {} as Record<DocKey, (typeof DOCS)[number]>),
+    []
+  );
+
+  const [documentStatuses, setDocumentStatuses] = useState<Record<DocKey, DocumentStatus>>(() =>
+    DOCS.reduce((acc, doc) => {
+      acc[doc.key] = "pending";
+      return acc;
+    }, {} as Record<DocKey, DocumentStatus>)
+  );
+
+  const [documentMessages, setDocumentMessages] = useState<Record<DocKey, string | null>>(() =>
+    DOCS.reduce((acc, doc) => {
+      acc[doc.key] = null;
+      return acc;
+    }, {} as Record<DocKey, string | null>)
+  );
+
   useEffect(() => {
     if (captain) {
       setProfile({
@@ -175,6 +206,20 @@ export default function CaptainOnboarding() {
         licenseNumber: captain.licenseNumber ?? "",
       });
     }
+  }, [captain]);
+
+  useEffect(() => {
+    setDocumentStatuses((prev) => {
+      const next = { ...prev };
+      for (const doc of DOCS) {
+        if (captain?.[doc.key]) {
+          next[doc.key] = "uploaded";
+        } else if (next[doc.key] !== "error") {
+          next[doc.key] = "pending";
+        }
+      }
+      return next;
+    });
   }, [captain]);
 
   const emailVerified = !!emailStatus?.verified;
@@ -234,17 +279,59 @@ export default function CaptainOnboarding() {
 
   const saveDocument = useMutation({
     mutationFn: async ({ key, url }: { key: DocKey; url: string }) => {
-      const r = await fetch("/api/captain/documents", {
+      const response = await fetch("/api/captain/documents", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ documentType: key, documentURL: url }),
       });
-      if (!r.ok) throw new Error("Failed to save document");
-      return r.json();
+
+      let payload: any = null;
+      try {
+        payload = await response.json();
+      } catch {
+        payload = null;
+      }
+
+      if (!response.ok) {
+        const errorMessage =
+          payload?.message || payload?.error || `Failed to save ${docInfoMap[key]?.name ?? key}`;
+        const error = new Error(errorMessage);
+        (error as any).status = response.status;
+        throw error;
+      }
+
+      return payload;
     },
-    onSuccess: (_d, v) => {
+    onMutate: ({ key }) => {
+      setDocumentStatuses((prev) => ({ ...prev, [key]: "pending" }));
+      setDocumentMessages((prev) => ({
+        ...prev,
+        [key]: `Saving ${docInfoMap[key]?.name ?? key}...`,
+      }));
+    },
+    onSuccess: (data, vars) => {
+      const name = docInfoMap[vars.key]?.name ?? vars.key;
+      setDocumentStatuses((prev) => ({ ...prev, [vars.key]: "uploaded" }));
+      setDocumentMessages((prev) => ({
+        ...prev,
+        [vars.key]: data?.message ?? `${name} uploaded successfully.`,
+      }));
       qc.invalidateQueries({ queryKey: ["/api/captain/me"] });
-      toast({ title: `${v.key} uploaded` });
+      toast({
+        title: data?.message ?? `${name} uploaded`,
+        description: data?.documentPath ? "Document ready for review." : undefined,
+      });
+    },
+    onError: (error: any, vars) => {
+      const name = docInfoMap[vars.key]?.name ?? vars.key;
+      const message = error?.message || `Failed to upload ${name}. Please try again.`;
+      setDocumentStatuses((prev) => ({ ...prev, [vars.key]: "error" }));
+      setDocumentMessages((prev) => ({ ...prev, [vars.key]: message }));
+      toast({
+        title: "Upload failed",
+        description: message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -488,12 +575,27 @@ export default function CaptainOnboarding() {
                   const Icon = doc.icon;
                   const currentUrl = captain?.[doc.key] as string | null | undefined;
                   const uploaded = !!currentUrl;
+                  const status = documentStatuses[doc.key] ?? (uploaded ? "uploaded" : "pending");
+                  const statusMeta = DOCUMENT_STATUS_META[status];
+                  const statusMessage = documentMessages[doc.key];
+                  const iconBgClass =
+                    status === "uploaded"
+                      ? "bg-green-100"
+                      : status === "error"
+                      ? "bg-red-100"
+                      : "bg-gray-100";
+                  const iconColorClass =
+                    status === "uploaded"
+                      ? "text-green-600"
+                      : status === "error"
+                      ? "text-red-600"
+                      : "text-gray-700";
                   return (
                     <Card key={doc.key} className="overflow-hidden">
                       <CardHeader className="pb-3">
                         <div className="flex items-center gap-3">
-                          <div className={`rounded-lg p-2 ${uploaded ? "bg-green-100" : "bg-gray-100"}`}>
-                            <Icon className={`h-5 w-5 ${uploaded ? "text-green-600" : "text-gray-700"}`} />
+                          <div className={`rounded-lg p-2 ${iconBgClass}`}>
+                            <Icon className={`h-5 w-5 ${iconColorClass}`} />
                           </div>
                           <div className="min-w-0">
                             <CardTitle className="truncate text-base text-black">
@@ -509,93 +611,184 @@ export default function CaptainOnboarding() {
                             <img src={currentUrl!} alt={doc.name} className="h-full w-full object-cover" />
                           </div>
                         )}
-                        {!uploaded ? (
-                          <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-blue-600 px-3 py-2 text-sm text-blue-700 hover:bg-blue-50">
-                            <Upload className="h-4 w-4" />
-                            <span>Upload</span>
-                            <input
-                              type="file"
-                              accept=".jpg,.jpeg,.png,.pdf"
-                              hidden
-                              onChange={async (e) => {
-                                const f = e.target.files?.[0];
-                                if (!f) return;
-
-                                // Validate file type
-                                const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
-                                if (!allowedTypes.includes(f.type)) {
-                                  toast({ title: "Invalid file type", description: "Please select a JPG, PNG, or PDF file", variant: "destructive" });
-                                  return;
-                                }
-
-                                // Validate file size (10MB max)
-                                if (f.size > 10 * 1024 * 1024) {
-                                  toast({ title: "File too large", description: "Please select a file smaller than 10MB", variant: "destructive" });
-                                  return;
-                                }
-
-                                try {
-                                  toast({ title: "Uploading...", description: `Uploading ${doc.name}` });
-                                  const url = await uploadToCloudinary(f);
-                                  await saveDocument.mutateAsync({ key: doc.key, url });
-                                } catch (error: any) {
-                                  console.error("Upload error:", error);
-                                  toast({
-                                    title: "Upload failed",
-                                    description: error?.message || `Failed to upload ${doc.name}. Please try again.`,
-                                    variant: "destructive"
-                                  });
-                                }
-                              }}
-                            />
-                          </label>
-                        ) : (
+                        <div className="space-y-2">
                           <div className="flex items-center justify-between">
-                            <Badge variant="secondary" className="bg-green-100 text-green-700">Uploaded</Badge>
-                            <div className="flex items-center gap-2">
-                              <Button variant="ghost" size="sm" onClick={() => window.open(currentUrl!, "_blank")}>
-                                View
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  const input = document.createElement("input");
-                                  input.type = "file";
-                                  input.accept = ".jpg,.jpeg,.png,.pdf";
-                                  input.onchange = async () => {
-                                    const file = (input.files && input.files[0]) || null;
-                                    if (!file) return;
+                            <Badge
+                              variant="secondary"
+                              className={`${statusMeta.className} text-xs font-semibold uppercase tracking-wide`}
+                            >
+                              {statusMeta.label}
+                            </Badge>
+                            {uploaded && (
+                              <div className="flex items-center gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => window.open(currentUrl!, "_blank")}>
+                                  View
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    const input = document.createElement("input");
+                                    input.type = "file";
+                                    input.accept = ".jpg,.jpeg,.png,.pdf";
+                                    input.onchange = async () => {
+                                      const file = (input.files && input.files[0]) || null;
+                                      if (!file) return;
 
-                                    // Validate file type
-                                    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
-                                    if (!allowedTypes.includes(file.type)) {
-                                      toast({ title: "Invalid file type", description: "Please select a JPG, PNG, or PDF file", variant: "destructive" });
-                                      return;
-                                    }
+                                      const allowedTypes = [
+                                        "image/jpeg",
+                                        "image/jpg",
+                                        "image/png",
+                                        "application/pdf",
+                                      ];
+                                      if (!allowedTypes.includes(file.type)) {
+                                        const message = "Please select a JPG, PNG, or PDF file";
+                                        toast({
+                                          title: "Invalid file type",
+                                          description: message,
+                                          variant: "destructive",
+                                        });
+                                        setDocumentStatuses((prev) => ({ ...prev, [doc.key]: "error" }));
+                                        setDocumentMessages((prev) => ({ ...prev, [doc.key]: message }));
+                                        return;
+                                      }
 
-                                    // Validate file size (10MB max)
-                                    if (file.size > 10 * 1024 * 1024) {
-                                      toast({ title: "File too large", description: "Please select a file smaller than 10MB", variant: "destructive" });
-                                      return;
-                                    }
+                                      if (file.size > 10 * 1024 * 1024) {
+                                        const message = "Please select a file smaller than 10MB";
+                                        toast({
+                                          title: "File too large",
+                                          description: message,
+                                          variant: "destructive",
+                                        });
+                                        setDocumentStatuses((prev) => ({ ...prev, [doc.key]: "error" }));
+                                        setDocumentMessages((prev) => ({ ...prev, [doc.key]: message }));
+                                        return;
+                                      }
 
-                                    try {
-                                      const newUrl = await uploadToCloudinary(file);
-                                      await saveDocument.mutateAsync({ key: doc.key, url: newUrl });
-                                    } catch (error: any) {
-                                      console.error("Upload error:", error);
-                                      toast({ title: "Upload failed", description: error?.message || `Failed to replace ${doc.name}. Please try again.`, variant: "destructive" });
-                                    }
-                                  };
-                                  input.click();
-                                }}
-                              >
-                                Replace
-                              </Button>
-                            </div>
+                                      setDocumentStatuses((prev) => ({ ...prev, [doc.key]: "pending" }));
+                                      setDocumentMessages((prev) => ({
+                                        ...prev,
+                                        [doc.key]: `Uploading ${doc.name}...`,
+                                      }));
+                                      toast({ title: "Uploading...", description: `Uploading ${doc.name}` });
+
+                                      let newUrl: string;
+                                      try {
+                                        newUrl = await uploadToCloudinary(file);
+                                      } catch (error: any) {
+                                        console.error("Upload error:", error);
+                                        const message =
+                                          error?.message || `Failed to replace ${doc.name}. Please try again.`;
+                                        setDocumentStatuses((prev) => ({ ...prev, [doc.key]: "error" }));
+                                        setDocumentMessages((prev) => ({ ...prev, [doc.key]: message }));
+                                        toast({
+                                          title: "Upload failed",
+                                          description: message,
+                                          variant: "destructive",
+                                        });
+                                        return;
+                                      }
+
+                                      try {
+                                        await saveDocument.mutateAsync({ key: doc.key, url: newUrl });
+                                      } catch (error) {
+                                        console.error("Upload error:", error);
+                                      }
+                                    };
+                                    input.click();
+                                  }}
+                                >
+                                  Replace
+                                </Button>
+                              </div>
+                            )}
                           </div>
-                        )}
+
+                          {!uploaded && (
+                            <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-blue-600 px-3 py-2 text-sm text-blue-700 hover:bg-blue-50">
+                              <Upload className="h-4 w-4" />
+                              <span>Upload</span>
+                              <input
+                                type="file"
+                                accept=".jpg,.jpeg,.png,.pdf"
+                                hidden
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+
+                                  const allowedTypes = [
+                                    "image/jpeg",
+                                    "image/jpg",
+                                    "image/png",
+                                    "application/pdf",
+                                  ];
+                                  if (!allowedTypes.includes(file.type)) {
+                                    const message = "Please select a JPG, PNG, or PDF file";
+                                    toast({
+                                      title: "Invalid file type",
+                                      description: message,
+                                      variant: "destructive",
+                                    });
+                                    setDocumentStatuses((prev) => ({ ...prev, [doc.key]: "error" }));
+                                    setDocumentMessages((prev) => ({ ...prev, [doc.key]: message }));
+                                    return;
+                                  }
+
+                                  if (file.size > 10 * 1024 * 1024) {
+                                    const message = "Please select a file smaller than 10MB";
+                                    toast({
+                                      title: "File too large",
+                                      description: message,
+                                      variant: "destructive",
+                                    });
+                                    setDocumentStatuses((prev) => ({ ...prev, [doc.key]: "error" }));
+                                    setDocumentMessages((prev) => ({ ...prev, [doc.key]: message }));
+                                    return;
+                                  }
+
+                                  setDocumentStatuses((prev) => ({ ...prev, [doc.key]: "pending" }));
+                                  setDocumentMessages((prev) => ({
+                                    ...prev,
+                                    [doc.key]: `Uploading ${doc.name}...`,
+                                  }));
+                                  toast({ title: "Uploading...", description: `Uploading ${doc.name}` });
+
+                                  let uploadedUrl: string;
+                                  try {
+                                    uploadedUrl = await uploadToCloudinary(file);
+                                  } catch (error: any) {
+                                    console.error("Upload error:", error);
+                                    const message =
+                                      error?.message || `Failed to upload ${doc.name}. Please try again.`;
+                                    setDocumentStatuses((prev) => ({ ...prev, [doc.key]: "error" }));
+                                    setDocumentMessages((prev) => ({ ...prev, [doc.key]: message }));
+                                    toast({
+                                      title: "Upload failed",
+                                      description: message,
+                                      variant: "destructive",
+                                    });
+                                    return;
+                                  }
+
+                                  try {
+                                    await saveDocument.mutateAsync({ key: doc.key, url: uploadedUrl });
+                                  } catch (error) {
+                                    console.error("Upload error:", error);
+                                  }
+                                }}
+                              />
+                            </label>
+                          )}
+
+                          {statusMessage && (
+                            <p
+                              className={`text-sm ${status === "error" ? "text-red-600" : "text-gray-600"}`}
+                              role={status === "error" ? "alert" : undefined}
+                            >
+                              {statusMessage}
+                            </p>
+                          )}
+                        </div>
                       </CardContent>
                     </Card>
                   );
