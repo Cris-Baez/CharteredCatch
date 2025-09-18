@@ -47,14 +47,13 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
   const desktopDropdownRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<number | null>(null);
 
-  // Refs para abrir el date picker nativo al abrir el Popover (desktop/mobile)
+  // Refs for date inputs
   const mobileDateInputRef = useRef<HTMLInputElement>(null);
   const desktopDateInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (showDatePickerMobile) {
       setTimeout(() => {
-        mobileDateInputRef.current?.showPicker?.();
         mobileDateInputRef.current?.focus();
       }, 0);
     }
@@ -63,7 +62,6 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
   useEffect(() => {
     if (showDatePickerDesktop) {
       setTimeout(() => {
-        desktopDateInputRef.current?.showPicker?.();
         desktopDateInputRef.current?.focus();
       }, 0);
     }

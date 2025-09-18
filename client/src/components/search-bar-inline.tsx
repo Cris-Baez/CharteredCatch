@@ -400,27 +400,18 @@ export default function SearchBarInline({ onSearch, initialValues }: SearchBarIn
 
             {/* Date */}
             <div className="flex-1">
-              <button 
-                className="w-full flex items-center gap-2 p-2 hover:bg-gray-50 transition-colors text-left"
-                onClick={() => {
-                  const input = document.querySelector('[data-testid="desktop-date-input"]') as HTMLInputElement;
-                  input?.focus();
-                }}
-              >
+              <div className="w-full flex items-center gap-2 p-2 hover:bg-gray-50 transition-colors text-left">
                 <div className="flex-1">
                   <div className="text-xs font-semibold text-gray-900 mb-1">When</div>
-                  <div className="text-sm text-gray-500">
-                    {date ? formatDate(date) : "Add dates"}
-                  </div>
                   <Input
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="border-0 p-0 h-0 opacity-0 absolute pointer-events-none"
-                    data-testid="desktop-date-input"
+                    className="border-0 p-0 h-auto text-sm bg-transparent focus-visible:ring-0"
+                    placeholder="Add dates"
                   />
                 </div>
-              </button>
+              </div>
             </div>
 
             {/* Divider */}
