@@ -1,389 +1,413 @@
 import { useState, useEffect, useRef } from "react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { Search, MapPin, Fish, Clock, Calendar, X } from "lucide-react";
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Search, MapPin, Calendar, Users, X, Minus, Plus } from "lucide-react";
 
-interface SearchBarInlineProps {
+interface SearchBarProps {
   onSearch?: (filters: {
     location: string;
-    targetSpecies: string;
-    duration: string;
     date: string;
+    guests: number;
   }) => void;
   initialValues?: {
     location?: string;
-    targetSpecies?: string;
-    duration?: string;
     date?: string;
+    guests?: number;
   };
 }
 
-type NominatimItem = {
-  place_id: string | number;
-  display_name: string;
-};
-
-export default function SearchBarInline({ onSearch, initialValues }: SearchBarInlineProps) {
+export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
   const [locationValue, setLocationValue] = useState("");
-  const [targetSpecies, setTargetSpecies] = useState("");
-  const [duration, setDuration] = useState("");
   const [date, setDate] = useState("");
-
-  const [suggestions, setSuggestions] = useState<NominatimItem[]>([]);
+  const [guests, setGuests] = useState(1);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [activeIndex, setActiveIndex] = useState<number>(-1); // para teclado en dropdown
+  const [showGuestPicker, setShowGuestPicker] = useState(false);
 
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<number | null>(null);
+  const [_, navigate] = useLocation();
+  const mobileDropdownRef = useRef<HTMLDivElement>(null);
+  const desktopDropdownRef = useRef<HTMLDivElement>(null);
 
-  const targetSpeciesOptions = [
-    "Any Species", "Tarpon", "Mahi-Mahi", "Snapper",
-    "Grouper", "Bonefish", "Redfish", "Yellowfin Tuna",
-    "Wahoo", "Permit", "Snook",
-  ];
-
-  const durationOptions = [
-    "Any Duration", "Half Day (4hrs)", "Full Day (8hrs)",
-    "Extended (10hrs)", "Multi-day",
-  ];
-
-  // cargar initialValues si existen
+  // Load initial values
   useEffect(() => {
     if (initialValues) {
       setLocationValue(initialValues.location || "");
-      setTargetSpecies(initialValues.targetSpecies || "");
-      setDuration(initialValues.duration || "");
       setDate(initialValues.date || "");
+      setGuests(initialValues.guests || 1);
     }
   }, [initialValues]);
 
-  // persistencia localStorage
+  // Persistence with localStorage
   useEffect(() => {
-    const saved = localStorage.getItem("searchFiltersInline");
-    if (saved && !initialValues) {
-      try {
-        const { location, targetSpecies, duration, date } = JSON.parse(saved);
-        setLocationValue(location || "");
-        setTargetSpecies(targetSpecies || "");
-        setDuration(duration || "");
-        setDate(date || "");
-      } catch {
-        // ignore
-      }
+    const savedFilters = localStorage.getItem("searchFilters");
+    if (savedFilters && !initialValues) {
+      const { location, date, guests } = JSON.parse(savedFilters);
+      setLocationValue(location || "");
+      setDate(date || "");
+      setGuests(guests || 1);
     }
   }, [initialValues]);
 
   useEffect(() => {
-    localStorage.setItem(
-      "searchFiltersInline",
-      JSON.stringify({
-        location: locationValue,
-        targetSpecies,
-        duration,
-        date,
-      })
-    );
-  }, [locationValue, targetSpecies, duration, date]);
+    localStorage.setItem("searchFilters", JSON.stringify({
+      location: locationValue,
+      date,
+      guests,
+    }));
+  }, [locationValue, date, guests]);
 
-  // autocomplete con Nominatim (debounce)
+  // Autocomplete with Nominatim
   useEffect(() => {
-    if (locationValue.trim().length < 3) {
+    if (locationValue.length < 3) {
       setSuggestions([]);
-      setActiveIndex(-1);
       return;
     }
-
-    if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    debounceRef.current = window.setTimeout(async () => {
-      const controller = new AbortController();
+    const controller = new AbortController();
+    const fetchSuggestions = async () => {
       try {
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-            locationValue.trim()
-          )}`,
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationValue)}&limit=5`,
           { signal: controller.signal }
         );
-        const data: NominatimItem[] = await res.json();
+        const data = await res.json();
         setSuggestions(data.slice(0, 5));
-        setShowSuggestions(true);
-        setActiveIndex(-1);
       } catch {
         // ignore cancel/error
       }
-      return () => controller.abort();
-    }, 250);
-
-    return () => {
-      if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
+    fetchSuggestions();
+    return () => controller.abort();
   }, [locationValue]);
 
-  // cerrar dropdown al click fuera
+  // Close dropdown on click outside
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      const mobileContainer = mobileDropdownRef.current;
+      const desktopContainer = desktopDropdownRef.current;
+
+      if (mobileContainer && !mobileContainer.contains(e.target as Node) && 
+          desktopContainer && !desktopContainer.contains(e.target as Node)) {
         setShowSuggestions(false);
-        setActiveIndex(-1);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // resaltar coincidencia (escapando el query para evitar regex raro)
-  function highlightMatch(text: string, query: string) {
-    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const regex = new RegExp(`(${escaped})`, "gi");
-    return text.replace(regex, "<mark>$1</mark>");
-  }
-
-  const selectSuggestion = (item: NominatimItem) => {
-    setLocationValue(item.display_name);
-    setShowSuggestions(false);
-    setActiveIndex(-1);
-  };
-
-  // enviar búsqueda SOLO por callback
+  // Handle search
   const handleSearch = () => {
-    if (onSearch) {
-      onSearch({ location: locationValue, targetSpecies, duration, date });
-    }
-    // cerrar dropdown al buscar
-    setShowSuggestions(false);
-    setActiveIndex(-1);
+    const filters = { 
+      location: locationValue, 
+      date, 
+      guests: guests.toString(),
+      // Keep compatibility with existing search params
+      targetSpecies: "",
+      duration: "",
+    };
+
+    if (onSearch) onSearch({ location: locationValue, date, guests });
+    const params = new URLSearchParams(filters).toString();
+    navigate(`/search?${params}`);
   };
 
-  const handleLocationKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!showSuggestions || suggestions.length === 0) {
-      if (e.key === "Enter") handleSearch();
-      return;
-    }
-
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setActiveIndex((idx) => (idx + 1 >= suggestions.length ? 0 : idx + 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActiveIndex((idx) => (idx - 1 < 0 ? suggestions.length - 1 : idx - 1));
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      if (activeIndex >= 0) selectSuggestion(suggestions[activeIndex]);
-      else handleSearch();
-    } else if (e.key === "Escape") {
-      setShowSuggestions(false);
-      setActiveIndex(-1);
-    }
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleSearch();
   };
 
-  const clearField = (setter: (v: string) => void) => setter("");
+  const clearField = (setter: (v: any) => void, defaultValue: any = "") => setter(defaultValue);
+
+  const adjustGuests = (change: number) => {
+    const newGuests = Math.max(1, Math.min(16, guests + change));
+    setGuests(newGuests);
+  };
+
+  const formatGuestText = (count: number) => {
+    if (count === 1) return "1 guest";
+    return `${count} guests`;
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "Add dates";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", { 
+      month: "short", 
+      day: "numeric" 
+    });
+  };
 
   return (
     <>
-      {/* MOBILE */}
-      <div className="md:hidden">
-        <Card className="bg-white rounded-2xl shadow-lg px-3 py-3">
-          <div className="grid grid-cols-1 gap-3">
-            <div className="grid grid-cols-2 gap-3 relative" ref={dropdownRef}>
-              <div className="flex flex-col">
-                <div className="flex items-center gap-2 relative">
-                  <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
+      {/* MOBILE - Stack vertically */}
+      <div className="md:hidden" data-testid="mobile-search-bar">
+        <Card className="bg-white rounded-2xl shadow-sm p-1.5 ring-1 ring-gray-200">
+          <div className="space-y-1.5">
+            {/* Destination - Full width */}
+            <div className="relative" ref={mobileDropdownRef}>
+              <div className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 focus-within:ring-1 focus-within:ring-gray-300 transition-all">
+                <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                <div className="flex-1">
+                  <div className="text-[11px] font-medium text-gray-800 mb-0">Where</div>
                   <Input
                     type="text"
-                    placeholder="Where to?"
+                    placeholder="Search destinations"
                     value={locationValue}
                     onChange={(e) => { setLocationValue(e.target.value); setShowSuggestions(true); }}
-                    onKeyDown={handleLocationKeyDown}
-                    className="border border-gray-200 rounded-md h-11 text-base pr-7"
+                    onKeyDown={handleKeyDown}
+                    className="border-0 p-0 h-auto text-xs placeholder:text-gray-500 focus-visible:ring-0"
                     aria-expanded={showSuggestions}
-                    aria-autocomplete="list"
-                    aria-controls="location-suggestions"
+                    data-testid="input-destination"
                   />
-                  {locationValue && (
-                    <X
-                      className="absolute right-2 w-4 h-4 text-gray-400 cursor-pointer"
-                      onClick={() => clearField(setLocationValue)}
-                      aria-label="Clear location"
-                    />
-                  )}
                 </div>
-                {showSuggestions && suggestions.length > 0 && (
-                  <div
-                    id="location-suggestions"
-                    className="absolute top-14 left-0 w-full bg-white border rounded-md shadow-md z-10 max-h-60 overflow-auto"
-                    role="listbox"
+                {locationValue && (
+                  <button 
+                    onClick={() => clearField(setLocationValue)}
+                    className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                    data-testid="button-clear-destination"
                   >
-                    {suggestions.map((s, i) => (
-                      <div
-                        key={s.place_id}
-                        role="option"
-                        aria-selected={i === activeIndex}
-                        className={`px-3 py-2 text-sm cursor-pointer ${
-                          i === activeIndex ? "bg-gray-100" : "hover:bg-gray-100"
-                        }`}
-                        onMouseEnter={() => setActiveIndex(i)}
-                        onMouseLeave={() => setActiveIndex(-1)}
-                        onClick={() => selectSuggestion(s)}
-                        dangerouslySetInnerHTML={{ __html: highlightMatch(s.display_name, locationValue) }}
-                      />
-                    ))}
-                  </div>
+                    <X className="w-4 h-4 text-gray-400" />
+                  </button>
                 )}
               </div>
-              <div className="flex items-center gap-2 relative">
-                <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border rounded-2xl shadow-xl z-20 max-h-60 overflow-y-auto">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s.place_id}
+                      className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 transition-colors first:rounded-t-2xl last:rounded-b-2xl"
+                      onClick={() => {
+                        setLocationValue(s.display_name);
+                        setShowSuggestions(false);
+                      }}
+                      data-testid={`suggestion-${s.place_id}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
+                        <span>{s.display_name}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Date - Full width */}
+            <div className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 focus-within:ring-1 focus-within:ring-gray-300 transition-all">
+              <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+              <div className="flex-1">
+                <div className="text-[11px] font-medium text-gray-800 mb-0">When</div>
                 <Input
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="border border-gray-200 rounded-md h-11 text-base pr-7"
+                  className="border-0 p-0 h-auto text-xs focus-visible:ring-0"
+                  placeholder="Add dates"
+                  data-testid="input-date"
                 />
-                {date && (
-                  <X
-                    className="absolute right-2 w-4 h-4 text-gray-400 cursor-pointer"
-                    onClick={() => clearField(setDate)}
-                    aria-label="Clear date"
-                  />
-                )}
               </div>
+              {date && (
+                <button 
+                  onClick={() => clearField(setDate)}
+                  className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                  data-testid="button-clear-date"
+                >
+                  <X className="w-4 h-4 text-gray-400" />
+                </button>
+              )}
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center gap-2">
-                <Fish className="w-4 h-4 text-gray-400 shrink-0" />
-                <Select value={targetSpecies} onValueChange={setTargetSpecies}>
-                  <SelectTrigger className="border border-gray-200 rounded-md h-11 text-base">
-                    <SelectValue placeholder="Species" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {targetSpeciesOptions.map((s) => (
-                      <SelectItem key={s} value={s === "Any Species" ? "" : s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-gray-400 shrink-0" />
-                <Select value={duration} onValueChange={setDuration}>
-                    <SelectTrigger className="border border-gray-200 rounded-md h-11 text-base">
-                      <SelectValue placeholder="Duration" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {durationOptions.map((d) => (
-                        <SelectItem key={d} value={d === "Any Duration" ? "" : d}>{d}</SelectItem>
-                      ))}
-                    </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <Button
-              onClick={handleSearch}
-              className="w-full h-11 rounded-lg bg-ocean-blue text-white hover:bg-blue-800 font-semibold flex items-center justify-center gap-2"
+
+            {/* Guests - Full width */}
+            <Popover open={showGuestPicker} onOpenChange={setShowGuestPicker}>
+              <PopoverTrigger asChild>
+                <button 
+                  className="w-full flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 hover:shadow-sm transition-all text-left"
+                  data-testid="button-guests"
+                >
+                  <Users className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                  <div className="flex-1">
+                    <div className="text-[11px] font-medium text-gray-800 mb-0">Who</div>
+                    <div className="text-xs text-gray-700">{formatGuestText(guests)}</div>
+                  </div>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-48 p-3 rounded-2xl shadow-xl" align="start">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-semibold text-xs">Guests</div>
+                    <div className="text-[10px] text-gray-500">Ages 13 or above</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => adjustGuests(-1)}
+                      disabled={guests <= 1}
+                      className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-900 transition-colors"
+                      data-testid="button-guests-decrease"
+                    >
+                      <Minus className="w-2.5 h-2.5" />
+                    </button>
+                    <span className="w-8 text-center font-semibold" data-testid="text-guests-count">{guests}</span>
+                    <button
+                      onClick={() => adjustGuests(1)}
+                      disabled={guests >= 16}
+                      className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-900 transition-colors"
+                      data-testid="button-guests-increase"
+                    >
+                      <Plus className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Search Button */}
+            <Button 
+              onClick={handleSearch} 
+              className="w-full h-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs flex items-center justify-center gap-1 transition-all hover:shadow-lg"
+              data-testid="button-search"
             >
-              <Search className="w-5 h-5" />
-              <span>Search</span>
+              <Search className="w-3.5 h-3.5" />
+              Search
             </Button>
           </div>
         </Card>
       </div>
 
-      {/* DESKTOP */}
-      <div className="hidden md:block">
-        <Card className="bg-white rounded-full shadow-lg max-w-5xl mx-auto px-2 py-3">
-          <div className="grid md:[grid-template-columns:1.2fr_1fr_1fr_1fr_auto] items-center divide-x divide-gray-200">
-            <div className="flex items-center gap-2 px-4 relative" ref={dropdownRef}>
-              <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
-              <Input
-                type="text"
-                placeholder="Where to?"
-                value={locationValue}
-                onChange={(e) => { setLocationValue(e.target.value); setShowSuggestions(true); }}
-                onKeyDown={handleLocationKeyDown}
-                className="border-0 focus:ring-0 text-sm h-9 pr-7"
-                aria-expanded={showSuggestions}
-                aria-autocomplete="list"
-                aria-controls="location-suggestions-desktop"
-              />
-              {locationValue && (
-                <X
-                  className="absolute right-3 w-4 h-4 text-gray-400 cursor-pointer"
-                  onClick={() => clearField(setLocationValue)}
-                  aria-label="Clear location"
-                />
-              )}
+      {/* DESKTOP - Horizontal layout */}
+      <div className="hidden md:block" data-testid="desktop-search-bar">
+        <Card className="bg-white rounded-full shadow-md border border-gray-200 hover:shadow-xl transition-shadow">
+          <div className="flex items-center">
+            {/* Destination */}
+            <div className="flex-1 relative" ref={desktopDropdownRef}>
+              <button 
+                className="w-full flex items-center gap-2 p-3 pl-5 hover:bg-gray-50 rounded-l-full transition-colors text-left"
+                onClick={() => {
+                  const input = document.querySelector('[data-testid="desktop-destination-input"]') as HTMLInputElement;
+                  input?.focus();
+                }}
+              >
+                <div className="flex-1">
+                  <div className="text-[11px] font-medium text-gray-800 mb-1">Where</div>
+                  <Input
+                    type="text"
+                    placeholder="Search destinations"
+                    value={locationValue}
+                    onChange={(e) => { setLocationValue(e.target.value); setShowSuggestions(true); }}
+                    onKeyDown={handleKeyDown}
+                    className="border-0 p-0 h-auto text-sm placeholder:text-gray-500 focus-visible:ring-0 bg-transparent"
+                    aria-expanded={showSuggestions}
+                    data-testid="desktop-destination-input"
+                  />
+                </div>
+              </button>
+
               {showSuggestions && suggestions.length > 0 && (
-                <div
-                  id="location-suggestions-desktop"
-                  className="absolute top-10 left-0 w-80 bg-white border rounded-md shadow-md z-10 max-h-64 overflow-auto"
-                  role="listbox"
-                >
-                  {suggestions.map((s, i) => (
-                    <div
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border rounded-xl shadow-lg z-20 max-h-60 overflow-y-auto">
+                  {suggestions.map((s) => (
+                    <button
                       key={s.place_id}
-                      role="option"
-                      aria-selected={i === activeIndex}
-                      className={`px-3 py-2 text-sm cursor-pointer ${
-                        i === activeIndex ? "bg-gray-100" : "hover:bg-gray-100"
-                      }`}
-                      onMouseEnter={() => setActiveIndex(i)}
-                      onMouseLeave={() => setActiveIndex(-1)}
-                      onClick={() => selectSuggestion(s)}
-                      dangerouslySetInnerHTML={{ __html: highlightMatch(s.display_name, locationValue) }}
-                    />
+                      className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 transition-colors first:rounded-t-2xl last:rounded-b-2xl"
+                      onClick={() => {
+                        setLocationValue(s.display_name);
+                        setShowSuggestions(false);
+                      }}
+                      data-testid={`desktop-suggestion-${s.place_id}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
+                        <span>{s.display_name}</span>
+                      </div>
+                    </button>
                   ))}
                 </div>
               )}
             </div>
 
-            <div className="flex items-center gap-2 px-4 relative">
-              <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="border-0 focus:ring-0 text-sm h-9 pr-7"
-              />
-              {date && (
-                <X
-                  className="absolute right-3 w-4 h-4 text-gray-400 cursor-pointer"
-                  onClick={() => clearField(setDate)}
-                  aria-label="Clear date"
-                />
-              )}
+            {/* Divider */}
+            <div className="w-px h-8 bg-gray-200"></div>
+
+            {/* Date */}
+            <div className="flex-1">
+              <button 
+                className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors text-left"
+                onClick={() => {
+                  const input = document.querySelector('[data-testid="desktop-date-input"]') as HTMLInputElement;
+                  input?.focus();
+                }}
+              >
+                <div className="flex-1">
+                  <div className="text-xs font-semibold text-gray-900 mb-1">When</div>
+                  <Input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="border-0 p-0 h-auto text-sm focus-visible:ring-0 bg-transparent"
+                    placeholder="Add dates"
+                    data-testid="desktop-date-input"
+                  />
+                </div>
+              </button>
             </div>
 
-            <div className="flex items-center gap-2 px-4">
-              <Fish className="w-4 h-4 text-gray-400 shrink-0" />
-              <Select value={targetSpecies} onValueChange={setTargetSpecies}>
-                <SelectTrigger className="border-0 focus:ring-0 text-sm h-9">
-                  <SelectValue placeholder="Species" />
-                </SelectTrigger>
-                <SelectContent>
-                  {targetSpeciesOptions.map((s) => (
-                    <SelectItem key={s} value={s === "Any Species" ? "" : s}>{s}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Divider */}
+            <div className="w-px h-8 bg-gray-200"></div>
+
+            {/* Guests */}
+            <div className="flex-1">
+              <Popover open={showGuestPicker} onOpenChange={setShowGuestPicker}>
+                <PopoverTrigger asChild>
+                  <button 
+                    className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors text-left"
+                    data-testid="desktop-button-guests"
+                  >
+                    <div className="flex-1">
+                      <div className="text-xs font-semibold text-gray-900 mb-1">Who</div>
+                      <div className="text-sm text-gray-500">{formatGuestText(guests)}</div>
+                    </div>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-4" align="end">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold text-sm">Guests</div>
+                      <div className="text-xs text-gray-500">Ages 13 or above</div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => adjustGuests(-1)}
+                        disabled={guests <= 1}
+                        className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-900 transition-colors"
+                        data-testid="desktop-button-guests-decrease"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <span className="w-8 text-center font-semibold" data-testid="desktop-text-guests-count">{guests}</span>
+                      <button
+                        onClick={() => adjustGuests(1)}
+                        disabled={guests >= 16}
+                        className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-900 transition-colors"
+                        data-testid="desktop-button-guests-increase"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
-            <div className="flex items-center gap-2 px-4">
-              <Clock className="w-4 h-4 text-gray-400 shrink-0" />
-              <Select value={duration} onValueChange={setDuration}>
-                <SelectTrigger className="border-0 focus:ring-0 text-sm h-9">
-                  <SelectValue placeholder="Duration" />
-                </SelectTrigger>
-                <SelectContent>
-                  {durationOptions.map((d) => (
-                    <SelectItem key={d} value={d === "Any Duration" ? "" : d}>{d}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="px-3">
-              <Button
+            {/* Search Button */}
+            <div className="p-2">
+              <Button 
                 onClick={handleSearch}
-                className="h-10 w-10 rounded-full p-0 bg-ocean-blue text-white hover:bg-blue-800 flex items-center justify-center transition-transform hover:scale-105 shrink-0"
+                className="h-12 w-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all hover:shadow-lg hover:scale-105"
+                data-testid="desktop-button-search"
               >
                 <Search className="w-5 h-5" />
               </Button>
