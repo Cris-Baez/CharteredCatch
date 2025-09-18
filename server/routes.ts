@@ -38,6 +38,11 @@ import { and, eq, ilike, inArray, gte, lt, or, isNotNull, desc, sql } from "driz
 import { sendEmailVerification, sendWelcomeEmail, generateVerificationToken , sendEmail  , } from "./emailService";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { handleStripeWebhook } from "./stripe-webhooks";
+import {
+  makeCancelCaptainSubscriptionHandler,
+  makeCreateCaptainSubscriptionHandler,
+  makeGetCaptainSubscriptionHandler,
+} from "./stripe-subscription-handlers";
 import * as schema from "../shared/schema";
 
 export const stripeWebhookRouter = express.Router();
@@ -2501,190 +2506,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // STRIPE SUBSCRIPTION ENDPOINTS  
   // ==============================
 
-  // Create subscription for captain
-  app.post("/api/captain/subscribe", async (req: Request, res: Response) => {
-    try {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: "Unauthorized" });
-      }
-      
-      if (!process.env.STRIPE_SECRET_KEY) {
-        return res.status(503).json({ error: 'Stripe not configured' });
-      }
-      
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-        apiVersion: "2025-08-27.basil",
-      });
-      
-      const [user] = await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.id, req.session.userId));
+  const stripeFactory = () =>
+    new Stripe(process.env.STRIPE_SECRET_KEY!, {
+      apiVersion: "2025-08-27.basil",
+    });
 
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
+  app.post(
+    "/api/captain/subscribe",
+    makeCreateCaptainSubscriptionHandler({
+      db,
+      stripeFactory,
+    }),
+  );
 
-      // Check if user already has an active subscription
-      if (user.stripeSubscriptionId) {
-        const { data: subscription } = await stripe.subscriptions.retrieve(user.stripeSubscriptionId) as any;
-        
-        if (subscription.status === 'active' || subscription.status === 'trialing') {
-          return res.json({
-            subscription: {
-              id: subscription.id,
-              status: subscription.status,
-              current_period_end: subscription.current_period_end,
-            }
-          });
-        }
-      }
+  app.get(
+    "/api/captain/subscription",
+    makeGetCaptainSubscriptionHandler({
+      db,
+      stripeFactory,
+    }),
+  );
 
-      // Create or get Stripe customer
-      let customer;
-      if (user.stripeCustomerId) {
-        customer = await stripe.customers.retrieve(user.stripeCustomerId);
-      } else {
-        customer = await stripe.customers.create({
-          email: user.email || "",
-          name: [user.firstName, user.lastName].filter(Boolean).join(" ") || undefined,
-        });
-
-        // Update user with customer ID
-        await db
-          .update(usersTable)
-          .set({ stripeCustomerId: customer.id })
-          .where(eq(usersTable.id, user.id));
-      }
-
-      // Create subscription with 1-month trial
-      const subscription = await stripe.subscriptions.create({
-        customer: customer.id,
-        items: [{
-          price_data: {
-            currency: 'usd',
-            unit_amount: 4900,
-            recurring: {
-              interval: 'month',
-            },
-            product_data: {
-              name: 'Captain Subscription',
-              description: 'Professional charter captain subscription with full platform access',
-            },
-          } as any,
-        }],
-        trial_period_days: 30,
-      });
-
-      // Update user with subscription ID
-      await db
-        .update(usersTable)
-        .set({ stripeSubscriptionId: subscription.id })
-        .where(eq(usersTable.id, user.id));
-
-      res.json({
-        subscriptionId: subscription.id,
-        clientSecret: null, // No payment intent needed for trial
-        status: subscription.status,
-        trial_end: subscription.trial_end,
-      });
-
-    } catch (error: any) {
-      console.error("Subscription creation error:", error);
-      res.status(500).json({ error: "Failed to create subscription: " + error.message });
-    }
-  });
-
-  // Get subscription status
-  app.get("/api/captain/subscription", async (req: Request, res: Response) => {
-    try {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: "Unauthorized" });
-      }
-      
-      if (!process.env.STRIPE_SECRET_KEY) {
-        return res.status(503).json({ error: 'Stripe not configured' });
-      }
-      
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-        apiVersion: "2025-08-27.basil",
-      });
-
-      const [user] = await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.id, req.session.userId));
-
-      if (!user || !user.stripeSubscriptionId) {
-        return res.json({ subscription: null });
-      }
-
-      const { data: subscription } = await stripe.subscriptions.retrieve(user.stripeSubscriptionId) as any;
-
-      res.json({
-        subscription: {
-          id: subscription.id,
-          status: subscription.status,
-          current_period_end: subscription.current_period_end,
-          trial_end: subscription.trial_end,
-          cancel_at_period_end: subscription.cancel_at_period_end,
-        }
-      });
-
-    } catch (error: any) {
-      console.error("Get subscription error:", error);
-      res.status(500).json({ error: "Failed to get subscription" });
-    }
-  });
-
-  // Cancel subscription
-  app.post("/api/captain/subscription/cancel", async (req: Request, res: Response) => {
-    try {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: "Unauthorized" });
-      }
-      
-      // Verificar si es un capitán
-      const captain = await db.select().from(captainsTable).where(eq(captainsTable.userId, req.session.userId)).execute();
-      if (!captain.length) {
-        return res.status(403).json({ error: 'Only captains can cancel subscription' });
-      }
-
-      if (!process.env.STRIPE_SECRET_KEY) {
-        return res.status(503).json({ error: 'Stripe not configured' });
-      }
-      
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-        apiVersion: "2025-08-27.basil",
-      });
-
-      const [user] = await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.id, req.session.userId));
-
-      if (!user || !user.stripeSubscriptionId) {
-        return res.status(404).json({ error: "No subscription found" });
-      }
-
-      const { data: subscription } = await stripe.subscriptions.update(user.stripeSubscriptionId, {
-        cancel_at_period_end: true,
-      }) as any;
-
-      res.json({
-        subscription: {
-          id: subscription.id,
-          status: subscription.status,
-          cancel_at_period_end: subscription.cancel_at_period_end,
-          current_period_end: subscription.current_period_end,
-        }
-      });
-
-    } catch (error: any) {
-      console.error("Cancel subscription error:", error);
-      res.status(500).json({ error: "Failed to cancel subscription" });
-    }
-  });
+  app.post(
+    "/api/captain/subscription/cancel",
+    makeCancelCaptainSubscriptionHandler({
+      db,
+      stripeFactory,
+    }),
+  );
 
   // CAPTAIN: Crear Stripe Checkout Session (Opción A - Redirección a página segura de Stripe)
   app.post("/api/captain/create-checkout-session", async (req, res) => {
