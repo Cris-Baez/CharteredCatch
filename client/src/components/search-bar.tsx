@@ -280,13 +280,13 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
       </div>
 
       {/* DESKTOP - Horizontal layout */}
-      <div className="hidden md:block max-w-2xl mx-auto" data-testid="desktop-search-bar">
+      <div className="hidden md:block max-w-lg mx-auto" data-testid="desktop-search-bar">
         <Card className="bg-white rounded-full shadow-md border border-gray-200 hover:shadow-xl transition-shadow">
           <div className="flex items-center">
             {/* Destination */}
             <div className="flex-1 relative" ref={desktopDropdownRef}>
               <button 
-                className="w-full flex items-center gap-2 p-3 pl-5 hover:bg-gray-50 rounded-l-full transition-colors text-left"
+                className="w-full flex items-center gap-1 p-2 pl-3 hover:bg-gray-50 rounded-l-full transition-colors text-left"
                 onClick={() => {
                   const input = document.querySelector('[data-testid="desktop-destination-input"]') as HTMLInputElement;
                   input?.focus();
@@ -335,7 +335,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
             {/* Date */}
             <div className="flex-1">
               <button 
-                className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors text-left"
+                className="w-full flex items-center gap-1 p-2 hover:bg-gray-50 transition-colors text-left"
                 onClick={() => {
                   const input = document.querySelector('[data-testid="desktop-date-input"]') as HTMLInputElement;
                   input?.focus();
@@ -363,7 +363,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
               <Popover open={showGuestPicker} onOpenChange={setShowGuestPicker}>
                 <PopoverTrigger asChild>
                   <button 
-                    className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors text-left"
+                    className="w-full flex items-center gap-1 p-2 hover:bg-gray-50 transition-colors text-left"
                     data-testid="desktop-button-guests"
                   >
                     <div className="flex-1">
@@ -403,13 +403,13 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
             </div>
 
             {/* Search Button */}
-            <div className="p-2">
+            <div className="p-1">
               <Button 
                 onClick={handleSearch}
-                className="h-12 w-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all hover:shadow-lg hover:scale-105"
+                className="h-10 w-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all hover:shadow-lg hover:scale-105"
                 data-testid="desktop-button-search"
               >
-                <Search className="w-5 h-5" />
+                <Search className="w-4 h-4" />
               </Button>
             </div>
           </div>
