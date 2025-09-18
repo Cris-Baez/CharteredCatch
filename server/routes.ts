@@ -3929,6 +3929,15 @@ Looking forward to an amazing day on the water! 🛥️`;
   });
 
   // Update document after upload for captain onboarding
+  const isUniqueConstraintError = (error: unknown): error is { code: string } => {
+    return (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: string }).code === "23505"
+    );
+  };
+
   app.put("/api/captain/documents", async (req: Request, res: Response) => {
     try {
       if (!req.session.userId) {
@@ -3944,7 +3953,7 @@ Looking forward to an amazing day on the water! 🛥️`;
       // Validate document type
       const validDocumentTypes = [
         "licenseDocument",
-        "boatDocumentation", 
+        "boatDocumentation",
         "insuranceDocument",
         "identificationPhoto",
         "localPermit",
@@ -3968,25 +3977,45 @@ Looking forward to an amazing day on the water! 🛥️`;
 
       // Normalize the object path
       const objectStorageService = new ObjectStorageService();
-      const normalizedPath = objectStorageService.normalizeObjectEntityPath(documentURL);
+      let normalizedPath: string;
+      try {
+        normalizedPath = objectStorageService.normalizeObjectEntityPath(documentURL);
+      } catch (error) {
+        console.error("Failed to normalize document path:", error);
+        return res.status(422).json({
+          error: "DocumentMissing",
+          message: "We couldn't find that document. Please upload it again.",
+        });
+      }
 
       // Update the captain's document field
       const updateData: any = {};
       updateData[documentType] = normalizedPath;
 
-      await db
-        .update(captainsTable)
-        .set(updateData)
-        .where(eq(captainsTable.id, captain.id));
+      try {
+        await db
+          .update(captainsTable)
+          .set(updateData)
+          .where(eq(captainsTable.id, captain.id));
+      } catch (error) {
+        console.error("Database error updating captain document:", error);
+        if (isUniqueConstraintError(error)) {
+          return res.status(409).json({
+            error: "DocumentDuplicate",
+            message: "This document was already uploaded.",
+          });
+        }
+        return res.status(500).json({ error: "Failed to update captain document" });
+      }
 
-      res.json({ 
+      return res.json({
         message: "Document updated successfully",
         documentType,
         documentPath: normalizedPath
       });
     } catch (error) {
       console.error("Error updating captain document:", error);
-      res.status(500).json({ error: "Internal server error" });
+      return res.status(500).json({ error: "Internal server error" });
     }
   });
 
