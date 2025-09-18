@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, DollarSign, CreditCard, Building2, X } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { fetchWithCsrf } from "@/lib/csrf";
 
 interface PaymentInfo {
   id?: number;
@@ -137,7 +138,7 @@ export default function PaymentInstructions({
       formData.append("paymentProof", uploadedFile);
       formData.append("paymentMethod", paymentInfo?.preferredMethod || "unknown");
 
-      const response = await fetch(`/api/bookings/${bookingId}/payment-proof`, {
+      const response = await fetchWithCsrf(`/api/bookings/${bookingId}/payment-proof`, {
         method: "POST",
         body: formData,
         credentials: "include",

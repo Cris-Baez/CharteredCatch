@@ -5,6 +5,7 @@ import HeaderCaptain from "@/components/headercaptain";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
+import { fetchWithCsrf } from "@/lib/csrf";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -91,7 +92,7 @@ export default function CaptainBookings() {
   // Mutations para approve/reject bookings
   const approveMutation = useMutation({
     mutationFn: async (bookingId: number) => {
-      const res = await fetch(`/api/captain/bookings/${bookingId}/approve`, {
+      const res = await fetchWithCsrf(`/api/captain/bookings/${bookingId}/approve`, {
         method: "PATCH",
         credentials: "include",
       });
@@ -119,7 +120,7 @@ export default function CaptainBookings() {
 
   const rejectMutation = useMutation({
     mutationFn: async (bookingId: number) => {
-      const res = await fetch(`/api/captain/bookings/${bookingId}/reject`, {
+      const res = await fetchWithCsrf(`/api/captain/bookings/${bookingId}/reject`, {
         method: "PATCH",
         credentials: "include",
       });
@@ -148,7 +149,7 @@ export default function CaptainBookings() {
   // Payment proof mutations
   const approvePaymentMutation = useMutation({
     mutationFn: async (bookingId: number) => {
-      const res = await fetch(`/api/captain/bookings/${bookingId}/verify-payment`, {
+      const res = await fetchWithCsrf(`/api/captain/bookings/${bookingId}/verify-payment`, {
         method: "PATCH",
         credentials: "include",
       });
@@ -177,7 +178,7 @@ export default function CaptainBookings() {
 
   const rejectPaymentMutation = useMutation({
     mutationFn: async (bookingId: number) => {
-      const res = await fetch(`/api/captain/bookings/${bookingId}/reject-payment`, {
+      const res = await fetchWithCsrf(`/api/captain/bookings/${bookingId}/reject-payment`, {
         method: "PATCH",
         credentials: "include",
       });

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import ProfileImageUpload from "@/components/ui/profile-image-upload";
+import { fetchWithCsrf } from "@/lib/csrf";
 
 import {
   User as UserIcon,
@@ -118,7 +119,7 @@ export default function UserProfilePage() {
   }, []);
 
   const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    await fetchWithCsrf("/api/auth/logout", { method: "POST", credentials: "include" });
     window.location.href = "/login";
   };
 
@@ -129,7 +130,7 @@ export default function UserProfilePage() {
   const saveProfile = async () => {
     setSavingProfile(true);
     try {
-      const res = await fetch("/api/users/me", {
+      const res = await fetchWithCsrf("/api/users/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -152,7 +153,7 @@ export default function UserProfilePage() {
   const savePassword = async () => {
     setSavingPwd(true);
     try {
-      const res = await fetch("/api/users/me/password", {
+      const res = await fetchWithCsrf("/api/users/me/password", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -177,7 +178,7 @@ export default function UserProfilePage() {
   const cancelBooking = async (id: number) => {
     setCancelingId(id);
     try {
-      const res = await fetch(`/api/bookings/${id}/cancel`, {
+      const res = await fetchWithCsrf(`/api/bookings/${id}/cancel`, {
         method: "PATCH",
         credentials: "include",
       });

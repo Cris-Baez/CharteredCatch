@@ -66,6 +66,8 @@ GET /api/bookings/me 200 in 311ms
 ✅ STRIPE_SECRET_KEY    → Pagos configurados
 ✅ STRIPE_WEBHOOK_SECRET → Webhooks seguros
 ✅ SENDGRID_API_KEY     → Email configurado
+✅ Helmet + rate limit  → Seguridad HTTP básica endurecida
+✅ CSRF tokens activos  → Formularios críticos protegidos
 ```
 
 ## 🏁 VEREDICTO FINAL

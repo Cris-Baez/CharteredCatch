@@ -52,6 +52,7 @@ import {
 // Tipos (según /api/bookings/me + /api/charters/:id del backend)
 import type { CharterWithCaptain } from "@shared/schema";
 import PaymentInstructions from "@/components/PaymentInstructions";
+import { fetchWithCsrf } from "@/lib/csrf";
 
 type BookingStatus = "pending" | "confirmed" | "cancelled" | "completed";
 
@@ -185,7 +186,7 @@ export default function MyTrips() {
   // Cancelar booking
   const cancelMutation = useMutation({
     mutationFn: async (bookingId: number) => {
-      const r = await fetch(`/api/bookings/${bookingId}/cancel`, {
+      const r = await fetchWithCsrf(`/api/bookings/${bookingId}/cancel`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -217,7 +218,7 @@ export default function MyTrips() {
       charterId: number;
       content: string;
     }) => {
-      const r = await fetch("/api/messages", {
+      const r = await fetchWithCsrf("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

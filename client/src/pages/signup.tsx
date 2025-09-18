@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Eye, EyeOff, Fish, Ship } from "lucide-react";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
+import { fetchWithCsrf } from "@/lib/csrf";
 
 export default function Signup() {
   const [busy, setBusy] = useState(false);
@@ -45,7 +46,7 @@ export default function Signup() {
       setBusy(true);
       setError(null);
 
-      const res = await fetch("/api/auth/local/register", {
+      const res = await fetchWithCsrf("/api/auth/local/register", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

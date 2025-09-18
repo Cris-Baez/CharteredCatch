@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Star } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
+import { fetchWithCsrf } from "@/lib/csrf";
 
 interface ReviewFormProps {
   charterId: number;
@@ -40,7 +41,7 @@ export default function ReviewForm({ charterId, charterTitle, onSuccess }: Revie
         }
       }
       
-      const response = await fetch("/api/reviews", {
+      const response = await fetchWithCsrf("/api/reviews", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

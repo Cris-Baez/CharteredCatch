@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
+import { fetchWithCsrf } from "@/lib/csrf";
 
 import {
   ArrowLeft,
@@ -185,7 +186,7 @@ export default function CreateCharter() {
         available: true,
       };
 
-      const res = await fetch("/api/captain/charters", {
+      const res = await fetchWithCsrf("/api/captain/charters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

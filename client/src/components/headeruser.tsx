@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Book, HelpCircle, LogOut, Menu, MessageCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
+import { fetchWithCsrf } from "@/lib/csrf";
 
 export default function HeaderUser() {
   const [isOpen, setIsOpen] = useState(false);
@@ -15,7 +16,7 @@ export default function HeaderUser() {
 
   const handleLogout = async () => {
     try {
-      const response = await fetch("/api/auth/logout", {
+      const response = await fetchWithCsrf("/api/auth/logout", {
         method: "POST",
         credentials: "include",
       });

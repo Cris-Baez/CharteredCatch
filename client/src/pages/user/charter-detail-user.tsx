@@ -36,6 +36,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { fetchWithCsrf } from "@/lib/csrf";
 
 import {
   MapPin,
@@ -155,7 +156,7 @@ export default function CharterDetailUser() {
   const handleBooking = async (data: BookingForm) => {
     if (!charter || !me) return;
     try {
-      const res = await fetch("/api/bookings", {
+      const res = await fetchWithCsrf("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -198,7 +199,7 @@ export default function CharterDetailUser() {
     const receiverId = charter.captain?.userId ? String(charter.captain.userId) : "";
     try {
       // 1) Intento crear/obtener hilo específico (ajusta a tu backend)
-      const threadRes = await fetch("/api/messages/threads", {
+      const threadRes = await fetchWithCsrf("/api/messages/threads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -217,7 +218,7 @@ export default function CharterDetailUser() {
       }
 
       // 2) Fallback: crea un primer mensaje y navega con query
-      await fetch("/api/messages", {
+      await fetchWithCsrf("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

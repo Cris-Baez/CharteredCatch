@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { fetchWithCsrf } from "@/lib/csrf";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -17,12 +18,17 @@ export async function apiRequest(
                      typeof window !== 'undefined' && window.location ? 
                      `${window.location.origin}${url}` : url;
   
-  const res = await fetch(absoluteUrl, {
+  const requestInit: RequestInit = {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers: data ? { "Content-Type": "application/json" } : undefined,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
-  });
+  };
+
+  const res =
+    method.toUpperCase() === "GET"
+      ? await fetch(absoluteUrl, requestInit)
+      : await fetchWithCsrf(absoluteUrl, requestInit);
 
   await throwIfResNotOk(res);
   return res;

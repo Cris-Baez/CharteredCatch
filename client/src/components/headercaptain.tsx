@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useQueryClient } from "@tanstack/react-query";
+import { fetchWithCsrf } from "@/lib/csrf";
 import {
   Menu,
   LogOut,
@@ -46,7 +47,7 @@ export default function HeaderCaptain({
 
   async function handleLogout() {
     try {
-      const response = await fetch("/api/auth/logout", {
+      const response = await fetchWithCsrf("/api/auth/logout", {
         method: "POST",
         credentials: "include",
       });

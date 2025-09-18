@@ -20,6 +20,7 @@ import {
   Clock,
   X,
 } from "lucide-react";
+import { fetchWithCsrf } from "@/lib/csrf";
 
 type SubscriptionStatus = {
   id: string;
@@ -88,7 +89,7 @@ export default function CaptainSubscribe() {
   const handleSubscribeWithCard = async () => {
     setSubscribing(true);
     try {
-      const response = await fetch("/api/captain/create-checkout-session", {
+      const response = await fetchWithCsrf("/api/captain/create-checkout-session", {
         method: "POST",
         credentials: "include",
       });
@@ -118,7 +119,7 @@ export default function CaptainSubscribe() {
   const handleSubscribeDoItLater = async () => {
     setSubscribing(true);
     try {
-      const response = await fetch("/api/captain/subscription/create", {
+      const response = await fetchWithCsrf("/api/captain/subscription/create", {
         method: "POST",
         credentials: "include",
       });
@@ -150,7 +151,7 @@ export default function CaptainSubscribe() {
 
   const handleCancelSubscription = async () => {
     try {
-      const response = await fetch("/api/captain/subscription/cancel", {
+      const response = await fetchWithCsrf("/api/captain/subscription/cancel", {
         method: "POST",
         credentials: "include",
       });

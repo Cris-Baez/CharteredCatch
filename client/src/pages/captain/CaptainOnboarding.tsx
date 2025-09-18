@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { fetchWithCsrf } from "@/lib/csrf";
 
 // ---------------- Env (Cloudinary + Stripe) ----------------
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
@@ -184,7 +185,7 @@ export default function CaptainOnboarding() {
     mutationFn: async () => {
       // tu backend espera email en body (según routes)
       // si prefieres por sesión, puedes omitir body
-      const r = await fetch("/api/email/send-verification", {
+      const r = await fetchWithCsrf("/api/email/send-verification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: user?.email, firstName: profile.name.split(" ")[0] || undefined }),
@@ -201,7 +202,7 @@ export default function CaptainOnboarding() {
   const saveProfile = useMutation({
     mutationFn: async (payload: Partial<Captain>) => {
       // tu routes expone PATCH /api/captain/me (si no lo tienes, usa /api/captains/:id)
-      const r = await fetch("/api/captain/me", {
+      const r = await fetchWithCsrf("/api/captain/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -218,7 +219,7 @@ export default function CaptainOnboarding() {
 
   const saveAvatar = useMutation({
     mutationFn: async (url: string) => {
-      const r = await fetch("/api/captain/me", {
+      const r = await fetchWithCsrf("/api/captain/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ avatar: url }),
@@ -234,7 +235,7 @@ export default function CaptainOnboarding() {
 
   const saveDocument = useMutation({
     mutationFn: async ({ key, url }: { key: DocKey; url: string }) => {
-      const r = await fetch("/api/captain/documents", {
+      const r = await fetchWithCsrf("/api/captain/documents", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ documentType: key, documentURL: url }),
@@ -698,7 +699,7 @@ export default function CaptainOnboarding() {
                       onClick={async () => {
                         // Opción “hacerlo luego”: activa trial sin método, si tu backend lo permite
                         try {
-                          const r = await fetch("/api/captain/subscription/create", { method: "POST" });
+                          const r = await fetchWithCsrf("/api/captain/subscription/create", { method: "POST" });
                           if (!r.ok) throw new Error();
                           // listo → overview
                           goOverview();
@@ -775,7 +776,7 @@ function PaymentSetupBlock({ onSuccess }: { onSuccess: () => void }) {
   const handleSubscribeWithCard = async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/captain/create-checkout-session", {
+      const response = await fetchWithCsrf("/api/captain/create-checkout-session", {
         method: "POST",
         credentials: "include",
       });
@@ -803,7 +804,7 @@ function PaymentSetupBlock({ onSuccess }: { onSuccess: () => void }) {
   const handleStartTrialLater = async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/captain/subscription/create", {
+      const response = await fetchWithCsrf("/api/captain/subscription/create", {
         method: "POST",
         credentials: "include",
       });

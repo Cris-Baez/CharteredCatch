@@ -115,6 +115,11 @@ Charterly is a full-stack web application for booking fishing charters in the Fl
 - **Static Assets**: Served from dist/public directory
 - **Environment**: Production NODE_ENV with optimized configurations
 
+### Environment Secrets
+- Define `SESSION_SECRET`, Stripe keys y otros secretos usando el gestor de variables de tu plataforma (Replit Secrets, Render, etc.)
+- No arranca el servidor si falta `SESSION_SECRET`; configúralo antes de ejecutar `npm run dev` o `npm run start`
+- Documenta la rotación periódica del secret para mitigar filtraciones accidentales
+
 ### Scaling Considerations
 - **Database**: Neon serverless PostgreSQL with connection pooling
 - **Session Storage**: PostgreSQL-backed sessions for horizontal scaling

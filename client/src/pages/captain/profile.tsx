@@ -23,6 +23,7 @@ import {
   KeyRound,
   Loader2,
 } from "lucide-react";
+import { fetchWithCsrf } from "@/lib/csrf";
 
 /* ===========================
    Tipos
@@ -128,7 +129,7 @@ export default function CaptainProfile() {
   // Save: user
   const updateUser = useMutation({
     mutationFn: async (payload: UpdateUserPayload) => {
-      const r = await fetch("/api/users/me", {
+      const r = await fetchWithCsrf("/api/users/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -148,7 +149,7 @@ export default function CaptainProfile() {
   // Save: captain
   const updateCaptain = useMutation({
     mutationFn: async (payload: UpdateCaptainPayload) => {
-      const r = await fetch("/api/captain/me", {
+      const r = await fetchWithCsrf("/api/captain/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -168,7 +169,7 @@ export default function CaptainProfile() {
   // Change password
   const changePassword = useMutation({
     mutationFn: async (payload: { currentPassword: string; newPassword: string }) => {
-      const r = await fetch("/api/users/me/password", {
+      const r = await fetchWithCsrf("/api/users/me/password", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -225,7 +226,7 @@ export default function CaptainProfile() {
       const avatarUrl = await uploadToCloudinary(file);
       
       // Send URL to backend
-      const r = await fetch("/api/captain/avatar", {
+      const r = await fetchWithCsrf("/api/captain/avatar", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

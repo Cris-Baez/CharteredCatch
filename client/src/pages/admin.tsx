@@ -4,6 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { fetchWithCsrf } from "@/lib/csrf";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -130,7 +131,7 @@ export default function Admin() {
                 size="sm"
                 onClick={async () => {
                   try {
-                    const response = await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+                    const response = await fetchWithCsrf("/api/auth/logout", { method: "POST", credentials: "include" });
                     if (response.ok) {
                       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
                       setLocation("/");

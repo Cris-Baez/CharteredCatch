@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { MessageCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import type { CharterWithCaptain } from "@shared/schema";
+import { fetchWithCsrf } from "@/lib/csrf";
 
 type SnakeMessage = {
   id: number;
@@ -157,7 +158,7 @@ export default function MessagesUser() {
       };
       if (data.charterId != null) payload.charterId = data.charterId;
 
-      const res = await fetch("/api/messages", {
+      const res = await fetchWithCsrf("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include", // NECESARIO para req.session.userId

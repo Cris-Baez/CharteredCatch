@@ -50,6 +50,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import ReviewsList from "@/components/ui/reviews-list";
 import ReviewForm from "@/components/ui/review-form";
+import { fetchWithCsrf } from "@/lib/csrf";
 
 const bookingSchema = z.object({
   tripDate: z.date(),
@@ -114,7 +115,7 @@ export default function CharterDetail() {
       return;
     }
 
-    const res = await fetch("/api/bookings", {
+    const res = await fetchWithCsrf("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -154,7 +155,7 @@ export default function CharterDetail() {
       return;
     }
 
-    await fetch("/api/messages", {
+    await fetchWithCsrf("/api/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",

@@ -2,6 +2,7 @@
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import type { Express } from "express";
+import { SESSION_SECRET } from "./config";
 
 const PgStore = connectPg(session);
 
@@ -13,7 +14,7 @@ export function setupSession(app: Express) {
         tableName: "sessions", // usar el nombre correcto de la tabla existente
         createTableIfMissing: false, // no crear tabla porque ya existe en el schema
       }),
-      secret: process.env.SESSION_SECRET || "dev_secret",
+      secret: SESSION_SECRET,
       resave: false,
       saveUninitialized: false,
       cookie: {

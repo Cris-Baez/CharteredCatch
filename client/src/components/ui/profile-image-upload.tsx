@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Camera, User, Upload, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { fetchWithCsrf } from "@/lib/csrf";
 
 interface ProfileImageUploadProps {
   currentImageUrl?: string | null;
@@ -30,7 +31,7 @@ export default function ProfileImageUpload({
       const formData = new FormData();
       formData.append("profileImage", file);
       
-      const response = await fetch("/api/user/profile-image", {
+      const response = await fetchWithCsrf("/api/user/profile-image", {
         method: "POST",
         body: formData,
         credentials: "include",

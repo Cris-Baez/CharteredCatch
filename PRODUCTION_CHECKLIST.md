@@ -8,6 +8,13 @@
 - ✅ **CORS configurado**: Protección cross-origin
 - ✅ **SQL Injection protegido**: Usando Drizzle ORM
 - ✅ **Stripe Checkout Sessions**: Redirección a páginas seguras de Stripe
+- ✅ **Helmet + rate limiting**: Endurecimiento de cabeceras y control de abuso en `/api`
+- ✅ **CSRF tokens para formularios sensibles**: Tokens `X-CSRF-Token` emitidos vía `/api/auth/csrf-token`
+
+### 🔐 GESTIÓN DE SECRETS
+- 📦 **Uso de secret manager**: Define `SESSION_SECRET`, `STRIPE_SECRET_KEY` y demás claves en tu plataforma (Render/Heroku/etc.)
+- 🗝️ **Rotación periódica**: Regenera `SESSION_SECRET` si sospechas filtración y redeploya
+- 🧪 **Verificación previa al deploy**: `npm run dev` lanzará error si falta `SESSION_SECRET`
 
 ### 💳 PAGOS & SUSCRIPCIONES  
 - ✅ **Stripe integración completa**: $49/month con 30 días trial
@@ -31,9 +38,7 @@
 
 ### 🔧 MEJORAS FUTURAS
 - ⚠️ **1 LSP error en objectStorage**: Parsing metadata (no crítico)
-- ⚠️ **CSRF protection**: Agregar para mayor seguridad
 - ⚠️ **SVG uploads**: Validar mejor tipos de archivos
-- ⚠️ **Rate limiting**: Implementar para evitar abuso
 
 ## 🚀 DEPLOYMENT READY
 

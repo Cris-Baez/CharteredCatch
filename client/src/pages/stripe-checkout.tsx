@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CreditCard, ArrowLeft } from "lucide-react";
 import Header from "@/components/header";
+import { fetchWithCsrf } from "@/lib/csrf";
 
 // Load Stripe
 if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
@@ -156,7 +157,7 @@ export default function StripeCheckout() {
         }
 
         // Create payment intent
-        const paymentRes = await fetch(`/api/bookings/${bookingId}/create-payment-intent`, {
+        const paymentRes = await fetchWithCsrf(`/api/bookings/${bookingId}/create-payment-intent`, {
           method: "POST",
           credentials: "include",
         });

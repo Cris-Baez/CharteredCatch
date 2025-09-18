@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
+import { fetchWithCsrf } from "@/lib/csrf";
 
 import {
   Banknote,
@@ -291,7 +292,7 @@ export default function UserCheckout() {
         price,
         currency
       )}). Please verify when you receive it. Thank you!`;
-      const r = await fetch("/api/messages", {
+      const r = await fetchWithCsrf("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -321,7 +322,7 @@ export default function UserCheckout() {
       return;
     }
     try {
-      const r = await fetch("/api/messages", {
+      const r = await fetchWithCsrf("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

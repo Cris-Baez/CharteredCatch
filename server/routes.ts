@@ -1,5 +1,5 @@
 // server/routes.ts
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import express from "express";
 import path from "path";
 import { createServer, type Server } from "http";
@@ -12,6 +12,7 @@ import multer from "multer";
 import { db } from "./db";
 import { storage } from "./storage";
 import { randomBytes } from "crypto";
+import { SESSION_SECRET } from "./config";
 
 import {
   users as usersTable,
@@ -47,6 +48,8 @@ import * as schema from "../shared/schema";
 declare module "express-session" {
   interface SessionData {
     userId?: string;
+    csrfToken?: string;
+    csrfTokenIssuedAt?: number;
   }
 }
 
@@ -153,6 +156,41 @@ function serializeBooking(row: any) {
 // registerRoutes
 // ==============================
 export async function registerRoutes(app: Express): Promise<Server> {
+  const CSRF_SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+  const CSRF_EXEMPT_PATHS = new Set(["/stripe/webhook"]);
+  const MAX_CSRF_TOKEN_AGE_MS = 60 * 60 * 1000; // 1 hour
+
+  const issueCsrfToken = (req: Request) => {
+    const token = randomBytes(32).toString("hex");
+    req.session.csrfToken = token;
+    req.session.csrfTokenIssuedAt = Date.now();
+    return token;
+  };
+
+  const validateCsrfToken = (req: Request, res: Response, next: NextFunction) => {
+    const expectedToken = req.session.csrfToken;
+    if (!expectedToken) {
+      return res.status(403).json({ message: "Missing CSRF token" });
+    }
+
+    const issuedAt = req.session.csrfTokenIssuedAt;
+    if (issuedAt && Date.now() - issuedAt > MAX_CSRF_TOKEN_AGE_MS) {
+      delete req.session.csrfToken;
+      delete req.session.csrfTokenIssuedAt;
+      return res.status(403).json({ message: "CSRF token expired" });
+    }
+
+    const providedToken = req.get("x-csrf-token");
+    if (!providedToken || providedToken !== expectedToken) {
+      return res.status(403).json({ message: "Invalid CSRF token" });
+    }
+
+    delete req.session.csrfToken;
+    delete req.session.csrfTokenIssuedAt;
+
+    return next();
+  };
+
   // JSON y estáticos (límite configurado en index.ts)
   // app.use(express.json()); // Ya configurado en index.ts con 50MB limit
   app.use(
@@ -213,7 +251,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tableName: "sessions",
         createTableIfMissing: false,
       }),
-      secret: process.env.SESSION_SECRET || "dev_secret_insecure_change_in_production",
+      secret: SESSION_SECRET,
       resave: false,
       saveUninitialized: false,
       cookie: {
@@ -225,6 +263,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       },
     })
   );
+
+  app.get("/api/auth/csrf-token", (req: Request, res: Response) => {
+    const csrfToken = issueCsrfToken(req);
+    res.json({ csrfToken });
+  });
+
+  app.use("/api", (req: Request, res: Response, next: NextFunction) => {
+    if (CSRF_SAFE_METHODS.has(req.method)) {
+      return next();
+    }
+
+    if (CSRF_EXEMPT_PATHS.has(req.path)) {
+      return next();
+    }
+
+    return validateCsrfToken(req, res, next);
+  });
 
   // (Opcional) Endpoint para depurar la sesión
   app.get("/api/debug/session", (req: Request, res: Response) => {

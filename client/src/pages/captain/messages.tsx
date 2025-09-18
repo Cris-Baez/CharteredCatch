@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { MessageCircle, Search } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { fetchWithCsrf } from "@/lib/csrf";
 
 /* ===== tipos que matchean tu backend ===== */
 type SnakeMessage = {
@@ -90,7 +91,7 @@ export default function MessagesCaptain() {
   /* ====== MARCAR COMO LEÍDO AL ABRIR ====== */
   const markRead = useMutation({
     mutationFn: async (payload: { userId: string; participantId: string }) => {
-      const res = await fetch("/api/messages/read", {
+      const res = await fetchWithCsrf("/api/messages/read", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -139,7 +140,7 @@ export default function MessagesCaptain() {
       };
       if (data.charterId != null) payload.charterId = data.charterId;
 
-      const res = await fetch("/api/messages", {
+      const res = await fetchWithCsrf("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

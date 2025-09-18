@@ -5,6 +5,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import HeaderCaptain from "@/components/headercaptain";
+import { fetchWithCsrf } from "@/lib/csrf";
 
 // UI Components
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -91,7 +92,7 @@ export default function EditCharter() {
   // Update charter mutation
   const updateCharterMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const response = await fetch(`/api/charters/${charterId}`, {
+      const response = await fetchWithCsrf(`/api/charters/${charterId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -125,7 +126,7 @@ export default function EditCharter() {
   // Delete charter mutation
   const deleteCharterMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/charters/${charterId}`, {
+      const response = await fetchWithCsrf(`/api/charters/${charterId}`, {
         method: "DELETE",
         credentials: "include",
       });
