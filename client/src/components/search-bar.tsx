@@ -280,7 +280,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
       </div>
 
       {/* DESKTOP - Horizontal layout */}
-      <div className="hidden md:block max-w-2xl mx-auto" data-testid="desktop-search-bar">
+      <div className="hidden md:block max-w-2x2 mx-auto" data-testid="desktop-search-bar">
         <Card className="bg-white rounded-full shadow-md border border-gray-200 hover:shadow-xl transition-shadow">
           <div className="flex items-center">
             {/* Destination */}
