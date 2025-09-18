@@ -2,27 +2,24 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { 
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Search, MapPin, Fish, Clock, Calendar, X, Minus, Plus } from "lucide-react";
+import { Search, MapPin, Calendar, Users, X, Minus, Plus } from "lucide-react";
 
 interface SearchBarInlineProps {
   onSearch?: (filters: {
     location: string;
-    targetSpecies: string;
-    duration: string;
     date: string;
+    guests: number;
   }) => void;
   initialValues?: {
     location?: string;
-    targetSpecies?: string;
-    duration?: string;
     date?: string;
+    guests?: number;
   };
 }
 
@@ -33,49 +30,36 @@ type NominatimItem = {
 
 export default function SearchBarInline({ onSearch, initialValues }: SearchBarInlineProps) {
   const [locationValue, setLocationValue] = useState("");
-  const [targetSpecies, setTargetSpecies] = useState("");
-  const [duration, setDuration] = useState("");
   const [date, setDate] = useState("");
+  const [guests, setGuests] = useState(1);
 
   const [suggestions, setSuggestions] = useState<NominatimItem[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showGuestPicker, setShowGuestPicker] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number>(-1);
 
   const mobileDropdownRef = useRef<HTMLDivElement>(null);
   const desktopDropdownRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<number | null>(null);
 
-  const targetSpeciesOptions = [
-    "Any Species", "Tarpon", "Mahi-Mahi", "Snapper",
-    "Grouper", "Bonefish", "Redfish", "Yellowfin Tuna",
-    "Wahoo", "Permit", "Snook",
-  ];
-
-  const durationOptions = [
-    "Any Duration", "Half Day (4hrs)", "Full Day (8hrs)",
-    "Extended (10hrs)", "Multi-day",
-  ];
-
-  // cargar initialValues si existen
+  // Load initial values
   useEffect(() => {
     if (initialValues) {
       setLocationValue(initialValues.location || "");
-      setTargetSpecies(initialValues.targetSpecies || "");
-      setDuration(initialValues.duration || "");
       setDate(initialValues.date || "");
+      setGuests(initialValues.guests || 1);
     }
   }, [initialValues]);
 
-  // persistencia localStorage
+  // Persistence with localStorage
   useEffect(() => {
     const saved = localStorage.getItem("searchFiltersInline");
     if (saved && !initialValues) {
       try {
-        const { location, targetSpecies, duration, date } = JSON.parse(saved);
+        const { location, date, guests } = JSON.parse(saved);
         setLocationValue(location || "");
-        setTargetSpecies(targetSpecies || "");
-        setDuration(duration || "");
         setDate(date || "");
+        setGuests(guests || 1);
       } catch {
         // ignore
       }
@@ -87,14 +71,13 @@ export default function SearchBarInline({ onSearch, initialValues }: SearchBarIn
       "searchFiltersInline",
       JSON.stringify({
         location: locationValue,
-        targetSpecies,
-        duration,
         date,
+        guests,
       })
     );
-  }, [locationValue, targetSpecies, duration, date]);
+  }, [locationValue, date, guests]);
 
-  // autocomplete con Nominatim (debounce)
+  // Autocomplete with Nominatim (debounce)
   useEffect(() => {
     if (locationValue.trim().length < 3) {
       setSuggestions([]);
@@ -133,7 +116,7 @@ export default function SearchBarInline({ onSearch, initialValues }: SearchBarIn
     };
   }, [locationValue]);
 
-  // cerrar dropdown al click fuera
+  // Close dropdown on click outside
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       const mobileContainer = mobileDropdownRef.current;
@@ -149,7 +132,7 @@ export default function SearchBarInline({ onSearch, initialValues }: SearchBarIn
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // resaltar coincidencia (escapando el query para evitar regex raro)
+  // Highlight match (escaping query for regex safety)
   function highlightMatch(text: string, query: string) {
     const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const regex = new RegExp(`(${escaped})`, "gi");
@@ -162,12 +145,12 @@ export default function SearchBarInline({ onSearch, initialValues }: SearchBarIn
     setActiveIndex(-1);
   };
 
-  // enviar búsqueda SOLO por callback
+  // Handle search
   const handleSearch = () => {
     if (onSearch) {
-      onSearch({ location: locationValue, targetSpecies, duration, date });
+      onSearch({ location: locationValue, date, guests });
     }
-    // cerrar dropdown al buscar
+    // Close dropdown on search
     setShowSuggestions(false);
     setActiveIndex(-1);
   };
@@ -195,6 +178,16 @@ export default function SearchBarInline({ onSearch, initialValues }: SearchBarIn
   };
 
   const clearField = (setter: (v: string) => void) => setter("");
+
+  const adjustGuests = (change: number) => {
+    const newGuests = Math.max(1, Math.min(16, guests + change));
+    setGuests(newGuests);
+  };
+
+  const formatGuestText = (count: number) => {
+    if (count === 1) return "1 guest";
+    return `${count} guests`;
+  };
 
   const formatDate = (dateString: string) => {
     if (!dateString) return "Add dates";
@@ -292,41 +285,45 @@ export default function SearchBarInline({ onSearch, initialValues }: SearchBarIn
               )}
             </div>
 
-            {/* Species - Full width */}
-            <div className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 focus-within:ring-1 focus-within:ring-gray-300 transition-all">
-              <Fish className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-              <div className="flex-1">
-                <div className="text-[11px] font-medium text-gray-800 mb-0">Species</div>
-                <Select value={targetSpecies} onValueChange={setTargetSpecies}>
-                  <SelectTrigger className="border-0 p-0 h-auto text-xs focus:ring-0 bg-transparent">
-                    <SelectValue placeholder="Any species" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {targetSpeciesOptions.map((s) => (
-                      <SelectItem key={s} value={s === "Any Species" ? "" : s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Duration - Full width */}
-            <div className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 focus-within:ring-1 focus-within:ring-gray-300 transition-all">
-              <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-              <div className="flex-1">
-                <div className="text-[11px] font-medium text-gray-800 mb-0">Duration</div>
-                <Select value={duration} onValueChange={setDuration}>
-                  <SelectTrigger className="border-0 p-0 h-auto text-xs focus:ring-0 bg-transparent">
-                    <SelectValue placeholder="Any duration" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {durationOptions.map((d) => (
-                      <SelectItem key={d} value={d === "Any Duration" ? "" : d}>{d}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            {/* Guests - Full width */}
+            <Popover open={showGuestPicker} onOpenChange={setShowGuestPicker}>
+              <PopoverTrigger asChild>
+                <button 
+                  className="w-full flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 hover:shadow-sm transition-all text-left"
+                >
+                  <Users className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                  <div className="flex-1">
+                    <div className="text-[11px] font-medium text-gray-800 mb-0">Who</div>
+                    <div className="text-xs text-gray-700">{formatGuestText(guests)}</div>
+                  </div>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-48 p-3 rounded-2xl shadow-xl" align="start">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-semibold text-xs">Guests</div>
+                    <div className="text-[10px] text-gray-500">Ages 13 or above</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => adjustGuests(-1)}
+                      disabled={guests <= 1}
+                      className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-900 transition-colors"
+                    >
+                      <Minus className="w-2.5 h-2.5" />
+                    </button>
+                    <span className="w-8 text-center font-semibold">{guests}</span>
+                    <button
+                      onClick={() => adjustGuests(1)}
+                      disabled={guests >= 16}
+                      className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-900 transition-colors"
+                    >
+                      <Plus className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
 
             {/* Search Button */}
             <Button 
@@ -429,49 +426,45 @@ export default function SearchBarInline({ onSearch, initialValues }: SearchBarIn
             {/* Divider */}
             <div className="w-px h-8 bg-gray-200"></div>
 
-            {/* Species */}
+            {/* Guests */}
             <div className="flex-1">
-              <button 
-                className="w-full flex items-center gap-2 p-2 hover:bg-gray-50 transition-colors text-left"
-              >
-                <div className="flex-1">
-                  <div className="text-xs font-semibold text-gray-900 mb-1">Species</div>
-                  <Select value={targetSpecies} onValueChange={setTargetSpecies}>
-                    <SelectTrigger className="border-0 p-0 h-auto text-sm focus:ring-0 bg-transparent">
-                      <SelectValue placeholder="Any species" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {targetSpeciesOptions.map((s) => (
-                        <SelectItem key={s} value={s === "Any Species" ? "" : s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </button>
-            </div>
-
-            {/* Divider */}
-            <div className="w-px h-8 bg-gray-200"></div>
-
-            {/* Duration */}
-            <div className="flex-1">
-              <button 
-                className="w-full flex items-center gap-2 p-2 hover:bg-gray-50 transition-colors text-left"
-              >
-                <div className="flex-1">
-                  <div className="text-xs font-semibold text-gray-900 mb-1">Duration</div>
-                  <Select value={duration} onValueChange={setDuration}>
-                    <SelectTrigger className="border-0 p-0 h-auto text-sm focus:ring-0 bg-transparent">
-                      <SelectValue placeholder="Any duration" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {durationOptions.map((d) => (
-                        <SelectItem key={d} value={d === "Any Duration" ? "" : d}>{d}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </button>
+              <Popover open={showGuestPicker} onOpenChange={setShowGuestPicker}>
+                <PopoverTrigger asChild>
+                  <button 
+                    className="w-full flex items-center gap-2 p-2 hover:bg-gray-50 transition-colors text-left"
+                  >
+                    <div className="flex-1">
+                      <div className="text-xs font-semibold text-gray-900 mb-1">Who</div>
+                      <div className="text-sm text-gray-500">{formatGuestText(guests)}</div>
+                    </div>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-4" align="end">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold text-sm">Guests</div>
+                      <div className="text-xs text-gray-500">Ages 13 or above</div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => adjustGuests(-1)}
+                        disabled={guests <= 1}
+                        className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-900 transition-colors"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <span className="w-8 text-center font-semibold">{guests}</span>
+                      <button
+                        onClick={() => adjustGuests(1)}
+                        disabled={guests >= 16}
+                        className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-900 transition-colors"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
             {/* Search Button */}
