@@ -2263,6 +2263,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Crea una reserva (usa el usuario en sesión)
     app.post("/api/bookings", async (req: Request, res: Response) => {
+      const SLOTS_PER_BOOKING = 1;
+      const AVAILABILITY_NOT_FOUND = "AVAILABILITY_NOT_FOUND";
+      const AVAILABILITY_UPDATE_FAILED = "AVAILABILITY_UPDATE_FAILED";
+
       try {
         if (!req.session.userId) {
           return res.status(401).json({ message: "Unauthorized" });
@@ -2331,21 +2335,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Future enhancement: add guest-based pricing, date-based pricing, etc.
         const totalPrice = charterPriceDecimal;
 
-        const [created] = await db
-          .insert(bookingsTable)
-          .values({
-            userId: req.session.userId,
-            charterId: charterId,
-            tripDate: new Date(tripDate),
-            guests: Number(guests),
-            totalPrice: totalPrice.toString(),
-            status: "pending",
-            message: message ?? null,
-          })
-          .returning();
+        const tripDateValue =
+          tripDate instanceof Date ? tripDate : new Date(tripDate);
+
+        if (Number.isNaN(tripDateValue.getTime())) {
+          return res.status(400).json({ message: "Invalid trip date" });
+        }
+
+        const created = await db.transaction(async (tx) => {
+          const available = await storage.checkAvailability(
+            charterId,
+            tripDateValue,
+            SLOTS_PER_BOOKING,
+            tx,
+          );
+
+          if (!available) {
+            throw new Error(AVAILABILITY_NOT_FOUND);
+          }
+
+          const [insertedBooking] = await tx
+            .insert(bookingsTable)
+            .values({
+              userId: req.session.userId!,
+              charterId: charterId,
+              tripDate: tripDateValue,
+              guests: Number(guests),
+              totalPrice: totalPrice.toString(),
+              status: "pending",
+              message: message ?? null,
+            })
+            .returning();
+
+          const updated = await storage.updateAvailabilitySlots(
+            charterId,
+            tripDateValue,
+            SLOTS_PER_BOOKING,
+            tx,
+          );
+
+          if (!updated) {
+            throw new Error(AVAILABILITY_UPDATE_FAILED);
+          }
+
+          return insertedBooking;
+        });
 
         return res.status(201).json(serializeBooking(created));
       } catch (error) {
+        if (error instanceof Error) {
+          if (error.message === AVAILABILITY_NOT_FOUND) {
+            return res.status(409).json({ message: "Selected date is no longer available" });
+          }
+          if (error.message === AVAILABILITY_UPDATE_FAILED) {
+            return res.status(409).json({ message: "Unable to reserve the selected slot" });
+          }
+        }
         console.error("Create booking error:", error);
         return res.status(500).json({ message: "Failed to create booking" });
       }
