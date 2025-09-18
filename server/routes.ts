@@ -2613,18 +2613,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!req.session.userId) {
           return res.status(401).json({ error: "Unauthorized" });
         }
-        const { receiverId, content, charterId } = req.body ?? {};
-        if (!receiverId || !content) {
-          return res.status(400).json({ error: "Missing fields" });
+        
+        const { receiverId, content, charterId, bookingId, message } = req.body ?? {};
+        
+        console.log("Message API request body:", { receiverId, content, charterId, bookingId, message });
+        
+        // Support both old API (receiverId + content) and new API (bookingId + message)
+        let finalReceiverId = receiverId;
+        let finalContent = content || message;
+        let finalCharterId = charterId;
+
+        // If bookingId is provided, auto-resolve receiverId and charterId
+        if (bookingId && !receiverId) {
+          console.log("Looking up booking:", bookingId);
+          const [booking] = await db
+            .select({
+              charterId: bookingsTable.charterId,
+              captainUserId: captainsTable.userId,
+            })
+            .from(bookingsTable)
+            .leftJoin(chartersTable, eq(bookingsTable.charterId, chartersTable.id))
+            .leftJoin(captainsTable, eq(chartersTable.captainId, captainsTable.id))
+            .where(eq(bookingsTable.id, Number(bookingId)));
+
+          console.log("Booking lookup result:", booking);
+
+          if (!booking) {
+            return res.status(404).json({ error: "Booking not found" });
+          }
+
+          finalReceiverId = booking.captainUserId;
+          finalCharterId = booking.charterId;
+        }
+
+        console.log("Final values:", { finalReceiverId, finalContent, finalCharterId });
+
+        if (!finalReceiverId || !finalContent) {
+          return res.status(400).json({ 
+            error: "Missing receiverId/content or bookingId/message",
+            debug: { finalReceiverId, finalContent, receiverId, content, bookingId, message }
+          });
         }
 
         const [inserted] = await db
           .insert(messages)
           .values({
             senderId: req.session.userId,
-            receiverId: String(receiverId),
-            charterId: charterId ?? null,
-            content: String(content),
+            receiverId: String(finalReceiverId),
+            charterId: finalCharterId ?? null,
+            content: String(finalContent),
           })
           .returning();
 
