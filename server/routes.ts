@@ -39,6 +39,13 @@ import { and, eq, ilike, inArray, gte, lt, or, isNotNull, desc, sql } from "driz
 import { sendEmailVerification, sendWelcomeEmail, generateVerificationToken , sendEmail  , } from "./emailService";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { handleStripeWebhook } from "./stripe-webhooks";
+import { scheduleSubscriptionMaintenance } from "./subscriptionMaintenance";
+import {
+  ACTIVE_SUBSCRIPTION_STATUSES,
+  PENDING_SUBSCRIPTION_GRACE_PERIOD_MS,
+  isActiveSubscriptionStatus,
+} from "./subscriptionUtils";
+
 import {
   makeCancelCaptainSubscriptionHandler,
   makeCreateCaptainSubscriptionHandler,
@@ -1089,6 +1096,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const whereCond = andAll([
         eq(chartersTable.isListed, true),
+        inArray(subscriptionsTable.status, Array.from(ACTIVE_SUBSCRIPTION_STATUSES)),
         location && String(location).trim() !== ""
           ? ilike(chartersTable.location, `%${String(location)}%`)
           : undefined,
@@ -1138,7 +1146,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           u_lastName: usersTable.lastName,
         })
         .from(chartersTable)
-        .leftJoin(captainsTable, eq(chartersTable.captainId, captainsTable.id))
+        .innerJoin(captainsTable, eq(chartersTable.captainId, captainsTable.id))
+        .innerJoin(subscriptionsTable, eq(captainsTable.userId, subscriptionsTable.userId))
         .leftJoin(usersTable, eq(captainsTable.userId, usersTable.id));
 
       const rows = whereCond 
@@ -1223,9 +1232,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           u_lastName: usersTable.lastName,
         })
         .from(chartersTable)
-        .leftJoin(captainsTable, eq(chartersTable.captainId, captainsTable.id))
+        .innerJoin(captainsTable, eq(chartersTable.captainId, captainsTable.id))
+        .innerJoin(subscriptionsTable, eq(captainsTable.userId, subscriptionsTable.userId))
         .leftJoin(usersTable, eq(captainsTable.userId, usersTable.id))
-        .where(eq(chartersTable.isListed, true))
+        .where(
+          and(
+            eq(chartersTable.isListed, true),
+            inArray(subscriptionsTable.status, Array.from(ACTIVE_SUBSCRIPTION_STATUSES)),
+          ),
+        )
         .limit(6);
 
       const result = rows.map((r) => ({
@@ -1311,9 +1326,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           u_lastName: usersTable.lastName,
         })
         .from(chartersTable)
-        .leftJoin(captainsTable, eq(chartersTable.captainId, captainsTable.id))
+        .innerJoin(captainsTable, eq(chartersTable.captainId, captainsTable.id))
+        .innerJoin(subscriptionsTable, eq(captainsTable.userId, subscriptionsTable.userId))
         .leftJoin(usersTable, eq(captainsTable.userId, usersTable.id))
-        .where(eq(chartersTable.id, id));
+        .where(
+          and(
+            eq(chartersTable.id, id),
+            eq(chartersTable.isListed, true),
+            inArray(subscriptionsTable.status, Array.from(ACTIVE_SUBSCRIPTION_STATUSES)),
+          ),
+        );
 
       if (!r) return res.status(404).json({ message: "Charter not found" });
 
@@ -1392,6 +1414,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!cap) {
         return res.status(400).json({ message: "Captain profile required before creating charters" });
+      }
+
+      const subscription = await db.query.subscriptions.findFirst({
+        where: eq(subscriptionsTable.userId, req.session.userId!),
+      });
+
+      if (!subscription || !isActiveSubscriptionStatus(subscription.status)) {
+        return res.status(403).json({
+          message: "An active or trialing subscription is required to create charters",
+        });
       }
 
       // validaciones mínimas
@@ -1508,6 +1540,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Not your charter" });
       }
 
+      const subscription = await db.query.subscriptions.findFirst({
+        where: eq(subscriptionsTable.userId, req.session.userId!),
+      });
+      const subscriptionAllowsListing =
+        !!subscription && isActiveSubscriptionStatus(subscription.status);
+
       const {
         title,
         description,
@@ -1528,7 +1566,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (price !== undefined) updateData.price = String(price);
       if (duration !== undefined) updateData.duration = String(duration);
       if (maxGuests !== undefined) updateData.maxGuests = Number(maxGuests);
-      if (isListed !== undefined) updateData.isListed = Boolean(isListed);
+      if (isListed !== undefined) {
+        if (isListed && !subscriptionAllowsListing) {
+          return res.status(403).json({
+            message: "An active or trialing subscription is required to list charters",
+          });
+        }
+        updateData.isListed = Boolean(isListed) && subscriptionAllowsListing;
+      } else if (!subscriptionAllowsListing) {
+        updateData.isListed = false;
+      }
 
       if (images !== undefined) {
         if (Array.isArray(images)) {
@@ -2817,21 +2864,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingSub = await db.query.subscriptions.findFirst({
         where: eq(subscriptionsTable.userId, req.session.userId!),
       });
-      
-      if (existingSub && existingSub.status === "active") {
+
+      if (existingSub && isActiveSubscriptionStatus(existingSub.status)) {
         return res.json({ success: true, subscription: existingSub });
       }
 
-      // Crear suscripción en estado "pending" (Do it later option)
-      const subscription = await db.insert(subscriptionsTable).values({
-        userId: req.session.userId!,
-        status: "pending", // "pending" = usuario seleccionó "Do it later"
-        planType: "captain_monthly",
-        trialStartDate: new Date(),
-        trialEndDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30), // 30 days trial
-      }).returning();
+      const now = new Date();
+      const pendingExpiresAt = new Date(now.getTime() + PENDING_SUBSCRIPTION_GRACE_PERIOD_MS);
 
-      res.json({ success: true, subscription: subscription[0] });
+      if (existingSub) {
+        const [updatedSubscription] = await db
+          .update(subscriptionsTable)
+          .set({
+            status: "pending",
+            planType: "captain_monthly",
+            trialStartDate: now,
+            trialEndDate: pendingExpiresAt,
+            currentPeriodStart: now,
+            currentPeriodEnd: pendingExpiresAt,
+            updatedAt: now,
+          })
+          .where(eq(subscriptionsTable.id, existingSub.id))
+          .returning();
+
+        return res.json({ success: true, subscription: updatedSubscription });
+      }
+
+      const [subscription] = await db
+        .insert(subscriptionsTable)
+        .values({
+          userId: req.session.userId!,
+          status: "pending", // Usuario seleccionó "Do it later"
+          planType: "captain_monthly",
+          trialStartDate: now,
+          trialEndDate: pendingExpiresAt,
+          currentPeriodStart: now,
+          currentPeriodEnd: pendingExpiresAt,
+          updatedAt: now,
+        })
+        .returning();
+
+      res.json({ success: true, subscription });
     } catch (error: any) {
       console.error("Create subscription error:", error);
       res.status(500).json({ error: "Failed to create subscription" });
@@ -4250,6 +4323,8 @@ Looking forward to an amazing day on the water! 🛥️`;
     // ==============================
     // HTTP SERVER
     // ==============================
+    scheduleSubscriptionMaintenance();
+
     const httpServer = createServer(app);
     return httpServer;
   }
