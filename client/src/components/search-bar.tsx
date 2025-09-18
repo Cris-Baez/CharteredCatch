@@ -36,7 +36,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number>(-1);
 
-  // estados separados para evitar conflictos
+  // Estados separados para evitar conflicto entre layouts
   const [showGuestPickerMobile, setShowGuestPickerMobile] = useState(false);
   const [showGuestPickerDesktop, setShowGuestPickerDesktop] = useState(false);
   const [showDatePickerMobile, setShowDatePickerMobile] = useState(false);
@@ -46,6 +46,28 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
   const mobileDropdownRef = useRef<HTMLDivElement>(null);
   const desktopDropdownRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<number | null>(null);
+
+  // Refs para abrir el date picker nativo al abrir el Popover (desktop/mobile)
+  const mobileDateInputRef = useRef<HTMLInputElement>(null);
+  const desktopDateInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (showDatePickerMobile) {
+      setTimeout(() => {
+        mobileDateInputRef.current?.showPicker?.();
+        mobileDateInputRef.current?.focus();
+      }, 0);
+    }
+  }, [showDatePickerMobile]);
+
+  useEffect(() => {
+    if (showDatePickerDesktop) {
+      setTimeout(() => {
+        desktopDateInputRef.current?.showPicker?.();
+        desktopDateInputRef.current?.focus();
+      }, 0);
+    }
+  }, [showDatePickerDesktop]);
 
   // Load initial values
   useEffect(() => {
@@ -92,28 +114,19 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
 
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
     debounceRef.current = window.setTimeout(async () => {
-      const controller = new AbortController();
       try {
         const res = await fetch(
           `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
             locationValue.trim()
-          )}`,
-          { signal: controller.signal }
+          )}`
         );
         const data: NominatimItem[] = await res.json();
         setSuggestions(data.slice(0, 5));
         setShowSuggestions(true);
         setActiveIndex(-1);
       } catch (error) {
-        if (error instanceof Error && error.name !== "AbortError") {
-          console.error("Fetch error:", error);
-        }
+        // ignore network errors
       }
-      return () => {
-        if (!controller.signal.aborted) {
-          controller.abort();
-        }
-      };
     }, 250);
 
     return () => {
@@ -127,12 +140,12 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
       const mobileContainer = mobileDropdownRef.current;
       const desktopContainer = desktopDropdownRef.current;
 
-      if (
-        mobileContainer &&
-        !mobileContainer.contains(e.target as Node) &&
-        desktopContainer &&
-        !desktopContainer.contains(e.target as Node)
-      ) {
+      const outsideMobile =
+        !mobileContainer || !mobileContainer.contains(e.target as Node);
+      const outsideDesktop =
+        !desktopContainer || !desktopContainer.contains(e.target as Node);
+
+      if (outsideMobile && outsideDesktop) {
         setShowSuggestions(false);
         setActiveIndex(-1);
       }
@@ -141,7 +154,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Highlight match
+  // Highlight match (escaping query for regex safety)
   function highlightMatch(text: string, query: string) {
     const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const regex = new RegExp(`(${escaped})`, "gi");
@@ -160,6 +173,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
       location: locationValue,
       date,
       guests: guests.toString(),
+      // Keep compatibility with existing search params
       targetSpecies: "",
       duration: "",
     };
@@ -167,6 +181,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
     if (onSearch) onSearch({ location: locationValue, date, guests });
     const params = new URLSearchParams(filters).toString();
     navigate(`/search?${params}`);
+    // Close dropdown on search
     setShowSuggestions(false);
     setActiveIndex(-1);
   };
@@ -207,8 +222,8 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return "Add dates";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
+    const d = new Date(dateString);
+    return d.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
     });
@@ -216,13 +231,13 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
 
   return (
     <>
-      {/* MOBILE */}
+      {/* MOBILE - Stack vertically (Where / When / Who) */}
       <div className="md:hidden" data-testid="mobile-search-bar">
         <Card className="bg-white rounded-2xl shadow-sm p-1.5 ring-1 ring-gray-200">
           <div className="space-y-1.5">
-            {/* Destination */}
+            {/* Where */}
             <div className="relative" ref={mobileDropdownRef}>
-              <div className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full">
+              <div className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 focus-within:ring-1 focus-within:ring-gray-300 transition-all">
                 <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                 <div className="flex-1">
                   <div className="text-[11px] font-medium text-gray-800 mb-0">
@@ -241,6 +256,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                     aria-expanded={showSuggestions}
                     aria-autocomplete="list"
                     aria-controls="location-suggestions"
+                    data-testid="input-destination"
                   />
                 </div>
                 {locationValue && (
@@ -248,6 +264,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                     onClick={() => clearField(setLocationValue)}
                     className="p-1 hover:bg-gray-100 rounded-full transition-colors"
                     aria-label="Clear location"
+                    data-testid="button-clear-destination"
                   >
                     <X className="w-4 h-4 text-gray-400" />
                   </button>
@@ -265,12 +282,13 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                       key={s.place_id}
                       role="option"
                       aria-selected={i === activeIndex}
-                      className={`w-full px-4 py-2.5 text-left text-sm ${
+                      className={`w-full px-4 py-2.5 text-left text-sm transition-colors first:rounded-t-2xl last:rounded-b-2xl ${
                         i === activeIndex ? "bg-gray-100" : "hover:bg-gray-50"
                       }`}
                       onMouseEnter={() => setActiveIndex(i)}
                       onMouseLeave={() => setActiveIndex(-1)}
                       onClick={() => selectSuggestion(s)}
+                      data-testid={`suggestion-${s.place_id}`}
                     >
                       <div className="flex items-center gap-3">
                         <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
@@ -289,13 +307,16 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
               )}
             </div>
 
-            {/* Date */}
+            {/* When (Popover con date input para experiencia consistente) */}
             <Popover
               open={showDatePickerMobile}
               onOpenChange={setShowDatePickerMobile}
             >
               <PopoverTrigger asChild>
-                <button className="w-full flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full text-left">
+                <button
+                  className="w-full flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 transition-all text-left"
+                  data-testid="button-when-mobile"
+                >
                   <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                   <div className="flex-1">
                     <div className="text-[11px] font-medium text-gray-800 mb-0">
@@ -307,23 +328,28 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                   </div>
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-2">
+              <PopoverContent className="w-auto p-2 rounded-2xl shadow-xl">
                 <Input
+                  ref={mobileDateInputRef}
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   className="text-sm"
+                  data-testid="input-date-mobile"
                 />
               </PopoverContent>
             </Popover>
 
-            {/* Guests */}
+            {/* Who */}
             <Popover
               open={showGuestPickerMobile}
               onOpenChange={setShowGuestPickerMobile}
             >
               <PopoverTrigger asChild>
-                <button className="w-full flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full text-left">
+                <button
+                  className="w-full flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 hover:shadow-sm transition-all cursor-pointer text-left"
+                  data-testid="button-guests"
+                >
                   <Users className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                   <div className="flex-1">
                     <div className="text-[11px] font-medium text-gray-800 mb-0">
@@ -347,17 +373,19 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                     <button
                       onClick={() => adjustGuests(-1)}
                       disabled={guests <= 1}
-                      className="w-6 h-6 rounded-full border border-gray-300"
+                      className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-900 transition-colors"
+                      data-testid="button-guests-decrease"
                     >
                       <Minus className="w-2.5 h-2.5" />
                     </button>
-                    <span className="w-8 text-center font-semibold">
+                    <span className="w-8 text-center font-semibold" data-testid="text-guests-count">
                       {guests}
                     </span>
                     <button
                       onClick={() => adjustGuests(1)}
                       disabled={guests >= 16}
-                      className="w-6 h-6 rounded-full border border-gray-300"
+                      className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-900 transition-colors"
+                      data-testid="button-guests-increase"
                     >
                       <Plus className="w-2.5 h-2.5" />
                     </button>
@@ -369,7 +397,8 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
             {/* Search Button */}
             <Button
               onClick={handleSearch}
-              className="w-full h-10 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center gap-1"
+              className="w-full h-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs flex items-center justify-center gap-1 transition-all hover:shadow-lg"
+              data-testid="button-search"
             >
               <Search className="w-3.5 h-3.5" />
               Search
@@ -378,41 +407,63 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
         </Card>
       </div>
 
-      {/* DESKTOP */}
-      <div className="hidden md:block max-w-5xl mx-auto">
-        <Card className="bg-white rounded-full shadow-md border border-gray-200">
+      {/* DESKTOP - Horizontal layout (Where | When | Who) */}
+      <div className="hidden md:block max-w-5xl mx-auto" data-testid="desktop-search-bar">
+        <Card className="bg-white rounded-full shadow-md border border-gray-200 hover:shadow-xl transition-shadow">
           <div className="flex items-center">
-            {/* Destination */}
+            {/* Where */}
             <div className="flex-1 relative" ref={desktopDropdownRef}>
-              <Input
-                type="text"
-                placeholder="Where"
-                value={locationValue}
-                onChange={(e) => {
-                  setLocationValue(e.target.value);
-                  setShowSuggestions(true);
+              <button
+                className="w-full flex items-center gap-2 p-2 pl-4 hover:bg-gray-50 rounded-l-full transition-colors text-left"
+                onClick={() => {
+                  const input = document.querySelector('[data-testid="desktop-destination-input"]') as HTMLInputElement;
+                  input?.focus();
                 }}
-                onKeyDown={handleLocationKeyDown}
-                className="border-0 p-3 text-sm placeholder:text-gray-500 focus-visible:ring-0 bg-transparent"
-              />
+              >
+                <div className="flex-1">
+                  <div className="text-xs font-semibold text-gray-900 mb-1">Where</div>
+                  <Input
+                    type="text"
+                    placeholder="Search destinations"
+                    value={locationValue}
+                    onChange={(e) => {
+                      setLocationValue(e.target.value);
+                      setShowSuggestions(true);
+                    }}
+                    onKeyDown={handleLocationKeyDown}
+                    className="border-0 p-0 h-auto text-sm placeholder:text-gray-500 focus-visible:ring-0 bg-transparent"
+                    aria-expanded={showSuggestions}
+                    aria-autocomplete="list"
+                    aria-controls="location-suggestions-desktop"
+                    data-testid="desktop-destination-input"
+                  />
+                </div>
+              </button>
+
               {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 bg-white border rounded-xl shadow-lg z-20 max-h-60 overflow-y-auto">
+                <div
+                  id="location-suggestions-desktop"
+                  className="absolute top-full left-0 right-0 mt-2 bg-white border rounded-xl shadow-lg z-20 max-h-60 overflow-y-auto"
+                  role="listbox"
+                >
                   {suggestions.map((s, i) => (
                     <button
                       key={s.place_id}
-                      onClick={() => selectSuggestion(s)}
-                      className={`w-full px-4 py-2.5 text-left text-sm ${
+                      role="option"
+                      aria-selected={i === activeIndex}
+                      className={`w-full px-4 py-2.5 text-left text-sm transition-colors first:rounded-t-xl last:rounded-b-xl ${
                         i === activeIndex ? "bg-gray-100" : "hover:bg-gray-50"
                       }`}
+                      onMouseEnter={() => setActiveIndex(i)}
+                      onMouseLeave={() => setActiveIndex(-1)}
+                      onClick={() => selectSuggestion(s)}
+                      data-testid={`desktop-suggestion-${s.place_id}`}
                     >
                       <div className="flex items-center gap-3">
                         <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
                         <span
                           dangerouslySetInnerHTML={{
-                            __html: highlightMatch(
-                              s.display_name,
-                              locationValue
-                            ),
+                            __html: highlightMatch(s.display_name, locationValue),
                           }}
                         />
                       </div>
@@ -422,92 +473,91 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
               )}
             </div>
 
+            {/* Divider */}
             <div className="w-px h-8 bg-gray-200"></div>
 
-            {/* Date */}
-            <Popover
-              open={showDatePickerDesktop}
-              onOpenChange={setShowDatePickerDesktop}
-            >
-              <PopoverTrigger asChild>
-                <button className="w-full flex items-center gap-2 p-2 text-left">
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                  <div className="flex-1">
-                    <div className="text-xs font-semibold text-gray-900 mb-1">
-                      When
+            {/* When */}
+            <div className="flex-1">
+              <Popover open={showDatePickerDesktop} onOpenChange={setShowDatePickerDesktop}>
+                <PopoverTrigger asChild>
+                  <button
+                    className="w-full flex items-center gap-2 p-2 hover:bg-gray-50 transition-colors text-left"
+                    data-testid="desktop-button-when"
+                  >
+                    <div className="flex-1">
+                      <div className="text-xs font-semibold text-gray-900 mb-1">When</div>
+                      <div className="text-sm text-gray-500">{date ? formatDate(date) : "Add dates"}</div>
                     </div>
-                    <div className="text-sm text-gray-500">
-                      {date ? formatDate(date) : "Add dates"}
-                    </div>
-                  </div>
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-2">
-                <Input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="text-sm"
-                />
-              </PopoverContent>
-            </Popover>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-2" align="center">
+                  <Input
+                    ref={desktopDateInputRef}
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="text-sm"
+                    data-testid="desktop-date-input"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
 
+            {/* Divider */}
             <div className="w-px h-8 bg-gray-200"></div>
 
-            {/* Guests */}
-            <Popover
-              open={showGuestPickerDesktop}
-              onOpenChange={setShowGuestPickerDesktop}
-            >
-              <PopoverTrigger asChild>
-                <button className="w-full flex items-center gap-2 p-2 text-left">
-                  <Users className="w-4 h-4 text-gray-400" />
-                  <div className="flex-1">
-                    <div className="text-xs font-semibold text-gray-900 mb-1">
-                      Who
+            {/* Who */}
+            <div className="flex-1">
+              <Popover open={showGuestPickerDesktop} onOpenChange={setShowGuestPickerDesktop}>
+                <PopoverTrigger asChild>
+                  <button
+                    className="w-full flex items-center gap-2 p-2 hover:bg-gray-50 transition-colors cursor-pointer text-left"
+                    data-testid="desktop-button-guests"
+                  >
+                    <div className="flex-1">
+                      <div className="text-xs font-semibold text-gray-900 mb-1">Who</div>
+                      <div className="text-sm text-gray-500">{formatGuestText(guests)}</div>
                     </div>
-                    <div className="text-sm text-gray-500">
-                      {formatGuestText(guests)}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-4" align="end">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold text-sm">Guests</div>
+                      <div className="text-xs text-gray-500">Ages 13 or above</div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => adjustGuests(-1)}
+                        disabled={guests <= 1}
+                        className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-900 transition-colors"
+                        data-testid="desktop-button-guests-decrease"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <span className="w-8 text-center font-semibold" data-testid="desktop-text-guests-count">
+                        {guests}
+                      </span>
+                      <button
+                        onClick={() => adjustGuests(1)}
+                        disabled={guests >= 16}
+                        className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-900 transition-colors"
+                        data-testid="desktop-button-guests-increase"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
                     </div>
                   </div>
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-semibold text-sm">Guests</div>
-                    <div className="text-xs text-gray-500">
-                      Ages 13 or above
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => adjustGuests(-1)}
-                      disabled={guests <= 1}
-                      className="w-6 h-6 rounded-full border border-gray-300"
-                    >
-                      <Minus className="w-3 h-3" />
-                    </button>
-                    <span className="w-8 text-center font-semibold">
-                      {guests}
-                    </span>
-                    <button
-                      onClick={() => adjustGuests(1)}
-                      disabled={guests >= 16}
-                      className="w-6 h-6 rounded-full border border-gray-300"
-                    >
-                      <Plus className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+                </PopoverContent>
+              </Popover>
+            </div>
 
             {/* Search Button */}
             <div className="p-1">
               <Button
                 onClick={handleSearch}
-                className="h-10 w-10 rounded-full bg-blue-600 text-white flex items-center justify-center"
+                className="h-10 w-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all hover:shadow-lg hover:scale-105"
+                data-testid="desktop-button-search"
               >
                 <Search className="w-4 h-4" />
               </Button>
