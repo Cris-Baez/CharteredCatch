@@ -108,15 +108,12 @@ echo "   👨‍✈️ Captain ID para testing: $CAPTAIN_ID"
 
 echo "📋 PASO 7: CREAR BOOKING"
 echo "========================="
-booking_date=$(date -d "+7 days" +"%Y-%m-%d")
+booking_date=$(date -d "+7 days" +"%Y-%m-%dT12:00:00.000Z")
 booking_data='{
   "charterId": '$CHARTER_ID',
-  "bookingDate": "'$booking_date'",
-  "guestCount": 4,
-  "message": "Test booking from automated script - please ignore",
-  "customerName": "Test User",
-  "customerEmail": "'$TEST_EMAIL'",
-  "customerPhone": "+1234567890"
+  "tripDate": "'$booking_date'",
+  "guests": 4,
+  "message": "Test booking from automated script - please ignore"
 }'
 
 make_request "POST" "/api/bookings" "$booking_data" "Creando booking"
@@ -128,7 +125,7 @@ echo "   📅 Booking ID creado: $BOOKING_ID"
 
 echo "📋 PASO 8: VER MIS BOOKINGS"
 echo "============================"
-make_request "GET" "/api/user/bookings" "" "Viendo mis bookings"
+make_request "GET" "/api/bookings/me" "" "Viendo mis bookings"
 if [ $? -ne 0 ]; then exit 1; fi
 
 echo "📋 PASO 9: ENVIAR MENSAJE"
