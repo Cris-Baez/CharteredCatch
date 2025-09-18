@@ -40,6 +40,33 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { handleStripeWebhook } from "./stripe-webhooks";
 import * as schema from "../shared/schema";
 
+export const stripeWebhookRouter = express.Router();
+
+stripeWebhookRouter.post(
+  "/api/stripe/webhook",
+  express.raw({ type: "application/json" }),
+  async (req: Request, res: Response) => {
+    const signature = req.headers["stripe-signature"];
+
+    if (typeof signature !== "string") {
+      res.status(400).send("Missing Stripe signature");
+      return;
+    }
+
+    const rawBody = Buffer.isBuffer(req.body)
+      ? req.body
+      : Buffer.from(req.body ?? "");
+
+    try {
+      await handleStripeWebhook(rawBody, signature);
+      res.status(200).send("OK");
+    } catch (error) {
+      console.error("Webhook error:", error);
+      res.status(400).send("Webhook error");
+    }
+  }
+);
+
 /**
  * SessionData: solo guardamos userId para evitar conflictos de tipos
  * con otras declaraciones del proyecto.
@@ -2613,19 +2640,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Cancel subscription error:", error);
       res.status(500).json({ error: "Failed to cancel subscription" });
-    }
-  });
-
-  // ============ Stripe Webhooks ============
-  app.post('/api/stripe/webhook', express.raw({type: 'application/json'}), async (req: Request, res: Response) => {
-    const signature = req.headers['stripe-signature'] as string;
-    
-    try {
-      await handleStripeWebhook(req.body, signature);
-      res.status(200).send('OK');
-    } catch (error) {
-      console.error('Webhook error:', error);
-      res.status(400).send('Webhook error');
     }
   });
 
