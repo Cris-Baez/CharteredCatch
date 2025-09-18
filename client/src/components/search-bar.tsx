@@ -300,8 +300,8 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
             {/* Guests - Full width */}
             <Popover open={showGuestPicker} onOpenChange={setShowGuestPicker}>
               <PopoverTrigger asChild>
-                <button 
-                  className="w-full flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 hover:shadow-sm transition-all text-left"
+                <div 
+                  className="w-full flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 hover:shadow-sm transition-all cursor-pointer"
                   data-testid="button-guests"
                 >
                   <Users className="w-3.5 h-3.5 text-gray-400 shrink-0" />
@@ -309,7 +309,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                     <div className="text-[11px] font-medium text-gray-800 mb-0">Who</div>
                     <div className="text-xs text-gray-700">{formatGuestText(guests)}</div>
                   </div>
-                </button>
+                </div>
               </PopoverTrigger>
               <PopoverContent className="w-48 p-3 rounded-2xl shadow-xl" align="start">
                 <div className="flex items-center justify-between">
@@ -447,15 +447,15 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
             <div className="flex-1">
               <Popover open={showGuestPicker} onOpenChange={setShowGuestPicker}>
                 <PopoverTrigger asChild>
-                  <button 
-                    className="w-full flex items-center gap-2 p-2 hover:bg-gray-50 transition-colors text-left"
+                  <div 
+                    className="w-full flex items-center gap-2 p-2 hover:bg-gray-50 transition-colors cursor-pointer"
                     data-testid="desktop-button-guests"
                   >
                     <div className="flex-1">
                       <div className="text-xs font-semibold text-gray-900 mb-1">Who</div>
                       <div className="text-sm text-gray-500">{formatGuestText(guests)}</div>
                     </div>
-                  </button>
+                  </div>
                 </PopoverTrigger>
                 <PopoverContent className="w-64 p-4" align="end">
                   <div className="flex items-center justify-between">
