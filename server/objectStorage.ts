@@ -28,7 +28,7 @@ async function getObjectAclPolicy(file: File): Promise<ObjectAclPolicy | null> {
     // Check for metadata that might contain ACL info
     const [metadata] = await file.getMetadata();
     if (metadata.metadata && metadata.metadata.aclPolicy) {
-      return JSON.parse(metadata.metadata.aclPolicy);
+      return JSON.parse(metadata.metadata.aclPolicy.toString());
     }
     return null;
   } catch (error) {
