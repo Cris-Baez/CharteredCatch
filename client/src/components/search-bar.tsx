@@ -1,10 +1,9 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { 
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -119,8 +118,8 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
     function handleClickOutside(e: MouseEvent) {
       const mobileContainer = mobileDropdownRef.current;
       const desktopContainer = desktopDropdownRef.current;
-      
-      if (mobileContainer && !mobileContainer.contains(e.target as Node) && 
+
+      if (mobileContainer && !mobileContainer.contains(e.target as Node) &&
           desktopContainer && !desktopContainer.contains(e.target as Node)) {
         setShowSuggestions(false);
         setActiveIndex(-1);
@@ -145,15 +144,15 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
 
   // Handle search
   const handleSearch = () => {
-    const filters = { 
-      location: locationValue, 
-      date, 
+    const filters = {
+      location: locationValue,
+      date,
       guests: guests.toString(),
       // Keep compatibility with existing search params
       targetSpecies: "",
       duration: "",
     };
-    
+
     if (onSearch) onSearch({ location: locationValue, date, guests });
     const params = new URLSearchParams(filters).toString();
     navigate(`/search?${params}`);
@@ -199,9 +198,9 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
   const formatDate = (dateString: string) => {
     if (!dateString) return "Add dates";
     const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", { 
-      month: "short", 
-      day: "numeric" 
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric"
     });
   };
 
@@ -231,7 +230,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                   />
                 </div>
                 {locationValue && (
-                  <button 
+                  <button
                     onClick={() => clearField(setLocationValue)}
                     className="p-1 hover:bg-gray-100 rounded-full transition-colors"
                     aria-label="Clear location"
@@ -241,7 +240,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                   </button>
                 )}
               </div>
-              
+
               {showSuggestions && suggestions.length > 0 && (
                 <div
                   id="location-suggestions"
@@ -249,7 +248,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                   role="listbox"
                 >
                   {suggestions.map((s, i) => (
-                    <button
+                    <div
                       key={s.place_id}
                       role="option"
                       aria-selected={i === activeIndex}
@@ -265,7 +264,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                         <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
                         <span dangerouslySetInnerHTML={{ __html: highlightMatch(s.display_name, locationValue) }} />
                       </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
               )}
@@ -286,7 +285,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                 />
               </div>
               {date && (
-                <button 
+                <button
                   onClick={() => clearField(setDate)}
                   className="p-1 hover:bg-gray-100 rounded-full transition-colors"
                   aria-label="Clear date"
@@ -300,7 +299,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
             {/* Guests - Full width */}
             <Popover open={showGuestPicker} onOpenChange={setShowGuestPicker}>
               <PopoverTrigger asChild>
-                <div 
+                <div
                   className="w-full flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-full hover:border-gray-300 hover:shadow-sm transition-all cursor-pointer"
                   data-testid="button-guests"
                 >
@@ -341,8 +340,8 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
             </Popover>
 
             {/* Search Button */}
-            <Button 
-              onClick={handleSearch} 
+            <Button
+              onClick={handleSearch}
               className="w-full h-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs flex items-center justify-center gap-1 transition-all hover:shadow-lg"
               data-testid="button-search"
             >
@@ -359,7 +358,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
           <div className="flex items-center">
             {/* Destination */}
             <div className="flex-1 relative" ref={desktopDropdownRef}>
-              <button 
+              <button
                 className="w-full flex items-center gap-2 p-2 pl-4 hover:bg-gray-50 rounded-l-full transition-colors text-left"
                 onClick={() => {
                   const input = document.querySelector('[data-testid="desktop-destination-input"]') as HTMLInputElement;
@@ -382,7 +381,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                   />
                 </div>
               </button>
-              
+
               {showSuggestions && suggestions.length > 0 && (
                 <div
                   id="location-suggestions-desktop"
@@ -417,7 +416,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
 
             {/* Date */}
             <div className="flex-1">
-              <button 
+              <button
                 className="w-full flex items-center gap-2 p-2 hover:bg-gray-50 transition-colors text-left"
                 onClick={() => {
                   const input = document.querySelector('[data-testid="desktop-date-input"]') as HTMLInputElement;
@@ -447,7 +446,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
             <div className="flex-1">
               <Popover open={showGuestPicker} onOpenChange={setShowGuestPicker}>
                 <PopoverTrigger asChild>
-                  <div 
+                  <div
                     className="w-full flex items-center gap-2 p-2 hover:bg-gray-50 transition-colors cursor-pointer"
                     data-testid="desktop-button-guests"
                   >
@@ -489,7 +488,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
 
             {/* Search Button */}
             <div className="p-1">
-              <Button 
+              <Button
                 onClick={handleSearch}
                 className="h-10 w-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all hover:shadow-lg hover:scale-105"
                 data-testid="desktop-button-search"
