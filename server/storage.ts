@@ -28,7 +28,16 @@ import {
 } from "@shared/schema";
 
 import { db } from "./db";
-import { eq, ilike, and } from "drizzle-orm";
+import { eq, ilike, and, sql } from "drizzle-orm";
+import type { NeonTransaction } from "drizzle-orm/neon-serverless";
+
+type TransactionClient = NeonTransaction<any, any>;
+
+function normalizeToUtcDay(date: Date): Date {
+  const normalized = new Date(date);
+  normalized.setUTCHours(0, 0, 0, 0);
+  return normalized;
+}
 
 
 // =======================================
@@ -88,8 +97,18 @@ export interface IStorage {
   // Availability
   createAvailability(availability: InsertAvailability): Promise<Availability>;
   getAvailability(charterId: number, month: string): Promise<Availability[]>;
-  updateAvailabilitySlots(charterId: number, date: Date, slotsToBook: number): Promise<boolean>;
-  checkAvailability(charterId: number, date: Date, requiredSlots: number): Promise<boolean>;
+  updateAvailabilitySlots(
+    charterId: number,
+    date: Date,
+    slotsToBook: number,
+    tx?: TransactionClient,
+  ): Promise<boolean>;
+  checkAvailability(
+    charterId: number,
+    date: Date,
+    requiredSlots: number,
+    tx?: TransactionClient,
+  ): Promise<boolean>;
 
   // Captain dashboard
   getCaptainStats(captainId: number): Promise<any>;
@@ -476,11 +495,80 @@ export class DatabaseStorage implements IStorage {
   async getAvailability(): Promise<Availability[]> {
     return [];
   }
-  async updateAvailabilitySlots(): Promise<boolean> {
-    return true;
+  private async lockAvailabilitySlot(
+    charterId: number,
+    date: Date,
+    tx?: TransactionClient,
+  ): Promise<{ id: number; slots: number; bookedSlots: number } | undefined> {
+    const executor = tx ?? db;
+    const normalizedDate = normalizeToUtcDay(date);
+
+    const rows = await executor
+      .select({
+        id: availability.id,
+        slots: availability.slots,
+        bookedSlots: availability.bookedSlots,
+      })
+      .from(availability)
+      .where(
+        and(
+          eq(availability.charterId, charterId),
+          sql`date_trunc('day', ${availability.date}) = date_trunc('day', ${normalizedDate})`,
+        ),
+      )
+      .limit(1)
+      .for("update");
+
+    return rows[0];
   }
-  async checkAvailability(): Promise<boolean> {
-    return true;
+  async updateAvailabilitySlots(
+    charterId: number,
+    date: Date,
+    slotsToBook: number,
+    tx?: TransactionClient,
+  ): Promise<boolean> {
+    if (slotsToBook <= 0) {
+      return true;
+    }
+
+    const slot = await this.lockAvailabilitySlot(charterId, date, tx);
+    if (!slot) {
+      return false;
+    }
+
+    const remainingSlots = slot.slots - slot.bookedSlots;
+    if (remainingSlots < slotsToBook) {
+      return false;
+    }
+
+    const executor = tx ?? db;
+    const [updated] = await executor
+      .update(availability)
+      .set({
+        bookedSlots: sql`${availability.bookedSlots} + ${slotsToBook}`,
+      })
+      .where(eq(availability.id, slot.id))
+      .returning({ id: availability.id });
+
+    return Boolean(updated);
+  }
+  async checkAvailability(
+    charterId: number,
+    date: Date,
+    requiredSlots: number,
+    tx?: TransactionClient,
+  ): Promise<boolean> {
+    if (requiredSlots <= 0) {
+      return true;
+    }
+
+    const slot = await this.lockAvailabilitySlot(charterId, date, tx);
+    if (!slot) {
+      return false;
+    }
+
+    const remainingSlots = slot.slots - slot.bookedSlots;
+    return remainingSlots >= requiredSlots;
   }
 
   async getCaptainStats(): Promise<any> {
