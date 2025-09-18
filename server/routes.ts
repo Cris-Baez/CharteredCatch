@@ -2025,17 +2025,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!req.session.userId) {
           return res.status(401).json({ error: "Unauthorized" });
         }
-        const { bio, licenseNumber, location, experience } = req.body ?? {};
+
+        const { bio, licenseNumber, location, experience, firstName, lastName } =
+          req.body ?? {};
+
+        const computedName = `${firstName ?? ""} ${lastName ?? ""}`.trim();
+        const updateData: Partial<typeof captainsTable.$inferInsert> = {};
+
+        if (typeof bio === "string") {
+          updateData.bio = bio;
+        }
+        if (typeof licenseNumber === "string") {
+          updateData.licenseNumber = licenseNumber;
+        }
+        if (typeof location === "string") {
+          updateData.location = location;
+        }
+        if (typeof experience === "string") {
+          updateData.experience = experience;
+        }
+        if (computedName) {
+          updateData.name = computedName;
+        }
+
+        const [existingCaptain] = await db
+          .select({ id: captainsTable.id })
+          .from(captainsTable)
+          .where(eq(captainsTable.userId, req.session.userId));
+
+        if (existingCaptain) {
+          if (Object.keys(updateData).length === 0) {
+            const [current] = await db
+              .select()
+              .from(captainsTable)
+              .where(eq(captainsTable.id, existingCaptain.id));
+            return res.status(200).json(current);
+          }
+
+          const [updated] = await db
+            .update(captainsTable)
+            .set(updateData)
+            .where(eq(captainsTable.userId, req.session.userId))
+            .returning();
+          return res.status(200).json(updated);
+        }
 
         const [created] = await db
           .insert(captainsTable)
           .values({
             userId: req.session.userId,
-            name: `${req.body.firstName || 'Captain'} ${req.body.lastName || ''}`.trim(),
-            bio: bio || '',
-            licenseNumber: licenseNumber || '',
-            location: location || '',
-            experience: experience || '',
+            name: computedName || "Captain",
+            bio: typeof bio === "string" ? bio : "",
+            licenseNumber: typeof licenseNumber === "string" ? licenseNumber : "",
+            location: typeof location === "string" ? location : "",
+            experience: typeof experience === "string" ? experience : "",
             verified: false,
           })
           .returning();
