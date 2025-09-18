@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -23,17 +24,24 @@ interface SearchBarProps {
   };
 }
 
+type NominatimItem = {
+  place_id: string | number;
+  display_name: string;
+};
+
 export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
   const [locationValue, setLocationValue] = useState("");
   const [date, setDate] = useState("");
   const [guests, setGuests] = useState(1);
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<NominatimItem[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showGuestPicker, setShowGuestPicker] = useState(false);
+  const [activeIndex, setActiveIndex] = useState<number>(-1);
 
   const [_, navigate] = useLocation();
   const mobileDropdownRef = useRef<HTMLDivElement>(null);
   const desktopDropdownRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<number | null>(null);
 
   // Load initial values
   useEffect(() => {
@@ -48,10 +56,14 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
   useEffect(() => {
     const savedFilters = localStorage.getItem("searchFilters");
     if (savedFilters && !initialValues) {
-      const { location, date, guests } = JSON.parse(savedFilters);
-      setLocationValue(location || "");
-      setDate(date || "");
-      setGuests(guests || 1);
+      try {
+        const { location, date, guests } = JSON.parse(savedFilters);
+        setLocationValue(location || "");
+        setDate(date || "");
+        setGuests(guests || 1);
+      } catch {
+        // ignore
+      }
     }
   }, [initialValues]);
 
@@ -63,33 +75,42 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
     }));
   }, [locationValue, date, guests]);
 
-  // Autocomplete with Nominatim
+  // Autocomplete with Nominatim (debounce)
   useEffect(() => {
-    if (locationValue.length < 3) {
+    if (locationValue.trim().length < 3) {
       setSuggestions([]);
+      setActiveIndex(-1);
       return;
     }
-    const controller = new AbortController();
-    const fetchSuggestions = async () => {
+
+    if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    debounceRef.current = window.setTimeout(async () => {
+      const controller = new AbortController();
       try {
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationValue)}&limit=5`,
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            locationValue.trim()
+          )}`,
           { signal: controller.signal }
         );
-        const data = await res.json();
+        const data: NominatimItem[] = await res.json();
         setSuggestions(data.slice(0, 5));
+        setShowSuggestions(true);
+        setActiveIndex(-1);
       } catch (error) {
-        // Only log if it's not an abort error
         if (error instanceof Error && error.name !== 'AbortError') {
           console.error('Fetch error:', error);
         }
       }
-    };
-    fetchSuggestions();
+      return () => {
+        if (!controller.signal.aborted) {
+          controller.abort();
+        }
+      };
+    }, 250);
+
     return () => {
-      if (!controller.signal.aborted) {
-        controller.abort();
-      }
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
   }, [locationValue]);
 
@@ -102,11 +123,25 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
       if (mobileContainer && !mobileContainer.contains(e.target as Node) && 
           desktopContainer && !desktopContainer.contains(e.target as Node)) {
         setShowSuggestions(false);
+        setActiveIndex(-1);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Highlight match (escaping query for regex safety)
+  function highlightMatch(text: string, query: string) {
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`(${escaped})`, "gi");
+    return text.replace(regex, "<mark>$1</mark>");
+  }
+
+  const selectSuggestion = (item: NominatimItem) => {
+    setLocationValue(item.display_name);
+    setShowSuggestions(false);
+    setActiveIndex(-1);
+  };
 
   // Handle search
   const handleSearch = () => {
@@ -122,13 +157,34 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
     if (onSearch) onSearch({ location: locationValue, date, guests });
     const params = new URLSearchParams(filters).toString();
     navigate(`/search?${params}`);
+    // Close dropdown on search
+    setShowSuggestions(false);
+    setActiveIndex(-1);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") handleSearch();
+  const handleLocationKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || suggestions.length === 0) {
+      if (e.key === "Enter") handleSearch();
+      return;
+    }
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((idx) => (idx + 1 >= suggestions.length ? 0 : idx + 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((idx) => (idx - 1 < 0 ? suggestions.length - 1 : idx - 1));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (activeIndex >= 0) selectSuggestion(suggestions[activeIndex]);
+      else handleSearch();
+    } else if (e.key === "Escape") {
+      setShowSuggestions(false);
+      setActiveIndex(-1);
+    }
   };
 
-  const clearField = (setter: (v: any) => void, defaultValue: any = "") => setter(defaultValue);
+  const clearField = (setter: (v: string) => void) => setter("");
 
   const adjustGuests = (change: number) => {
     const newGuests = Math.max(1, Math.min(16, guests + change));
@@ -166,9 +222,11 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                     placeholder="Search destinations"
                     value={locationValue}
                     onChange={(e) => { setLocationValue(e.target.value); setShowSuggestions(true); }}
-                    onKeyDown={handleKeyDown}
+                    onKeyDown={handleLocationKeyDown}
                     className="border-0 p-0 h-auto text-xs placeholder:text-gray-500 focus-visible:ring-0"
                     aria-expanded={showSuggestions}
+                    aria-autocomplete="list"
+                    aria-controls="location-suggestions"
                     data-testid="input-destination"
                   />
                 </div>
@@ -176,6 +234,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                   <button 
                     onClick={() => clearField(setLocationValue)}
                     className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                    aria-label="Clear location"
                     data-testid="button-clear-destination"
                   >
                     <X className="w-4 h-4 text-gray-400" />
@@ -184,20 +243,27 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
               </div>
               
               {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border rounded-2xl shadow-xl z-20 max-h-60 overflow-y-auto">
-                  {suggestions.map((s) => (
+                <div
+                  id="location-suggestions"
+                  className="absolute top-full left-0 right-0 mt-1.5 bg-white border rounded-2xl shadow-xl z-20 max-h-60 overflow-y-auto"
+                  role="listbox"
+                >
+                  {suggestions.map((s, i) => (
                     <button
                       key={s.place_id}
-                      className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 transition-colors first:rounded-t-2xl last:rounded-b-2xl"
-                      onClick={() => {
-                        setLocationValue(s.display_name);
-                        setShowSuggestions(false);
-                      }}
+                      role="option"
+                      aria-selected={i === activeIndex}
+                      className={`w-full px-4 py-2.5 text-left text-sm transition-colors first:rounded-t-2xl last:rounded-b-2xl ${
+                        i === activeIndex ? "bg-gray-100" : "hover:bg-gray-50"
+                      }`}
+                      onMouseEnter={() => setActiveIndex(i)}
+                      onMouseLeave={() => setActiveIndex(-1)}
+                      onClick={() => selectSuggestion(s)}
                       data-testid={`suggestion-${s.place_id}`}
                     >
                       <div className="flex items-center gap-3">
                         <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
-                        <span>{s.display_name}</span>
+                        <span dangerouslySetInnerHTML={{ __html: highlightMatch(s.display_name, locationValue) }} />
                       </div>
                     </button>
                   ))}
@@ -223,6 +289,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                 <button 
                   onClick={() => clearField(setDate)}
                   className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                  aria-label="Clear date"
                   data-testid="button-clear-date"
                 >
                   <X className="w-4 h-4 text-gray-400" />
@@ -287,7 +354,7 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
       </div>
 
       {/* DESKTOP - Horizontal layout */}
-      <div className="hidden md:block max-w-2x2 mx-auto" data-testid="desktop-search-bar">
+      <div className="hidden md:block max-w-5xl mx-auto" data-testid="desktop-search-bar">
         <Card className="bg-white rounded-full shadow-md border border-gray-200 hover:shadow-xl transition-shadow">
           <div className="flex items-center">
             {/* Destination */}
@@ -300,35 +367,44 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
                 }}
               >
                 <div className="flex-1">
-                  <div className="text-[11px] font-medium text-gray-800 mb-1">Where</div>
+                  <div className="text-xs font-semibold text-gray-900 mb-1">Where</div>
                   <Input
                     type="text"
                     placeholder="Search destinations"
                     value={locationValue}
                     onChange={(e) => { setLocationValue(e.target.value); setShowSuggestions(true); }}
-                    onKeyDown={handleKeyDown}
+                    onKeyDown={handleLocationKeyDown}
                     className="border-0 p-0 h-auto text-sm placeholder:text-gray-500 focus-visible:ring-0 bg-transparent"
                     aria-expanded={showSuggestions}
+                    aria-autocomplete="list"
+                    aria-controls="location-suggestions-desktop"
                     data-testid="desktop-destination-input"
                   />
                 </div>
               </button>
               
               {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white border rounded-xl shadow-lg z-20 max-h-60 overflow-y-auto">
-                  {suggestions.map((s) => (
+                <div
+                  id="location-suggestions-desktop"
+                  className="absolute top-full left-0 right-0 mt-2 bg-white border rounded-xl shadow-lg z-20 max-h-60 overflow-y-auto"
+                  role="listbox"
+                >
+                  {suggestions.map((s, i) => (
                     <button
                       key={s.place_id}
-                      className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 transition-colors first:rounded-t-2xl last:rounded-b-2xl"
-                      onClick={() => {
-                        setLocationValue(s.display_name);
-                        setShowSuggestions(false);
-                      }}
+                      role="option"
+                      aria-selected={i === activeIndex}
+                      className={`w-full px-4 py-2.5 text-left text-sm transition-colors first:rounded-t-xl last:rounded-b-xl ${
+                        i === activeIndex ? "bg-gray-100" : "hover:bg-gray-50"
+                      }`}
+                      onMouseEnter={() => setActiveIndex(i)}
+                      onMouseLeave={() => setActiveIndex(-1)}
+                      onClick={() => selectSuggestion(s)}
                       data-testid={`desktop-suggestion-${s.place_id}`}
                     >
                       <div className="flex items-center gap-3">
                         <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
-                        <span>{s.display_name}</span>
+                        <span dangerouslySetInnerHTML={{ __html: highlightMatch(s.display_name, locationValue) }} />
                       </div>
                     </button>
                   ))}
@@ -350,12 +426,14 @@ export default function SearchBar({ onSearch, initialValues }: SearchBarProps) {
               >
                 <div className="flex-1">
                   <div className="text-xs font-semibold text-gray-900 mb-1">When</div>
+                  <div className="text-sm text-gray-500">
+                    {date ? formatDate(date) : "Add dates"}
+                  </div>
                   <Input
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="border-0 p-0 h-auto text-sm focus-visible:ring-0 bg-transparent"
-                    placeholder="Add dates"
+                    className="border-0 p-0 h-0 opacity-0 absolute pointer-events-none"
                     data-testid="desktop-date-input"
                   />
                 </div>
