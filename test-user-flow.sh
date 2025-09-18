@@ -60,7 +60,7 @@ user_data='{
   "phone": "+1234567890"
 }'
 
-make_request "POST" "/api/auth/register" "$user_data" "Registrando usuario"
+make_request "POST" "/api/auth/local/register" "$user_data" "Registrando usuario"
 if [ $? -ne 0 ]; then exit 1; fi
 
 echo "📋 PASO 2: LOGIN USUARIO"
@@ -70,12 +70,12 @@ login_data='{
   "password": "'$TEST_PASSWORD'"
 }'
 
-make_request "POST" "/api/auth/login" "$login_data" "Haciendo login"
+make_request "POST" "/api/auth/local/login" "$login_data" "Haciendo login"
 if [ $? -ne 0 ]; then exit 1; fi
 
 echo "📋 PASO 3: VERIFICAR SESIÓN"
 echo "============================="
-make_request "GET" "/api/auth/me" "" "Verificando sesión actual"
+make_request "GET" "/api/auth/user" "" "Verificando sesión actual"
 if [ $? -ne 0 ]; then exit 1; fi
 
 echo "📋 PASO 4: BROWSE CHARTERS"

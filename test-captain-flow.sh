@@ -64,7 +64,7 @@ captain_data='{
   "userType": "captain"
 }'
 
-make_request "POST" "/api/auth/register" "$captain_data" "Registrando captain"
+make_request "POST" "/api/auth/local/register" "$captain_data" "Registrando captain"
 if [ $? -ne 0 ]; then exit 1; fi
 
 echo "📋 PASO 2: LOGIN CAPTAIN"
@@ -74,12 +74,12 @@ login_data='{
   "password": "'$TEST_PASSWORD'"
 }'
 
-make_request "POST" "/api/auth/login" "$login_data" "Haciendo login como captain"
+make_request "POST" "/api/auth/local/login" "$login_data" "Haciendo login como captain"
 if [ $? -ne 0 ]; then exit 1; fi
 
 echo "📋 PASO 3: VERIFICAR SESIÓN CAPTAIN"
 echo "==================================="
-make_request "GET" "/api/auth/me" "" "Verificando sesión de captain"
+make_request "GET" "/api/auth/user" "" "Verificando sesión de captain"
 if [ $? -ne 0 ]; then exit 1; fi
 
 echo "📋 PASO 4: OBTENER STATUS CAPTAIN"
